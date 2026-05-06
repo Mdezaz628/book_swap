@@ -1,3 +1,4 @@
+let imageFile;
 console.log("🔥 SCRIPT FILE LOADED");
 function clearPersistedFields() {
   ['chatInput', 'loginEmail', 'email'].forEach((id) => {
@@ -127,57 +128,60 @@ function goHome() {
 }
 // addbook()
 async function addBook() {
-  const title = document.getElementById("isbnInput").value;
-  const price = document.querySelector(".price-row input").value;
-  const seller = localStorage.getItem("userName") || "User";
-  const category = "General";
-  const bookImages = document.getElementById("bookImages").files;
 
-  if (!title || !price) {
-    alert("Please fill in all required fields");
-    return;
-  }
+  const title = document.getElementById("isbnInput").value.trim();
 
-  const formData = new FormData();
+  const price = Number(
+    document.getElementById("bookPrice").value
+  );
 
-  formData.append("title", title);
-  formData.append("price", price);
-  formData.append("seller", seller);
-  formData.append("category", category);
+  const category =
+    document.getElementById("bookCategory").value;
 
-  // 📸 images
-  for (let i = 0; i < bookImages.length; i++) {
-    formData.append("images", bookImages[i]);
-  }
+  const seller =
+    localStorage.getItem("userName") || "User";
+
+const files =
+  document.getElementById("bookImages").files;
+
+const formData = new FormData();
+
+formData.append("title", title);
+formData.append("price", price);
+formData.append("seller", seller);
+formData.append("category", category);
+
+for(let i = 0; i < files.length; i++){
+
+  formData.append("images", files[i]);
+
+}
 
   try {
-    const res = await fetch("http://localhost:5000/add-book", {
-      method: "POST",
-      body: formData
-    });
 
-    const data = await res.json();
-    console.log("📦 RESPONSE 👉", data);
+    const response = await fetch(
+      "http://localhost:5000/add-book",
+      {
+        method: "POST",
+        body: formData
+      }
+    );
 
-    if (res.ok) {
-      showThankPopup();
+    const data = await response.json();
 
-      document.getElementById("isbnInput").value = "";
-      document.querySelector(".price-row input").value = "";
-      document.getElementById("bookImages").value = "";
-      document.getElementById("previewContainer").innerHTML = "";
+    console.log(data);
 
-      closeModal('sellModal');
-      loadBooksHome();
-    } else {
-      alert(data.message || "Error adding book ❌");
-    }
+    alert("Book Added Successfully 🎉");
 
-  } catch (err) {
-  console.log("🔥 FRONTEND ERROR 👉", err);
-  alert("Server error ❌");
-}}
+  } catch (error) {
 
+    console.log(error);
+
+    alert("Server not reachable ❌");
+
+  }
+
+}
 
 // 🔹 IMAGE PREVIEW
 document.getElementById("bookImages")?.addEventListener("change", function() {
@@ -368,6 +372,12 @@ function closeThankPopup() {
   const el = document.getElementById("thankPopup");
   if (!el) return;
   el.style.display = "none";
+}
+
+// Navigate to chat with selected seller
+function chatWithSeller(name) {
+  localStorage.setItem("chatSeller", name);
+  window.location.href = "chat.html";
 }
 async function loadProfile() {
   const token = localStorage.getItem("token");

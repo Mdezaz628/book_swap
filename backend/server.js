@@ -1,23 +1,13 @@
 require("dotenv").config();
-const multer = require("multer");
 const jwt = require("jsonwebtoken");
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const bcrypt = require("bcrypt"); // ✅ FIX
+const upload = require("./middleware/multer");
+const Book = require("./models/Book");
 
 const app = express();
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
-  }
-});
-
-const upload = multer({ storage });
 
 app.use(express.json());
 app.use(cors());
@@ -33,14 +23,9 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.model("User", userSchema);
 
 // ✅ BOOK MODEL (FIX)
-const bookSchema = new mongoose.Schema({
-  title: String,
-  price: Number,
-  seller: String,
-  category: String,
-  images: [String]
-});
-const Book = mongoose.model("Book", bookSchema);
+
+
+
 
 // ✅ TEST
 app.get("/", (req, res) => {
@@ -115,33 +100,42 @@ function authMiddleware(req, res, next) {
 }
 
 // 📚 ADD BOOK
-app.post("/add-book", upload.array("images"), async (req, res) => {
+app.post("/add-book", upload.array("images", 5), async (req, res) => {
+
   try {
+
     console.log("BODY 👉", req.body);
     console.log("FILES 👉", req.files);
 
     const { title, price, seller, category } = req.body;
-
-    const imageNames = req.files
-      ? req.files.map(file => file.filename)
-      : [];
 
     const newBook = new Book({
       title,
       price,
       seller,
       category,
-      images: imageNames
+
+      images: req.files
+  ? req.files.map(file => file.path)
+  : []
     });
 
     await newBook.save();
 
-    res.json({ message: "Book added ✅" });
+    res.json({
+      message: "Book added ✅"
+    });
 
   } catch (err) {
+
     console.log("🔥 ERROR 👉", err);
-    res.status(500).json({ message: "Server error ❌" });
+
+    res.status(500).json({
+      message: "Server error ❌"
+    });
+
   }
+
 });
 
 // 📚 GET BOOKS

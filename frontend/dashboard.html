@@ -523,7 +523,7 @@ async function loadBooksHome() {
     books.slice(0, 4).forEach(book => {
       container.innerHTML += `
         <div class="book-card">
-          <img src="${book.image || 'https://via.placeholder.com/120'}"
+          <img src="${book.images?.[0] || book.image || 'https://via.placeholder.com/120'}"
      style="width:100%; height:120px; object-fit:cover; border-radius:8px;" />
 
           <div class="book-info">
@@ -546,8 +546,6 @@ window.addEventListener("load", () => {
 });
 </script>
 
-<script src="script.js"></script>
-
 <script>
 function openModal(id) {
   document.getElementById(id).classList.add("open");
@@ -562,51 +560,76 @@ function closeModal(id) {
 
 <script>
 async function addBook() {
-  const title = document.getElementById("isbnInput").value.trim();
-  const price = Number(document.getElementById("bookPrice").value);
-  const category = document.getElementById("bookCategory").value;
-  const seller = localStorage.getItem("userName") || "User";
+
+  const title =
+    document.getElementById("isbnInput").value.trim();
+
+  const price =
+    Number(document.getElementById("bookPrice").value);
+
+  const category =
+    document.getElementById("bookCategory").value;
+
+  const seller =
+    localStorage.getItem("userName") || "User";
+
+  const files =
+    document.getElementById("bookImages").files;
 
   if (!title || !price || !category) {
     alert("All fields required ❗");
     return;
   }
 
+  // ✅ FORMDATA
+  const formData = new FormData();
+
+  formData.append("title", title);
+  formData.append("price", price);
+  formData.append("seller", seller);
+  formData.append("category", category);
+
+  // ✅ IMAGE
+  for (let i = 0; i < files.length; i++) {
+    formData.append("images", files[i]);
+  }
+
   try {
-    const res = await fetch("http://localhost:5000/add-book", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({
-    title,
-    price,
-    seller,
-    category
-  })
-});
-    const files = document.getElementById("bookImages").files;
 
-let image = "";
-
-if (files.length > 0) {
-  image = URL.createObjectURL(files[0]); // 🔥 FIRST IMAGE
-}
+    const res = await fetch(
+      "http://localhost:5000/add-book",
+      {
+        method: "POST",
+        body: formData
+      }
+    );
 
     const data = await res.json();
+
     console.log("SERVER RESPONSE:", data);
 
     if (res.ok) {
+
       alert("Book added successfully 🎉");
-      closeModal('sellModal');
+
+      closeModal("sellModal");
+
+      loadBooksHome();
+
     } else {
+
       alert(data.message || "Error ❌");
+
     }
 
   } catch (err) {
+
     console.error("FETCH ERROR:", err);
+
     alert("Server not reachable ❌");
+
   }
+
 }
 </script>
 
