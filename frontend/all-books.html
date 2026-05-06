@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>All Books</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div style="margin:20px;">
+  <button onclick="goHome()" class="back-btn">← Back to Home</button>
+</div>
+
+<h2 style="text-align:center;">📚 All Books</h2>
+
+<!-- 🔍 SEARCH BAR -->
+<div style="text-align:center; margin:20px;">
+  <input 
+    type="text" 
+    id="searchInput"
+    placeholder="Search books..." 
+    style="width:60%; padding:12px; border-radius:8px;"
+    oninput="filterBooks()"
+  >
+</div>
+
+<!-- 📂 CATEGORY FILTER -->
+<div style="text-align:center; margin-bottom:20px;">
+  <button onclick="filterCategory('All')">All</button>
+  <button onclick="filterCategory('Engineering')">Engineering</button>
+  <button onclick="filterCategory('Novel')">Novel</button>
+</div>
+
+<!-- 📚 BOOKS -->
+<div class="books-grid" id="booksContainer"></div>
+
+<script>
+let allBooks = [];
+let currentCategory = "All";
+
+async function loadBooks() {
+  const res = await fetch("http://localhost:5000/books") ;
+  allBooks = await res.json();
+  displayBooks(allBooks);
+}
+
+function displayBooks(books) {
+  const container = document.getElementById("booksContainer");
+  container.innerHTML = "";
+
+  books.forEach(book => {
+    container.innerHTML += `
+      <div class="book-card">
+        <div class="book-title">${book.title}</div>
+        <div>${book.category}</div>
+        <div>₹${book.price}</div>
+      </div>
+    `;
+  });
+}
+
+// 🔍 SEARCH
+function filterBooks() {
+  const search = document.getElementById("searchInput").value.toLowerCase();
+
+  const filtered = allBooks.filter(book =>
+    book.title.toLowerCase().includes(search) &&
+    (currentCategory === "All" || book.category === currentCategory)
+  );
+
+  displayBooks(filtered);
+}
+
+// 📂 CATEGORY
+function filterCategory(cat) {
+  currentCategory = cat;
+  filterBooks();
+}
+
+function goHome() {
+  window.location.href = "dashboard.html";
+}
+
+window.onload = loadBooks;
+</script>
+
+</body>
+</html>

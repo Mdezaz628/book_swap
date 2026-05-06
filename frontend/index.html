@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BookSwap — College Marketplace</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <div class="logo-icon">📖</div>
+    Book<span>Swap</span>
+  </div>
+  <div class="nav-links">
+    <a href="#" onclick="showSection('browse')">Browse Books</a>
+    <a href="#" onclick="showSection('sell')">Sell Books</a>
+    <a href="#features">Features</a>
+    <a href="#how">How it Works</a>
+    <a href="#" onclick="document.getElementById('chatSection').scrollIntoView({behavior:'smooth'})">💬 Chat</a>
+  </div>
+  <div class="nav-actions">
+    <button id="loginBtn" class="btn-ghost" onclick="openModal('authModal')">Log In</button>
+    <button class="btn-primary" onclick="openModal('authModal')">Sign Up Free</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-eyebrow">College Marketplace — Save Big</div>
+    <h1>Buy &amp; Sell<br/>College Books<br/><em>Smarter</em></h1>
+    <p class="hero-sub">India's first AI-powered college textbook marketplace. Buy used books at 60% off, sell yours in minutes. Chat in real-time. No middlemen.</p>
+    <div class="hero-cta">
+      <button class="btn-lg btn-amber" onclick="openModal('authModal')">🚀 Get Started Free</button>
+      <button class="btn-lg btn-outline" onclick="document.getElementById('listings').scrollIntoView({behavior:'smooth'})">Browse Books →</button>
+    </div>
+    <div class="hero-stats">
+      <div>
+        <h2 id="booksCount">0</h2>
+        <p>Books Listed</p>
+      </div>
+      <div>
+        <h2 id="usersCount">0</h2>
+        <p>Students</p>
+      </div>
+      <div>
+        <h2 id="savedAmount">₹0</h2>
+        <p>Saved by Students</p>
+      </div>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="book-stack">
+      <div class="book"></div>
+      <div class="book"></div>
+      <div class="book"></div>
+      <div class="book"></div>
+      <div class="book-badge">📚 Save 60%</div>
+      <div class="book-badge-2">✅ Verified</div>
+    </div>
+  </div>
+</section>
+
+<!-- SEARCH -->
+<section class="search-section">
+  <div class="search-label">Find your textbook instantly</div>
+  <div class="search-bar">
+    <select class="search-filter">
+      <option>All Categories</option>
+      <option>Engineering</option>
+      <option>Medical</option>
+      <option>MBA/Commerce</option>
+      <option>Fiction/Others</option>
+    </select>
+    <input class="search-input" type="text" placeholder="Search by title, author, ISBN, or subject..."/>
+    <button class="search-btn" onclick="alert('Search feature active! Connect to MongoDB full-text search API.')">🔍 Search</button>
+  </div>
+  <div class="search-tags">
+    <span>Popular:</span>
+    <span class="tag" onclick="alert('Showing Data Structures books near you')">Data Structures</span>
+    <span class="tag">Operating Systems</span>
+    <span class="tag">Gray's Anatomy</span>
+    <span class="tag">Engineering Maths</span>
+    <span class="tag">VLSI Design</span>
+    <span class="tag">Pharmacology</span>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section" id="features">
+  <div class="section-header">
+    <div class="section-eyebrow">Platform Features</div>
+    <h2>Everything you need<br/>in one place</h2>
+    <p class="section-sub">Built specifically for Indian college students. Smart, fast, and trustworthy.</p>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#fff3e0">🤖</div>
+      <h3>AI Book Assistant</h3>
+      <p>Tell our AI chatbot your subject or syllabus — it finds the exact books you need and recommends the best deals nearby.</p>
+      <span class="feature-tag ai">AI Powered</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#fce4ec">💬</div>
+      <h3>Real-Time Chat</h3>
+      <p>Message sellers instantly via Socket.IO chat. Negotiate price, confirm condition, arrange pickup — all in-app.</p>
+      <span class="feature-tag hot">🔥 Popular</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#e8f5e9">📍</div>
+      <h3>Location-Based Search</h3>
+      <p>Find books at your college or nearby colleges. Set your radius and see available books on an interactive map.</p>
+      <span class="feature-tag new">New</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#e3f2fd">🔍</div>
+      <h3>Condition Verification</h3>
+      <p>Sellers upload clear photos; our system flags damage, heavy highlighting, or missing pages so buyers know exactly what they're getting.</p>
+      <span class="feature-tag">Smart Check</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#f3e5f5">💰</div>
+      <h3>Price Comparison</h3>
+      <p>See the MRP vs. current listed price vs. average sold price. Know instantly if you're getting a fair deal.</p>
+      <span class="feature-tag hot">💸 Save More</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#e0f7fa">🔄</div>
+      <h3>Book Exchange</h3>
+      <p>No cash? No problem. Swap books with other students. List what you have, request what you need — zero cost exchange.</p>
+      <span class="feature-tag new">Unique ⭐</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#fff9c4">🔔</div>
+      <h3>Wishlist & Alerts</h3>
+      <p>Save books to your wishlist. Get instant notifications when price drops or a new copy of your desired book is listed.</p>
+      <span class="feature-tag">Smart Alerts</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#fce4ec">📱</div>
+      <h3>QR Code Pickup</h3>
+      <p>Generate a one-time QR code for every transaction. Verify on pickup — no fake meetups, no disputes.</p>
+      <span class="feature-tag new">Secure</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#e8eaf6">🎓</div>
+      <h3>College-Only Mode</h3>
+      <p>Enable college verification. Restrict your listings to only students from your campus for maximum trust and safety.</p>
+      <span class="feature-tag">Verified Only</span>
+    </div>
+  </div>
+</section>
+
+<!-- BOOK LISTINGS -->
+<section class="listings-section" id="listings">
+  <div class="listings-header">
+    <div>
+      <div class="section-eyebrow">Recent Listings</div>
+      <h2>Books near you</h2>
+    </div>
+    <a href="#">View all 12,400+ books →</a>
+  </div>
+  <div class="books-grid">
+    <div class="book-card" onclick="openModal('authModal')">
+      <div class="book-thumb" style="background:#dbeafe">📘<span class="book-condition cond-good">Good</span></div>
+      <div class="book-info">
+        <div class="book-title">Data Structures & Algorithms</div>
+        <div class="book-author">Thomas Cormen · CLRS</div>
+        <div class="book-meta">
+          <div>
+            <div class="book-price">₹320</div>
+            <div class="book-orig">MRP ₹899</div>
+          </div>
+          <div class="book-stars">★★★★★</div>
+        </div>
+        <div class="book-location">IIT Bombay, 0.3km</div>
+      </div>
+    </div>
+    <div class="book-card" onclick="openModal('authModal')">
+      <div class="book-thumb" style="background:#dcfce7">🟩<span class="book-condition cond-new">New</span></div>
+      <div class="book-info">
+        <div class="book-title">Gray's Anatomy</div>
+        <div class="book-author">Henry Gray · 42nd Ed.</div>
+        <div class="book-meta">
+          <div>
+            <div class="book-price">₹1,400</div>
+            <div class="book-orig">MRP ₹4,200</div>
+          </div>
+          <div class="book-stars">★★★★☆</div>
+        </div>
+        <div class="book-location">AIIMS Delhi, 1.2km</div>
+      </div>
+    </div>
+    <div class="book-card" onclick="openModal('authModal')">
+      <div class="book-thumb" style="background:#fef9c3">📙<span class="book-condition cond-good">Good</span></div>
+      <div class="book-info">
+        <div class="book-title">Engineering Maths Vol. 2</div>
+        <div class="book-author">H.K. Dass</div>
+        <div class="book-meta">
+          <div>
+            <div class="book-price">₹180</div>
+            <div class="book-orig">MRP ₹550</div>
+          </div>
+          <div class="book-stars">★★★★★</div>
+        </div>
+        <div class="book-location">VIT Vellore, 0.7km</div>
+      </div>
+    </div>
+    <div class="book-card" onclick="openModal('authModal')">
+      <div class="book-thumb" style="background:#fce7f3">📕<span class="book-condition cond-fair">Fair</span></div>
+      <div class="book-info">
+        <div class="book-title">Operating System Concepts</div>
+        <div class="book-author">Silberschatz · 10th Ed.</div>
+        <div class="book-meta">
+          <div>
+            <div class="book-price">₹250</div>
+            <div class="book-orig">MRP ₹799</div>
+          </div>
+          <div class="book-stars">★★★☆☆</div>
+        </div>
+        <div class="book-location">BITS Pilani, 2.1km</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CHAT PREVIEW -->
+<section class="chat-section" id="chatSection">
+  <div>
+    <div class="section-eyebrow">Real-Time Chat</div>
+    <h2>Talk to sellers<br/>before you buy</h2>
+    <p style="color:var(--muted);line-height:1.7;margin:1.2rem 0 2rem;max-width:40ch">No awkward calls or meeting strangers without talking first. Chat in real-time, negotiate price, confirm book condition, and plan pickup — all secured in-app.</p>
+    <div style="display:flex;flex-direction:column;gap:.8rem">
+      <div style="display:flex;align-items:center;gap:.8rem">
+        <div style="width:32px;height:32px;background:#e8f5e9;border-radius:50%;display:flex;align-items:center;justify-content:center">✅</div>
+        <span style="font-size:.9rem">End-to-end verified student accounts only</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:.8rem">
+        <div style="width:32px;height:32px;background:#fff3e0;border-radius:50%;display:flex;align-items:center;justify-content:center">⚡</div>
+        <span style="font-size:.9rem">Socket.IO real-time — messages in &lt;50ms</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:.8rem">
+        <div style="width:32px;height:32px;background:#e3f2fd;border-radius:50%;display:flex;align-items:center;justify-content:center">📎</div>
+        <span style="font-size:.9rem">Share book photos and QR codes in chat</span>
+      </div>
+    </div>
+    <button class="btn-lg btn-amber" style="margin-top:2rem" onclick="openModal('authModal')">Start Chatting →</button>
+  </div>
+  
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how-section" id="how">
+  <div class="section-header">
+    <div class="section-eyebrow">How It Works</div>
+    <h2>From listed to sold<br/>in 4 simple steps</h2>
+    <p class="section-sub">Takes less than 3 minutes to list your first book. Buyers find you instantly.</p>
+  </div>
+  <div class="steps-grid">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-title">Create Account</div>
+      <div class="step-desc">Sign up with your college email. Instant verification builds trust with buyers.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-title">List Your Book</div>
+      <div class="step-desc">Enter title or ISBN — Google Books auto-fills details. Upload photos. Set your price.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-title">Chat & Negotiate</div>
+      <div class="step-desc">Interested buyers message you instantly. Agree on price via real-time chat.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-title">QR Pickup</div>
+      <div class="step-desc">Generate a QR code. Scan at meetup for verified transaction. Rate each other!</div>
+    </div>
+  </div>
+</section>
+
+<!-- REVIEWS -->
+<section class="reviews-section">
+  <div class="section-header">
+    <div class="section-eyebrow">Student Reviews</div>
+    <h2>Loved by college students</h2>
+  </div>
+  <div class="reviews-grid">
+    <div class="review-card">
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">"Saved ₹3,200 on my 3rd year textbooks. The AI recommendation literally found books I didn't even know I needed. Chat system made it super easy to negotiate!"</p>
+      <div class="review-author">
+        <div class="review-avatar" style="background:#2d5a8e">ME</div>
+        <div>
+          <div class="review-name">Md Ezaz Ansari</div>
+          <div class="review-college">B.Tech CSE </div>
+        </div>
+      </div>
+    </div>
+    <div class="review-card">
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">"Listed 8 books when semester ended and sold all of them within 4 days. Got ₹2,800 back — that's literally my next semester's pocket money sorted!"</p>
+      <div class="review-author">
+        <div class="review-avatar" style="background:#c0441b">RK</div>
+        <div>
+          <div class="review-name">Ramaha Khan</div>
+          <div class="review-college">MBBS Year 2 · AIIMS Delhi</div>
+        </div>
+      </div>
+    </div>
+    <div class="review-card">
+      <div class="review-stars">★★★★☆</div>
+      <p class="review-text">"The book exchange feature is genius. I swapped my 2nd sem books for 3rd sem without spending a single rupee. More colleges need to know about this!"</p>
+      <div class="review-author">
+        <div class="review-avatar" style="background:#4a7c59">FA</div>
+        <div>
+          <div class="review-name">Farhan Akhtar</div>
+          <div class="review-college">B.Com · Christ University</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <h2>Start saving money today</h2>
+  <p>Join 3,800+ students who are already buying and selling smarter. It's completely free to sign up.</p>
+  <div class="cta-btns">
+    <button class="btn-white" onclick="openModal('authModal')">📚 Create Free Account</button>
+    <button class="btn-border-white" onclick="openModal('sellModal')">+ List Your First Book</button>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-brand">
+    <div class="nav-logo" style="color:var(--paper)">
+      <div class="logo-icon">📖</div>
+      Book<span>Swap</span>
+    </div>
+    <p class="footer-desc">India's smartest college textbook marketplace. Buy used, sell fast, swap smart.</p>
+  </div>
+  <div>
+    <h4>Marketplace</h4>
+    <ul>
+      <li><a href="#">Browse Books</a></li>
+      <li><a href="#">Sell a Book</a></li>
+      <li><a href="#">Book Exchange</a></li>
+      <li><a href="#">Wishlist</a></li>
+    </ul>
+  </div>
+  <div>
+    <h4>Categories</h4>
+    <ul>
+      <li><a href="#">Engineering</a></li>
+      <li><a href="#">Medical</a></li>
+      <li><a href="#">MBA / Commerce</a></li>
+      <li><a href="#">Fiction & Others</a></li>
+    </ul>
+  </div>
+  <div>
+    <h4>Company</h4>
+    <ul>
+      <li><a href="#">About Us</a></li>
+      <li><a href="#">Admin Panel</a></li>
+      <li><a href="#">Contact</a></li>
+      <li><a href="#">Privacy Policy</a></li>
+    </ul>
+  </div>
+</footer>
+<div class="footer-bottom">
+  <p>© 2025 BookSwap. Built for college students 🎓</p>
+  <p>Node.js · MongoDB · Socket.IO · React</p>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('authModal')">✕</button>
+    <h3>Welcome to BookSwap</h3>
+    <p class="modal-sub">Join 3,800+ students saving on textbooks</p>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('login')">Log In</button>
+      <button class="tab-btn" onclick="switchTab('signup')">Sign Up</button>
+    </div>
+<!--Login Form -->
+    <form id="loginForm" autocomplete="off" onsubmit="event.preventDefault(); loginUser();">
+
+      <label>Email</label><br>
+      <input type="email" id="loginEmail" autocomplete="new-password" required><br><br>
+
+      <label>Password</label><br>
+      <input type="password" id="loginPassword" required><br><br>
+
+      <button type="submit">Log In</button>
+
+    </form>
+<!--Signup Form -->
+    <div id="signupForm" style="display:none">
+  <div class="form-group">
+    <label>Full Name</label>
+    <input type="text" id="name" placeholder="Rahul Sharma"/>
+  </div>
+  <div class="form-group">
+    <label>College Email</label>
+    <input type="email" id="email" placeholder="rahul@iit.ac.in" autocomplete="new-password"/>
+  </div>
+  <div class="form-group">
+    <label>College & City</label>
+    <input type="text" id="college" placeholder="IIT Bombay, Mumbai"/>
+  </div>
+  <div class="form-group">
+    <label>Password</label>
+    <input type="password" id="password" placeholder="Create a strong password"/>
+  </div>
+  <button class="form-submit" onclick="signupUser()">Create Free Account</button>
+</div>
+    <p class="form-footer" style="margin-top:.8rem">By signing up you agree to our <a href="#">Terms</a></p>
+  </div>
+</div>
+
+<!-- SELL MODAL -->
+<div class="modal-overlay" id="sellModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('sellModal')">✕</button>
+    <h3>List a Book</h3>
+    <p class="modal-sub">Takes about 2 minutes. Auto-fill with ISBN!</p>
+    <div class="form-group">
+      <label>ISBN or Book Title</label>
+      <input type="text" id="isbnInput" placeholder="e.g. 978-0262033848 or 'CLRS'"/>
+      <div class="ai-suggest">🤖 AI will auto-suggest title, author, and MRP using Google Books API</div>
+    </div>
+    <div class="form-group">
+      <label>Condition</label>
+      <select>
+        <option>New (Unused)</option>
+        <option>Good (Minor highlights)</option>
+        <option>Fair (Worn, notes)</option>
+      </select>
+    </div>
+    <div class="price-row">
+      <div class="form-group">
+        <label>Your Price (₹)</label>
+        <input type="text" placeholder="e.g. 350"/>
+      </div>
+      <div class="form-group">
+        <label>Listing Type</label>
+        <select>
+          <option>Sell</option>
+          <option>Exchange</option>
+          <option>Both</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Upload Photos</label>
+
+      <input type="file" id="bookImages" accept="image/*" multiple style="display:none">
+
+      <div class="upload-zone" onclick="document.getElementById('bookImages').click()">
+        📷 Click to upload book photos<br/>
+        <small>Upload up to 5 photos</small>
+      </div>
+    </div>
+    <button class="form-submit" id="listBookBtn">List Book Now</button>
+  </div>
+</div>
+
+<div id="premiumSection" class="blur">
+  🔒 Login to unlock this feature
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

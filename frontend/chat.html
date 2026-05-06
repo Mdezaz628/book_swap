@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chat</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<script>
+  const user = localStorage.getItem("userName");
+
+  if (!user) {
+    alert("Login required ❌");
+    window.location.href = "index.html";
+  }
+</script>
+
+<nav>
+  <div class="nav-logo">
+    <div class="logo-icon">📖</div>
+    Book<span>Swap</span>
+  </div>
+  <div class="nav-actions">
+    <button class="btn-ghost" onclick="goBack()">⬅ Back</button>
+  </div>
+</nav>
+
+<section class="chat-section" id="chatSection">
+  <div>
+    <div class="section-eyebrow">Real-Time Chat</div>
+    <h2>Talk to sellers<br/>before you buy</h2>
+    <p style="color:var(--muted);line-height:1.7;margin:1.2rem 0 2rem;max-width:40ch">No awkward calls or meeting strangers without talking first. Chat in real-time, negotiate price, confirm book condition, and plan pickup — all secured in-app.</p>
+    <div style="display:flex;flex-direction:column;gap:.8rem">
+      <div style="display:flex;align-items:center;gap:.8rem">
+        <div style="width:32px;height:32px;background:#e8f5e9;border-radius:50%;display:flex;align-items:center;justify-content:center">✅</div>
+        <span style="font-size:.9rem">End-to-end verified student accounts only</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:.8rem">
+        <div style="width:32px;height:32px;background:#fff3e0;border-radius:50%;display:flex;align-items:center;justify-content:center">⚡</div>
+        <span style="font-size:.9rem">Socket.IO real-time — messages in &lt;50ms</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:.8rem">
+        <div style="width:32px;height:32px;background:#e3f2fd;border-radius:50%;display:flex;align-items:center;justify-content:center">📎</div>
+        <span style="font-size:.9rem">Share book photos and QR codes in chat</span>
+      </div>
+    </div>
+  </div>
+  <div class="chat-mockup">
+    <div class="chat-header">
+      <div class="chat-avatar">R</div>
+      <div>
+        <div class="chat-user-name">Md.Ezaz CGU</div>
+        <div class="chat-online">● Online now</div>
+      </div>
+    </div>
+
+    <div class="chat-body">
+      <div>
+        <div class="msg msg-recv">Hey! Is the CLRS book still available? 📚</div>
+        <div class="msg-time">2:34 PM</div>
+      </div>
+      <div style="align-self:flex-end;text-align:right">
+        <div class="msg msg-sent">Yes! In good condition, only 3 chapters highlighted.</div>
+        <div class="msg-time msg-sent">2:35 PM</div>
+      </div>
+      <div>
+        <div class="msg msg-recv">Can you do ₹300? I'll pick up today 🙏</div>
+        <div class="msg-time">2:36 PM</div>
+      </div>
+      <div style="align-self:flex-end;text-align:right">
+        <div class="msg msg-sent">Deal! ₹300 it is. I'll send you the QR code. ✅</div>
+        <div class="msg-time msg-sent">2:37 PM</div>
+      </div>
+    </div>
+
+    <div class="chat-input-row">
+      <input class="chat-inp" type="text" placeholder="Type a message..." readonly onfocus="this.removeAttribute('readonly')" />
+      <button class="chat-send">➤</button>
+    </div>
+  </div>
+</section>
+
+<script>
+  function goBack() {
+    window.location.href = "dashboard.html";
+  }
+</script>
+
+</body>
+</html>
