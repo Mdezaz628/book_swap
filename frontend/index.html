@@ -23,7 +23,10 @@
     <a href="#" onclick="document.getElementById('chatSection').scrollIntoView({behavior:'smooth'})">💬 Chat</a>
   </div>
   <div class="nav-actions">
-    <button id="loginBtn" class="btn-ghost" onclick="openModal('authModal')">Log In</button>
+    <button id="loginBtn" class="btn-primary"
+onclick="openModal('authModal')">
+  Log In
+</button>
     <button class="btn-primary" onclick="openModal('authModal')">Sign Up Free</button>
   </div>
 </nav>
@@ -390,15 +393,31 @@
       <button class="tab-btn" onclick="switchTab('signup')">Sign Up</button>
     </div>
 <!--Login Form -->
-    <form id="loginForm" autocomplete="off" onsubmit="event.preventDefault(); loginUser();">
+    <form
+  id="loginForm"
+  autocomplete="off"
+  onsubmit="event.preventDefault(); loginUser();"
+>
 
       <label>Email</label><br>
       <input type="email" id="loginEmail" autocomplete="new-password" required><br><br>
 
       <label>Password</label><br>
-      <input type="password" id="loginPassword" required><br><br>
+      <input 
+  type="password"
+  id="loginPassword"
+  autocomplete="new-password"
+  placeholder="Enter password"
+  required
+  ><br><br>
 
-      <button type="submit">Log In</button>
+      <button
+  type="submit"
+  id="loginBtn"
+  class="form-submit"
+>
+  Log In
+</button>
 
     </form>
 <!--Signup Form -->
@@ -417,7 +436,12 @@
   </div>
   <div class="form-group">
     <label>Password</label>
-    <input type="password" id="password" placeholder="Create a strong password"/>
+    <input 
+  type="password"
+  id="password"
+  autocomplete="new-password"
+  placeholder="Create a strong password"
+/>
   </div>
   <button class="form-submit" onclick="signupUser()">Create Free Account</button>
 </div>

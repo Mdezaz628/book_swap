@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="dashboard-page">
 
 <!-- NAV -->
 <nav>
@@ -23,10 +23,23 @@
     <a href="chat.html" style="cursor:pointer;">💬 Chat</a>
   </div>
   <div class="nav-actions">
-    <div style="display:flex; gap:10px;">
-  <span id="welcomeText"></span>
-  <button onclick="logout()">Logout</button>
-</div>
+    <div class="welcome-bar">
+      <div class="welcome-left">
+        <div class="user-icon">
+          <i class="fa-solid fa-user"></i>
+        </div>
+
+        <h2>
+          Welcome,
+          <span id="welcomeName">rahul</span> 🎉
+        </h2>
+      </div>
+
+      <button class="logout-btn" onclick="logout()">
+        <i class="fa-solid fa-right-from-bracket"></i>
+        Logout
+      </button>
+    </div>
   </div>
 </nav>
 
@@ -373,7 +386,7 @@
 
     </form>
 <!--Signup Form -->
-    <div id="signupForm" style="display:none">
+    <div id="signupForm" style="display:none" autocomplete="off">
   <div class="form-group">
     <label>Full Name</label>
     <input type="text" id="name" placeholder="Rahul Sharma"/>

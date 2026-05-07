@@ -11,6 +11,21 @@ window.addEventListener('DOMContentLoaded', clearPersistedFields);
 window.addEventListener('pageshow', clearPersistedFields);
 window.addEventListener('load', () => setTimeout(clearPersistedFields, 50));
 
+function initDashboardWelcome() {
+  const welcomeName = document.getElementById("welcomeName");
+  const userName = localStorage.getItem("userName");
+
+  if (welcomeName && userName) {
+    welcomeName.textContent = userName;
+  }
+}
+
+function logout() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("userName");
+  window.location.href = "index.html";
+}
+
 // 🔐 CHECK LOGIN (PAGE LOAD PE)
 window.addEventListener("DOMContentLoaded", () => {
   const token = localStorage.getItem("token");
@@ -20,6 +35,8 @@ window.addEventListener("DOMContentLoaded", () => {
     alert("Please login first ❗");
     window.location.href = "index.html"; // login page
   }
+
+  initDashboardWelcome();
 });
 
 async function loadStats() {
@@ -123,8 +140,8 @@ function openSellForm() {
   openModal('sellModal');
 }
 
-function goHome() {
-  window.location.href = "dashboard.html"; // ya index.html
+function goBack() {
+  window.location.href = "dashboard.html";
 }
 // addbook()
 async function addBook() {
@@ -151,11 +168,9 @@ formData.append("price", price);
 formData.append("seller", seller);
 formData.append("category", category);
 
-for(let i = 0; i < files.length; i++){
-
-  formData.append("images", files[i]);
-
-}
+Array.from(files).forEach(file => {
+  formData.append("images", file);
+});
 
   try {
 
@@ -399,3 +414,4 @@ async function loadProfile() {
 
 // 👇 page load pe call
 loadProfile();
+

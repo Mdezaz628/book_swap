@@ -15,11 +15,11 @@ const storage = new CloudinaryStorage({
 
     folder: "bookswap",
 
-    allowed_formats: [
-      "jpg",
-      "png",
-      "jpeg"
-    ],
+    allowedFormats: [
+  "jpg",
+  "png",
+  "jpeg"
+],
 
   },
 
