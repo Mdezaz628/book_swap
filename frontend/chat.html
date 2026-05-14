@@ -76,7 +76,10 @@
 <script>
   const socket = io("http://localhost:5000");
   const currentUser = localStorage.getItem("userName") || "User";
-  const selectedSeller = localStorage.getItem("chatSeller") || "Seller";
+  const selectedSeller =
+    localStorage.getItem("chatSeller") ||
+    localStorage.getItem("chatWith") ||
+    "Seller";
   const roomId = [currentUser, selectedSeller].sort().join("_");
   let unreadCount = 0;
 
@@ -133,25 +136,41 @@
   }
 
   function sendMessage() {
-    const messageInput = document.getElementById("message");
-    if (!messageInput) return;
 
-    const text = messageInput.value.trim();
-    if (!text) return;
+    const input =
+      document.getElementById("message");
 
-    const payload = {
-      roomId,
-      sender: currentUser,
-      message: text,
-      time: new Date().toLocaleTimeString([], {
+    const message =
+      input.value.trim();
+
+    if (!message) return;
+
+    const time =
+      new Date().toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit"
-      })
+      });
+
+    const data = {
+
+      roomId: roomId,
+
+      sender: currentUser,
+
+      receiver: selectedSeller,
+
+      message: message,
+
+      time: time
     };
 
-    socket.emit("sendMessage", payload);
-    appendMessage(payload);
-    messageInput.value = "";
+    // 🔥 backend ko send
+    socket.emit("sendMessage", data);
+
+    // 🔥 own chat me append
+    appendMessage(data);
+
+    input.value = "";
   }
 
   socket.on("receiveMessage", (data) => {

@@ -188,6 +188,28 @@ app.get('/messages/:roomId', async (req, res) => {
   }
 });
 
+app.get('/inbox/:user', async (req, res) => {
+  try {
+    const user = req.params.user;
+    const messages = await Message.find({ receiver: user }).sort({ createdAt: -1 });
+
+    const uniqueChats = [];
+    const map = new Set();
+
+    messages.forEach((msg) => {
+      if (!map.has(msg.sender)) {
+        map.add(msg.sender);
+        uniqueChats.push(msg);
+      }
+    });
+
+    res.json(uniqueChats);
+  } catch (err) {
+    console.error('Error fetching inbox', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 io.on("connection", (socket) => {
 
   console.log("User Connected ✅");
@@ -201,32 +223,31 @@ io.on("connection", (socket) => {
 
   });
 
+  // JOIN USER
+  socket.on("joinUser", (username) => {
+
+    socket.join(username);
+
+    console.log(
+      "User Room Joined:",
+      username
+    );
+
+  });
+
   // SEND MESSAGE
   socket.on("sendMessage", async (data) => {
 
     console.log(data);
 
     try {
-      // determine receiver: use provided or infer from roomId
-      let receiver = data.receiver;
-      if (!receiver && data.roomId) {
-        const parts = data.roomId.split("_");
-        receiver = parts[0] === data.sender ? parts[1] : parts[0];
-      }
-
-      const newMessage = new Message({
-        roomId: data.roomId,
-        sender: data.sender,
-        receiver,
-        message: data.message,
-        time: data.time || new Date().toLocaleTimeString()
-      });
-
+      const newMessage = new Message(data);
       await newMessage.save();
-
     } catch (err) {
       console.warn('Error while saving message', err);
     }
+
+    io.to(data.receiver).emit("receiveMessage", data);
 
     io.to(data.roomId).emit("receiveMessage", data);
 

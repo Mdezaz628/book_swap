@@ -143,6 +143,10 @@ function openSellForm() {
 function goBack() {
   window.location.href = "dashboard.html";
 }
+
+function openInbox() {
+  window.location.href = "inbox.html";
+}
 // addbook()
 async function addBook() {
 
@@ -445,11 +449,16 @@ if (badge && unreadCount > 0) {
 }
 
 const currentUser = localStorage.getItem("userName");
-const otherUser = localStorage.getItem("chatWith");
+const otherUser = localStorage.getItem("chatSeller");
 
 if (typeof io !== "undefined") {
 
   const socket = io("http://localhost:5000");
+
+  socket.emit(
+    "joinUser",
+    currentUser
+  );
 
   if (currentUser && otherUser) {
 
@@ -469,22 +478,25 @@ if (typeof io !== "undefined") {
 
     if (data.sender === currentUser) return;
 
-   unreadCount++;
+    let unreadCount =
+      Number(localStorage.getItem("unreadCount")) || 0;
 
-localStorage.setItem(
-  "unreadCount",
-  unreadCount
-);
+    unreadCount++;
 
-const badge =
-  document.getElementById("chatBadge");
+    localStorage.setItem(
+      "unreadCount",
+      unreadCount
+    );
 
-if (badge) {
+    const badge =
+      document.getElementById("chatBadge");
 
-  badge.style.display = "flex";
+    if (badge) {
 
-  badge.innerText = unreadCount;
-}
+      badge.style.display = "flex";
+
+      badge.innerText = unreadCount;
+    }
 
   });
 }

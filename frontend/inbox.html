@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Inbox</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .inbox-wrap {
+      max-width: 900px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+
+    #chatList {
+      display: grid;
+      gap: 12px;
+    }
+
+    .chat-user {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--card);
+      padding: 14px 16px;
+      cursor: pointer;
+    }
+
+    .chat-user h3 {
+      margin: 0 0 6px;
+      font-size: 1rem;
+    }
+
+    .chat-user p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-logo">
+      <div class="logo-icon">📖</div>
+      Book<span>Swap</span>
+    </div>
+    <div class="nav-actions">
+      <button class="btn-ghost" onclick="window.location.href='dashboard.html'">⬅ Back</button>
+    </div>
+  </nav>
+
+  <div class="inbox-wrap">
+    <h2 style="margin-bottom:14px;">Your Chats</h2>
+    <div id="chatList"></div>
+  </div>
+
+  <script>
+    async function loadInbox() {
+
+      const currentUser =
+        localStorage.getItem("userName");
+
+      if (!currentUser) {
+        window.location.href = "index.html";
+        return;
+      }
+
+      const res = await fetch(
+        `http://localhost:5000/inbox/${currentUser}`
+      );
+
+      const users = await res.json();
+
+      const chatList =
+        document.getElementById("chatList");
+
+      chatList.innerHTML = "";
+
+      users.forEach(user => {
+
+        chatList.innerHTML += `
+
+      <div
+        class="chat-user"
+        onclick="openChat('${user.sender}')"
+      >
+
+        <h3>${user.sender}</h3>
+
+        <p>${user.message}</p>
+
+      </div>
+
+    `;
+      });
+
+    }
+
+    function openChat(name) {
+
+      localStorage.setItem(
+        "chatWith",
+        name
+      );
+
+      localStorage.setItem(
+        "chatSeller",
+        name
+      );
+
+      window.location.href =
+        "chat.html";
+    }
+
+    loadInbox();
+  </script>
+</body>
+</html>
