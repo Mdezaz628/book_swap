@@ -7,15 +7,14 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <audio id="msgTone">
+  <source
+    src="https://notificationsounds.com/storage/sounds/file-sounds-1150-pristine.mp3"
+    type="audio/mpeg"
+  >
+</audio>
 
-<script>
-  const user = localStorage.getItem("userName");
 
-  if (!user) {
-    alert("Login required ❌");
-    window.location.href = "index.html";
-  }
-</script>
 
 <nav>
   <div class="nav-logo">
@@ -52,32 +51,18 @@
       <div class="chat-avatar">R</div>
       <div>
         <div class="chat-user-name">Md.Ezaz CGU</div>
-        <div class="chat-online">● Online now</div>
+        <div class="chat-online">
+  ● Online now
+  <span id="notifyBadge"></span>
+</div>
       </div>
     </div>
 
-    <div class="chat-body">
-      <div>
-        <div class="msg msg-recv">Hey! Is the CLRS book still available? 📚</div>
-        <div class="msg-time">2:34 PM</div>
-      </div>
-      <div style="align-self:flex-end;text-align:right">
-        <div class="msg msg-sent">Yes! In good condition, only 3 chapters highlighted.</div>
-        <div class="msg-time msg-sent">2:35 PM</div>
-      </div>
-      <div>
-        <div class="msg msg-recv">Can you do ₹300? I'll pick up today 🙏</div>
-        <div class="msg-time">2:36 PM</div>
-      </div>
-      <div style="align-self:flex-end;text-align:right">
-        <div class="msg msg-sent">Deal! ₹300 it is. I'll send you the QR code. ✅</div>
-        <div class="msg-time msg-sent">2:37 PM</div>
-      </div>
-    </div>
+    <div class="chat-body" id="chatBox"></div>
 
     <div class="chat-input-row">
-      <input class="chat-inp" type="text" placeholder="Type a message..." readonly onfocus="this.removeAttribute('readonly')" />
-      <button class="chat-send">➤</button>
+      <input class="chat-inp" type="text" id="message" placeholder="Type a message..." />
+      <button class="chat-send" onclick="sendMessage()">Send</button>
     </div>
   </div>
 </section>
@@ -86,6 +71,118 @@
   function goBack() {
     window.location.href = "dashboard.html";
   }
+</script>
+<script src="http://localhost:5000/socket.io/socket.io.js"></script>
+<script>
+  const socket = io("http://localhost:5000");
+  const currentUser = localStorage.getItem("userName") || "User";
+  const selectedSeller = localStorage.getItem("chatSeller") || "Seller";
+  const roomId = [currentUser, selectedSeller].sort().join("_");
+  let unreadCount = 0;
+
+  // Reset stored unread count and hide badge when opening chat
+  try {
+    localStorage.setItem("unreadCount", 0);
+  } catch (e) {
+    console.warn('Could not set unreadCount in localStorage', e);
+  }
+
+  const notifyBadgeEl = document.getElementById("notifyBadge");
+  if (notifyBadgeEl) {
+    notifyBadgeEl.style.display = "none";
+  }
+
+  // Load previous messages for this room
+  async function loadOldMessages(rId) {
+    try {
+      const res = await fetch(`http://localhost:5000/messages/${rId}`);
+      if (!res.ok) return;
+      const messages = await res.json();
+      messages.forEach(msg => appendMessage(msg));
+    } catch (err) {
+      console.warn('Could not load messages', err);
+    }
+  }
+
+  // Load history and join room on page load
+  window.addEventListener('DOMContentLoaded', () => {
+    loadOldMessages(roomId).catch(() => {});
+    socket.emit("joinRoom", roomId);
+  });
+
+  function appendMessage(data) {
+    const chatBox = document.getElementById("chatBox");
+    if (!chatBox) return;
+
+    const wrapper = document.createElement("div");
+    const isMine = data.sender === currentUser;
+    wrapper.style.cssText = isMine ? "align-self:flex-end;text-align:right" : "";
+
+    const time = data.time || new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+
+    wrapper.innerHTML = `
+      <div class="msg ${isMine ? "msg-sent" : "msg-recv"}">${data.message}</div>
+      <div class="msg-time ${isMine ? "msg-sent" : ""}">${time}</div>
+    `;
+
+    chatBox.appendChild(wrapper);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  function sendMessage() {
+    const messageInput = document.getElementById("message");
+    if (!messageInput) return;
+
+    const text = messageInput.value.trim();
+    if (!text) return;
+
+    const payload = {
+      roomId,
+      sender: currentUser,
+      message: text,
+      time: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit"
+      })
+    };
+
+    socket.emit("sendMessage", payload);
+    appendMessage(payload);
+    messageInput.value = "";
+  }
+
+  socket.on("receiveMessage", (data) => {
+    console.log("CURRENT USER:", currentUser);
+    console.log("MESSAGE SENDER:", data.sender);
+    console.log("FULL DATA:", data);
+
+    if (data.sender === currentUser) return;
+
+    appendMessage(data);
+
+    document.getElementById("msgTone")?.play();
+
+    unreadCount++;
+
+    document.title = `(${unreadCount}) New Message`;
+
+    const badge = document.getElementById("notifyBadge");
+    if (badge) {
+      badge.style.display = "inline-block";
+      badge.innerText = unreadCount;
+      console.log("BADGE UPDATED");
+    }
+
+  });
+
+  document.getElementById("message")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      sendMessage();
+    }
+  });
 </script>
 <script src="script.js"></script>
 </body>

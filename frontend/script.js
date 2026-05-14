@@ -229,7 +229,11 @@ const observer = new IntersectionObserver(entries => {
   });
 });
 
-document.querySelectorAll('.hero-stats').forEach(el => observer.observe(el));
+const stats = document.querySelectorAll('.hero-stats');
+
+if (stats.length > 0) {
+  stats.forEach(el => observer.observe(el));
+}
 
 // 🔹 BOOK LIST BUTTON
 const listBookBtn = document.getElementById('listBookBtn');
@@ -328,7 +332,10 @@ async function loginUser() {
 
 const user = localStorage.getItem("userName");
 if (user) {
-  document.getElementById("premiumSection").classList.remove("blur");
+  const premiumSection = document.getElementById("premiumSection");
+  if (premiumSection) {
+    premiumSection.classList.remove("blur");
+  }
 }
 
 async function loadBooksHome() {
@@ -374,7 +381,6 @@ async function loadBooksHome() {
 }
 
 window.addEventListener("DOMContentLoaded", loadBooksHome);
-window.onload = loadBooksHome;
 
 // Thank-you popup helpers
 function showThankPopup() {
@@ -391,7 +397,17 @@ function closeThankPopup() {
 
 // Navigate to chat with selected seller
 function chatWithSeller(name) {
+
+  console.log("CLICKED USER:", name);
+
   localStorage.setItem("chatSeller", name);
+  localStorage.setItem("chatWith", name);
+
+  console.log(
+    "SAVED:",
+    localStorage.getItem("chatSeller")
+  );
+
   window.location.href = "chat.html";
 }
 async function loadProfile() {
@@ -415,3 +431,73 @@ async function loadProfile() {
 // 👇 page load pe call
 loadProfile();
 
+let unreadCount =
+  Number(localStorage.getItem("unreadCount")) || 0;
+
+const badge =
+  document.getElementById("chatBadge");
+
+if (badge && unreadCount > 0) {
+
+  badge.style.display = "flex";
+
+  badge.innerText = unreadCount;
+}
+
+const currentUser = localStorage.getItem("userName");
+const otherUser = localStorage.getItem("chatWith");
+
+if (typeof io !== "undefined") {
+
+  const socket = io("http://localhost:5000");
+
+  if (currentUser && otherUser) {
+
+    const roomId =
+      currentUser < otherUser
+        ? `${currentUser}_${otherUser}`
+        : `${otherUser}_${currentUser}`;
+
+    console.log("ROOM:", roomId);
+
+    socket.emit("joinRoom", roomId);
+  }
+
+  socket.on("receiveMessage", (data) => {
+
+    console.log("MESSAGE RECEIVED:", data);
+
+    if (data.sender === currentUser) return;
+
+   unreadCount++;
+
+localStorage.setItem(
+  "unreadCount",
+  unreadCount
+);
+
+const badge =
+  document.getElementById("chatBadge");
+
+if (badge) {
+
+  badge.style.display = "flex";
+
+  badge.innerText = unreadCount;
+}
+
+  });
+}
+
+window.addEventListener("focus", () => {
+
+  unreadCount = 0;
+
+  const badge =
+    document.getElementById("chatBadge");
+
+  if (badge) {
+    badge.style.display = "none";
+  }
+
+});

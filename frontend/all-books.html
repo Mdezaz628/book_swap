@@ -24,10 +24,26 @@
 </div>
 
 <!-- 📂 CATEGORY FILTER -->
-<div style="text-align:center; margin-bottom:20px;">
-  <button onclick="filterCategory('All')">All</button>
-  <button onclick="filterCategory('Engineering')">Engineering</button>
-  <button onclick="filterCategory('Novel')">Novel</button>
+<div class="category-wrapper">
+
+  <select id="categorySelect">
+    <option value="">Select Category</option>
+
+    <option value="Engineering">Engineering</option>
+    <option value="Novel">Novel</option>
+    <option value="School">School</option>
+    <option value="Science">Science</option>
+    <option value="History">History</option>
+
+    <option value="Other">Other</option>
+  </select>
+
+  <input
+    type="text"
+    id="otherCategory"
+    placeholder="Write your category..."
+  >
+
 </div>
 
 <!-- 📚 BOOKS -->
@@ -143,6 +159,25 @@ function filterCategory(cat) {
   filterBooks();
 }
 
+const categorySelect = document.getElementById("categorySelect");
+
+categorySelect.addEventListener("change", function () {
+
+  const selectedCategory = this.value;
+
+  // OTHER INPUT SHOW
+  if (selectedCategory === "Other") {
+    document.getElementById("otherCategory").style.display = "block";
+  } else {
+    document.getElementById("otherCategory").style.display = "none";
+  }
+
+  // FILTER BOOKS
+  filterCategory(selectedCategory);
+
+});
+
+
 function goHome() {
   window.location.href = "dashboard.html";
 }
@@ -154,6 +189,11 @@ function openImage(src) {
 
 function closeImage() {
   document.getElementById("imageModal").style.display = "none";
+}
+
+function chatWithSeller(name) {
+  localStorage.setItem("chatSeller", name);
+  window.location.href = "chat.html";
 }
 
 window.onload = loadBooks;

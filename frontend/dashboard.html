@@ -20,8 +20,14 @@
     <a href="#" onclick="showSection('sell')">Sell Books</a>
     <a href="#features">Features</a>
     <a href="#how">How it Works</a>
-    <a href="chat.html" style="cursor:pointer;">💬 Chat</a>
+
+    <div class="nav-chat" id="chatBtn">
+  <span>💬</span>
+  <span>Chat</span>
+  <span id="chatBadge" class="chat-badge">0</span>
+</div>
   </div>
+
   <div class="nav-actions">
     <div class="welcome-bar">
       <div class="welcome-left">
@@ -460,10 +466,6 @@
   </div>
 </div>
 
-
-
-
-
 <script src="script.js"></script>
 
 <script>
@@ -707,5 +709,6 @@ document.getElementById("bookImages").addEventListener("change", function(e) {
     <button onclick="closeThankPopup()">OK</button>
   </div>
 </div>
+
 </body>
 </html>

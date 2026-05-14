@@ -20,7 +20,14 @@
     <a href="#" onclick="showSection('sell')">Sell Books</a>
     <a href="#features">Features</a>
     <a href="#how">How it Works</a>
-    <a href="#" onclick="document.getElementById('chatSection').scrollIntoView({behavior:'smooth'})">💬 Chat</a>
+    <div class="nav-chat" id="chatBtn">
+
+  <span>💬</span>
+  <span>Chat</span>
+
+  <span id="chatBadge" class="chat-badge">0</span>
+
+</div>
   </div>
   <div class="nav-actions">
     <button id="loginBtn" class="btn-primary"
@@ -62,7 +69,7 @@ onclick="openModal('authModal')">
       <div class="book"></div>
       <div class="book"></div>
       <div class="book"></div>
-      <div class="book-badge">📚 Save 60%</div>
+      <div class="book-badge">📚 Save upto 60%</div>
       <div class="book-badge-2">✅ Verified</div>
     </div>
   </div>

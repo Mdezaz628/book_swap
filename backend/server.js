@@ -6,8 +6,17 @@ const cors = require("cors");
 const bcrypt = require("bcrypt"); // ✅ FIX
 const upload = require("./middleware/multer");
 const Book = require("./models/Book");
+const Message = require("./models/Message");
+const http = require("http");
+const { Server } = require("socket.io");
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*"
+  }
+});
 
 app.use(express.json());
 app.use(cors());
@@ -161,14 +170,71 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected ✅"))
   .catch(err => console.log(err));
 
-// SERVER
-app.listen(5000, () => {
-  console.log("Server running on port 5000 🚀");
-});
-
 app.get("/profile", authMiddleware, (req, res) => {
   res.json({
     message: "Protected data ✅",
     user: req.user
   });
+});
+
+// GET MESSAGES FOR A ROOM
+app.get('/messages/:roomId', async (req, res) => {
+  try {
+    const messages = await Message.find({ roomId: req.params.roomId }).sort({ createdAt: 1 });
+    res.json(messages);
+  } catch (err) {
+    console.error('Error fetching messages', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+io.on("connection", (socket) => {
+
+  console.log("User Connected ✅");
+
+  // JOIN ROOM
+  socket.on("joinRoom", (roomId) => {
+
+    socket.join(roomId);
+
+    console.log("Joined Room:", roomId);
+
+  });
+
+  // SEND MESSAGE
+  socket.on("sendMessage", async (data) => {
+
+    console.log(data);
+
+    try {
+      // determine receiver: use provided or infer from roomId
+      let receiver = data.receiver;
+      if (!receiver && data.roomId) {
+        const parts = data.roomId.split("_");
+        receiver = parts[0] === data.sender ? parts[1] : parts[0];
+      }
+
+      const newMessage = new Message({
+        roomId: data.roomId,
+        sender: data.sender,
+        receiver,
+        message: data.message,
+        time: data.time || new Date().toLocaleTimeString()
+      });
+
+      await newMessage.save();
+
+    } catch (err) {
+      console.warn('Error while saving message', err);
+    }
+
+    io.to(data.roomId).emit("receiveMessage", data);
+
+  });
+
+});
+
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT} ✅`);
 });
