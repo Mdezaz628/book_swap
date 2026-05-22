@@ -10,7 +10,7 @@ router.post("/add-book", upload.array("images", 5), async (req, res) => {
     console.log("BODY 👉", req.body);
     console.log("FILES 👉", req.files);
 
-    const { title, price, seller, category } = req.body;
+    const { title, price, seller, category, location } = req.body;
 
     const imageNames = req.files ? req.files.map(file => file.path) : [];
 
@@ -19,6 +19,7 @@ router.post("/add-book", upload.array("images", 5), async (req, res) => {
       price,
       seller,
       category,
+      location,
       images: imageNames
     });
 

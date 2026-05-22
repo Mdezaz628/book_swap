@@ -6,7 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="chat-page">
+<script>
+  (function () {
+    const savedTheme = localStorage.getItem('selectedTheme') || 'light';
+    document.body.classList.add(savedTheme + '-theme');
+  })();
+</script>
   <audio id="msgTone">
   <source
     src="https://notificationsounds.com/storage/sounds/file-sounds-1150-pristine.mp3"
@@ -27,38 +33,48 @@
 </nav>
 
 <section class="chat-section" id="chatSection">
-  <div>
-    <div class="section-eyebrow">Real-Time Chat</div>
-    <h2>Talk to sellers<br/>before you buy</h2>
-    <p style="color:var(--muted);line-height:1.7;margin:1.2rem 0 2rem;max-width:40ch">No awkward calls or meeting strangers without talking first. Chat in real-time, negotiate price, confirm book condition, and plan pickup — all secured in-app.</p>
-    <div style="display:flex;flex-direction:column;gap:.8rem">
-      <div style="display:flex;align-items:center;gap:.8rem">
-        <div style="width:32px;height:32px;background:#e8f5e9;border-radius:50%;display:flex;align-items:center;justify-content:center">✅</div>
-        <span style="font-size:.9rem">End-to-end verified student accounts only</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:.8rem">
-        <div style="width:32px;height:32px;background:#fff3e0;border-radius:50%;display:flex;align-items:center;justify-content:center">⚡</div>
-        <span style="font-size:.9rem">Socket.IO real-time — messages in &lt;50ms</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:.8rem">
-        <div style="width:32px;height:32px;background:#e3f2fd;border-radius:50%;display:flex;align-items:center;justify-content:center">📎</div>
-        <span style="font-size:.9rem">Share book photos and QR codes in chat</span>
-      </div>
+  <div id="chatListColumn">
+    <div class="inbox-header">
+      <h2>Your Chats</h2>
     </div>
+    <div id="chatList"></div>
   </div>
   <div class="chat-mockup">
     <div class="chat-header">
-      <div class="chat-avatar">R</div>
+      <div class="avatar" id="chatAvatar">H</div>
       <div>
-        <div class="chat-user-name">Md.Ezaz CGU</div>
-        <div class="chat-online">
-  ● Online now
-  <span id="notifyBadge"></span>
-</div>
+        <h3 id="chatUserName"></h3>
+        <p class="online-status">
+          ● Online now
+          <span id="notifyBadge"></span>
+        </p>
       </div>
     </div>
 
     <div class="chat-body" id="chatBox"></div>
+
+    <div class="deal-confirm-box" id="dealConfirmBox">
+      <div class="deal-confirm-title">Deal confirmation</div>
+      <div class="deal-confirm-row">
+        <input
+          id="dealPriceInput"
+          class="deal-confirm-input"
+          type="text"
+          placeholder="Confirmed price"
+        />
+        <button class="deal-confirm-btn" onclick="confirmDealPrice()">Confirm price</button>
+      </div>
+      <p class="deal-confirm-help" id="dealConfirmHelp">Confirm the price from both sides first. QR appears after both confirm.</p>
+    </div>
+
+    <div class="qr-preview-card" id="qrPreviewCard" style="display:none;">
+      <div class="qr-preview-title">Verification QR</div>
+      <div class="qr-preview-code" id="qrCodeBox"></div>
+      <div class="qr-preview-details" id="qrPreviewDetails"></div>
+      <div class="qr-preview-actions">
+        <button class="deal-confirm-btn secondary" onclick="downloadCurrentQr()">Download QR</button>
+      </div>
+    </div>
 
     <div class="chat-input-row">
       <input class="chat-inp" type="text" id="message" placeholder="Type a message..." />
@@ -73,15 +89,40 @@
   }
 </script>
 <script src="http://localhost:5000/socket.io/socket.io.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
   const socket = io("http://localhost:5000");
   const currentUser = localStorage.getItem("userName") || "User";
-  const selectedSeller =
-    localStorage.getItem("chatSeller") ||
-    localStorage.getItem("chatWith") ||
-    "Seller";
-  const roomId = [currentUser, selectedSeller].sort().join("_");
+  const urlParams = new URLSearchParams(window.location.search);
+  // Only open a live chat when the seller is explicitly passed in the URL.
+  let selectedSeller = urlParams.get("seller");
+
+  // normalize empty string -> null
+  if (selectedSeller === "" || selectedSeller === "Seller") selectedSeller = null;
+
+  // persist only when we actually have a selected seller
+  if (selectedSeller) {
+    localStorage.setItem("chatSeller", selectedSeller);
+    localStorage.setItem("chatWith", selectedSeller);
+  }
+  const chatUserNameEl = document.getElementById("chatUserName");
+  const chatAvatarEl = document.getElementById("chatAvatar");
+
+  if (chatUserNameEl) {
+    chatUserNameEl.textContent = selectedSeller || "";
+  }
+
+  if (chatAvatarEl) {
+    chatAvatarEl.textContent = selectedSeller ? (selectedSeller[0] || "S").toUpperCase() : "?";
+  }
+
+  const roomId = selectedSeller ? [currentUser, selectedSeller].sort().join("_") : null;
   let unreadCount = 0;
+  let latestQrPayload = null;
+  let latestQrDataUrl = "";
+  let latestDealPrice = null;
+
+  console.log('CHAT INIT ->', { currentUser, selectedSeller, roomId });
 
   // Reset stored unread count and hide badge when opening chat
   try {
@@ -95,23 +136,117 @@
     notifyBadgeEl.style.display = "none";
   }
 
-  // Load previous messages for this room
+  // Load previous messages for this room (only when a room exists)
   async function loadOldMessages(rId) {
     try {
+      console.log('Fetching messages for room:', rId);
       const res = await fetch(`http://localhost:5000/messages/${rId}`);
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn('Messages API returned', res.status);
+        hideChatLoading();
+        showServerError('Could not load messages (server returned ' + res.status + ')');
+        return;
+      }
       const messages = await res.json();
+
+      console.log('Loaded messages:', messages && messages.length);
+
+      const chatBox = document.getElementById('chatBox');
+      if (chatBox) chatBox.innerHTML = '';
+
+      if (!messages || messages.length === 0) {
+        // Keep the composer visible so the first message can be sent in an empty thread.
+        try { clearNoChatsPlaceholder(); } catch (e) {}
+        hideChatLoading();
+        return;
+      } else {
+        try { clearNoChatsPlaceholder(); } catch (e) { /* no-op */ }
+      }
+
       messages.forEach(msg => appendMessage(msg));
+      hideChatLoading();
     } catch (err) {
       console.warn('Could not load messages', err);
+      hideChatLoading();
+      showServerError('Could not load messages (network error)');
+    }
+  }
+
+  async function markMessagesRead() {
+    try {
+      await fetch(
+        "http://localhost:5000/mark-read",
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            sender: selectedSeller,
+            receiver: currentUser
+          })
+        }
+      );
+    } catch (err) {
+      console.warn('Could not mark messages read', err);
     }
   }
 
   // Load history and join room on page load
-  window.addEventListener('DOMContentLoaded', () => {
-    loadOldMessages(roomId).catch(() => {});
-    socket.emit("joinRoom", roomId);
+  window.addEventListener('DOMContentLoaded', async () => {
+    // If no seller selected, show placeholder and skip room creation
+    if (!selectedSeller) {
+      try { renderNoChatsPlaceholder(); } catch (e) { /* no-op */ }
+      return;
+    }
+
+    // show spinner while loading inbox and messages
+    showChatLoading();
+
+    await markMessagesRead().catch(() => {});
+    if (roomId) socket.emit("joinRoom", roomId);
+
+    // load inbox and messages in parallel (if present)
+    const promises = [];
+    if (document.getElementById('chatList')) {
+      promises.push(loadInbox().catch(e => { console.warn('loadInbox error', e); }));
+    }
+    if (roomId) {
+      // small delay to allow joinRoom logs to appear
+      promises.push(new Promise(resolve => setTimeout(resolve, 80)).then(() => loadOldMessages(roomId)).catch(e => { console.warn('loadOldMessages error', e); }));
+    }
+
+    await Promise.all(promises);
+    await loadLatestDealVerification();
+    hideChatLoading();
   });
+
+  function showChatLoading() {
+    const chatBox = document.getElementById('chatBox');
+    if (!chatBox) return;
+    if (chatBox.querySelector('.chat-loading')) return;
+    const loader = document.createElement('div');
+    loader.className = 'chat-loading';
+    loader.innerHTML = '<div class="spinner"></div>';
+    chatBox.appendChild(loader);
+  }
+
+  function hideChatLoading() {
+    const chatBox = document.getElementById('chatBox');
+    if (!chatBox) return;
+    const loader = chatBox.querySelector('.chat-loading');
+    if (loader) loader.remove();
+  }
+
+  function showServerError(msg) {
+    const chatBox = document.getElementById('chatBox');
+    if (!chatBox) return;
+    chatBox.innerHTML = `<div class="no-chats"><div class="no-chats-text"><h3>Server error</h3><p>${msg}</p><button class="no-chats-cta" onclick="window.location.reload()">Retry</button></div></div>`;
+    const inputRow = document.querySelector('.chat-input-row');
+    if (inputRow) inputRow.style.display = 'none';
+    const header = document.querySelector('.chat-header');
+    if (header) header.classList.add('hidden');
+  }
 
   function appendMessage(data) {
     const chatBox = document.getElementById("chatBox");
@@ -119,20 +254,186 @@
 
     const wrapper = document.createElement("div");
     const isMine = data.sender === currentUser;
-    wrapper.style.cssText = isMine ? "align-self:flex-end;text-align:right" : "";
+    wrapper.className = `msg-wrap ${isMine ? "msg-wrap-sent" : "msg-wrap-recv"}`;
+    const isRead = Boolean(data.isRead);
+    const detectedPrice = extractPriceFromText(data.message);
+    const canConfirmFromMessage = !isMine && selectedSeller && detectedPrice && isDealConfirmationMessage(data.message);
 
     const time = data.time || new Date().toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit"
     });
 
+    const ticks = isMine
+      ? `<span class="msg-ticks ${isRead ? "read" : "unread"}">${isRead ? "✓✓" : "✓"}</span>`
+      : "";
+
     wrapper.innerHTML = `
-      <div class="msg ${isMine ? "msg-sent" : "msg-recv"}">${data.message}</div>
-      <div class="msg-time ${isMine ? "msg-sent" : ""}">${time}</div>
+      <div class="msg ${isMine ? "msg-sent" : "msg-recv"}">
+        <div class="msg-text">${data.message}</div>
+        ${canConfirmFromMessage ? `
+          <button class="msg-confirm-btn" onclick="event.stopPropagation(); confirmDealPrice(${detectedPrice})">
+            Confirm ₹${detectedPrice}
+          </button>
+        ` : ""}
+        <div class="msg-meta">
+          <span class="msg-time">${time}</span>
+          ${ticks}
+        </div>
+      </div>
     `;
 
     chatBox.appendChild(wrapper);
     chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  function extractPriceFromText(text) {
+    const value = String(text || "");
+    const match = value.match(/(?:₹|rs\.?|inr)?\s*(\d{2,6})/i);
+    return match ? Number(match[1]) : null;
+  }
+
+  function isQrCommand(text) {
+    return /(?:generate\s*qr|show\s*qr|qr\s*code|generate\s*qrcode|qr)/i.test(String(text || ""));
+  }
+
+  function isDealConfirmationMessage(text) {
+    return /(?:confirm|confirmed|agree|deal|accept|okay|ok)/i.test(String(text || ""));
+  }
+
+  function renderQrPayload(payload) {
+    const qrBox = document.getElementById("qrCodeBox");
+    const qrCard = document.getElementById("qrPreviewCard");
+    const details = document.getElementById("qrPreviewDetails");
+
+    if (!qrBox || !qrCard || !details) return;
+
+    qrBox.innerHTML = "";
+    new QRCode(qrBox, {
+      text: JSON.stringify(payload),
+      width: 220,
+      height: 220,
+      correctLevel: QRCode.CorrectLevel.M
+    });
+
+    window.setTimeout(() => {
+      const canvas = qrBox.querySelector("canvas");
+      const image = qrBox.querySelector("img");
+      latestQrDataUrl = canvas
+        ? canvas.toDataURL("image/png")
+        : (image ? image.src : "");
+    }, 0);
+
+    details.innerHTML = `
+      <div class="qr-summary-line"><strong>Status:</strong> Price confirmed, QR generated</div>
+      <div><strong>Buyer:</strong> ${payload.buyer}</div>
+      <div><strong>Seller:</strong> ${payload.seller}</div>
+      <div><strong>Price:</strong> ₹${payload.price}</div>
+      <div><strong>Date:</strong> ${payload.date}</div>
+      <div><strong>Time:</strong> ${payload.time}</div>
+      <div><strong>Verification Code:</strong> ${payload.code}</div>
+    `;
+
+    qrCard.style.display = "grid";
+    qrCard.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function updateDealHelp(message) {
+    const help = document.getElementById("dealConfirmHelp");
+    if (help) help.textContent = message;
+  }
+
+  function buildQrPayload(price) {
+    const now = new Date();
+    const date = now.toLocaleDateString();
+    const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const code = `BS-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+
+    return {
+      type: "BOOKSWAP_VERIFICATION",
+      buyer: currentUser,
+      seller: selectedSeller || "Seller",
+      price: Number(price),
+      date,
+      time,
+      roomId,
+      code
+    };
+  }
+
+  function downloadCurrentQr() {
+    if (!latestQrDataUrl) {
+      alert("Generate QR first");
+      return;
+    }
+
+    const link = document.createElement("a");
+    link.href = latestQrDataUrl;
+    link.download = `Bookswap_QR_${latestQrPayload?.code || "verification"}.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  function confirmDealPrice(priceOverride) {
+    const dealInput = document.getElementById("dealPriceInput");
+    const rawPrice = typeof priceOverride !== "undefined" ? priceOverride : (dealInput ? dealInput.value : "");
+    const price = extractPriceFromText(rawPrice);
+
+    if (!selectedSeller) {
+      alert("Select a seller first");
+      return;
+    }
+
+    if (!price) {
+      alert("Enter a confirmed price");
+      return;
+    }
+
+    if (dealInput) {
+      dealInput.value = price;
+    }
+
+    latestDealPrice = price;
+    socket.emit("confirmDeal", {
+      roomId,
+      sender: currentUser,
+      receiver: selectedSeller,
+      price
+    });
+    updateDealHelp(`Waiting for ${selectedSeller} to confirm ₹${price}...`);
+  }
+
+  function handleDealStatus(state) {
+    const confirmations = (state?.confirmations || []).length;
+    const waitingFor = (state?.waitingFor || []).join(", ") || "the other person";
+    updateDealHelp(`${confirmations} side(s) confirmed. Waiting for ${waitingFor}.`);
+  }
+
+  function handleDealConfirmed(payload) {
+    latestQrPayload = payload;
+    latestDealPrice = payload.price;
+    renderQrPayload(payload);
+    updateDealHelp("Price confirmed by both sides. QR generated.");
+  }
+
+  async function loadLatestDealVerification() {
+    if (!roomId) return;
+
+    try {
+      const res = await fetch(`http://localhost:5000/deals/${roomId}/latest`);
+      if (!res.ok) return;
+
+      const data = await res.json();
+      if (data?.deal) {
+        latestQrPayload = data.deal;
+        latestDealPrice = data.deal.price;
+        renderQrPayload(data.deal);
+        updateDealHelp("Saved verification loaded from server.");
+      }
+    } catch (err) {
+      console.warn('Could not load latest deal verification', err);
+    }
   }
 
   function sendMessage() {
@@ -161,14 +462,28 @@
 
       message: message,
 
-      time: time
+      time: time,
+
+      isRead: false
     };
+
+    if (!selectedSeller) {
+      alert('Select someone to chat with first.');
+      return;
+    }
 
     // 🔥 backend ko send
     socket.emit("sendMessage", data);
 
     // 🔥 own chat me append
     appendMessage(data);
+
+    const confirmedPrice = extractPriceFromText(message);
+    if (confirmedPrice && (isQrCommand(message) || isDealConfirmationMessage(message))) {
+      const dealInput = document.getElementById("dealPriceInput");
+      if (dealInput) dealInput.value = confirmedPrice;
+      setTimeout(() => confirmDealPrice(confirmedPrice), 250);
+    }
 
     input.value = "";
   }
@@ -195,6 +510,20 @@
       console.log("BADGE UPDATED");
     }
 
+  });
+
+  socket.on("dealStatus", (state) => {
+    if (!state || state.roomId !== roomId) return;
+    handleDealStatus(state);
+  });
+
+  socket.on("dealConfirmed", (payload) => {
+    if (!payload || payload.roomId !== roomId) return;
+    handleDealConfirmed(payload);
+  });
+
+  socket.on("dealError", (payload) => {
+    alert(payload?.message || "Could not confirm deal");
   });
 
   document.getElementById("message")?.addEventListener("keydown", (event) => {

@@ -10,6 +10,8 @@ const bookSchema = new mongoose.Schema({
 
   category: String,
 
+  location: String,
+
   images: [String]
 
 });

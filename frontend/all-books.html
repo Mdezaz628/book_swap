@@ -3,8 +3,16 @@
 <head>
   <title>All Books</title>
   <link rel="stylesheet" href="style.css">
+  <script>
+    (function () {
+      const theme = localStorage.getItem("selectedTheme") || "light";
+      window.addEventListener("DOMContentLoaded", () => {
+        document.body.classList.add("all-books-page", theme + "-theme");
+      });
+    })();
+  </script>
 </head>
-<body>
+<body class="all-books-page">
 
 <div style="margin:20px;">
   <button onclick="goHome()" class="back-btn">← Back to Home</button>
@@ -18,7 +26,7 @@
     type="text" 
     id="searchInput"
     placeholder="Search books..." 
-    style="width:60%; padding:12px; border-radius:8px;"
+    class="all-books-search-input"
     oninput="filterBooks()"
   >
 </div>
@@ -38,11 +46,7 @@
     <option value="Other">Other</option>
   </select>
 
-  <input
-    type="text"
-    id="otherCategory"
-    placeholder="Write your category..."
-  >
+  <input type="text" id="otherCategory" placeholder="Write your category...">
 
 </div>
 
@@ -52,11 +56,36 @@
 <script>
 let allBooks = [];
 let currentCategory = "All";
+let selectedSeller = new URLSearchParams(window.location.search).get("seller") || "";
+let currentUser = (localStorage.getItem("userName") || selectedSeller || "").trim();
+
+function canManageBook(book) {
+  const ownerName = (currentUser || selectedSeller || "").trim();
+  return !!ownerName && (book.seller || "").trim() === ownerName;
+}
+
+function resolveBookImageSrc(imagePath) {
+  if (!imagePath) return 'https://via.placeholder.com/300';
+  const normalizedPath = String(imagePath).replace(/\\/g, '/').trim();
+  if (/^https?:\/\//i.test(normalizedPath) || normalizedPath.startsWith('data:') || normalizedPath.includes('cloudinary.com')) {
+    return normalizedPath;
+  }
+  if (normalizedPath.startsWith('/') || normalizedPath.startsWith('uploads/')) {
+    return `http://localhost:5000${normalizedPath.startsWith('/') ? '' : '/'}${normalizedPath}`;
+  }
+  return `http://localhost:5000/uploads/${normalizedPath}`;
+}
 
 async function loadBooks() {
   const res = await fetch("http://localhost:5000/books") ;
   allBooks = await res.json();
-  displayBooks(allBooks);
+
+  if (selectedSeller) {
+    const heading = document.querySelector("h2[style*='text-align:center']");
+    if (heading) heading.textContent = `📚 Uploads by ${selectedSeller}`;
+  }
+
+  filterBooks();
 }
 
 function displayBooks(books) {
@@ -70,67 +99,58 @@ function displayBooks(books) {
 
     container.innerHTML += `
 
-      <div class="book-card">
+      <div class="book-card all-books-card">
 
         <img
-  src="${book.images?.[0] || book.image || 'https://via.placeholder.com/300'}"
+  src="${resolveBookImageSrc(book.images?.[0] || book.image)}"
 
-onclick="openImage('${book.images?.[0] || book.image}')"
+onclick="openImage('${resolveBookImageSrc(book.images?.[0] || book.image)}')"
 
-  style="
-    width:100%;
-    height:160px;
-    object-fit:cover;
-    border-radius:12px 12px 0 0;
-    cursor:pointer;
-  "
+  class="all-books-card-image"
 />
 
-        <div style="padding:15px;">
+        <div class="all-books-card-body">
 
-          <h3 style="
-            margin:0;
-            font-size:22px;
-          ">
+          <h3 class="all-books-card-title">
             ${book.title}
           </h3>
 
-          <p style="
-            color:gray;
-            margin:8px 0;
-          ">
+          <p class="all-books-card-category">
             ${book.category}
           </p>
 
-          <h4 style="
-            color:#ff7a00;
-            margin:0 0 12px;
-            font-size:24px;
-          ">
+          <h4 class="all-books-card-price">
             ₹${book.price}
           </h4>
 
-          <p style="
-            margin-bottom:15px;
-            font-size:14px;
-          ">
+          <p class="all-books-card-seller">
             Seller: ${book.seller}
           </p>
 
-          <button
-            onclick="chatWithSeller('${book.seller}')"
-            style="
-              width:100%;
-              padding:10px;
-              border:none;
-              background:black;
-              color:white;
-              border-radius:8px;
-              cursor:pointer;
-            "
-          >
-            💬 Chat with Seller
-          </button>
+          <div class="all-books-location-row">
+            <p class="all-books-card-location">
+              📍 ${book.location || 'Location not shared'}
+            </p>
+
+            ${canManageBook(book) ? `
+              <div class="all-books-menu-wrap">
+                <button class="all-books-menu-btn" onclick="toggleBookMenu('${book._id}', event)" aria-label="Book options">⋮</button>
+                <div class="all-books-menu" id="bookMenu-${book._id}">
+                  <button onclick="changeBookPrice('${book._id}', ${Number(book.price) || 0})" class="all-books-menu-item">Change Price</button>
+                  <button onclick="deleteBook('${book._id}')" class="all-books-menu-item danger">Delete Book</button>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+
+          ${!canManageBook(book) ? `
+            <button
+              onclick="chatWithSeller('${book.seller}')"
+              class="all-books-chat-btn"
+            >
+              💬 Chat with Seller
+            </button>
+          ` : ''}
 
         </div>
 
@@ -146,6 +166,7 @@ function filterBooks() {
   const search = document.getElementById("searchInput").value.toLowerCase();
 
   const filtered = allBooks.filter(book =>
+    (!selectedSeller || (book.seller || "").trim() === selectedSeller.trim()) &&
     book.title.toLowerCase().includes(search) &&
     (currentCategory === "All" || book.category === currentCategory)
   );
@@ -182,6 +203,75 @@ function goHome() {
   window.location.href = "dashboard.html";
 }
 
+function setSellerFilterFromQuery() {
+  if (!selectedSeller) return;
+  const searchInput = document.getElementById("searchInput");
+  if (searchInput) searchInput.placeholder = `Search uploads by ${selectedSeller}...`;
+}
+
+function toggleBookMenu(bookId, event) {
+  if (event) event.stopPropagation();
+
+  const menu = document.getElementById(`bookMenu-${bookId}`);
+  if (!menu) return;
+
+  document.querySelectorAll('.all-books-menu.show').forEach((openMenu) => {
+    if (openMenu !== menu) openMenu.classList.remove('show');
+  });
+
+  menu.classList.toggle('show');
+}
+
+async function deleteBook(bookId) {
+  if (!confirm("Delete this book?")) return;
+
+  const ownerName = (currentUser || selectedSeller || "").trim();
+
+  const res = await fetch(`http://localhost:5000/books/${bookId}?seller=${encodeURIComponent(ownerName)}`, {
+    method: "DELETE"
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    alert(data.message || "Could not delete book");
+    return;
+  }
+
+  allBooks = allBooks.filter(book => book._id !== bookId);
+  filterBooks();
+}
+
+async function changeBookPrice(bookId, currentPrice) {
+  const nextPrice = prompt("Enter new price", String(currentPrice));
+  if (nextPrice === null) return;
+
+  const ownerName = (currentUser || selectedSeller || "").trim();
+
+  const parsedPrice = Number(nextPrice);
+  if (!parsedPrice || parsedPrice <= 0) {
+    alert("Enter a valid price");
+    return;
+  }
+
+  const res = await fetch(`http://localhost:5000/books/${bookId}/price`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ price: parsedPrice, seller: ownerName })
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    alert(data.message || "Could not update price");
+    return;
+  }
+
+  const book = allBooks.find(item => item._id === bookId);
+  if (book) book.price = parsedPrice;
+  filterBooks();
+}
+
 function openImage(src) {
   document.getElementById("imageModal").style.display = "flex";
   document.getElementById("fullImage").src = src;
@@ -193,10 +283,14 @@ function closeImage() {
 
 function chatWithSeller(name) {
   localStorage.setItem("chatSeller", name);
-  window.location.href = "chat.html";
+    window.location.href = `chat.html?seller=${encodeURIComponent(name)}`;
 }
 
 window.onload = loadBooks;
+window.addEventListener("DOMContentLoaded", setSellerFilterFromQuery);
+document.addEventListener('click', () => {
+  document.querySelectorAll('.all-books-menu.show').forEach((menu) => menu.classList.remove('show'));
+});
 </script>
 
 <div

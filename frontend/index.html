@@ -16,63 +16,237 @@
     Book<span>Swap</span>
   </div>
   <div class="nav-links">
-    <a href="#" onclick="showSection('browse')">Browse Books</a>
-    <a href="#" onclick="showSection('sell')">Sell Books</a>
+    <a href="#listings">
+      Browse Books
+    </a>
+
+    <button class="nav-link-btn" onclick="openModal('sellModal')">Sell Books</button>
     <a href="#features">Features</a>
     <a href="#how">How it Works</a>
-    <div class="nav-chat" id="chatBtn" onclick="openInbox()">
-
-  <span>💬</span>
-  <span>Chat</span>
-
-  <span id="chatBadge" class="chat-badge">0</span>
-
-</div>
+    <a href="#contact-us">Contact Us</a>
+    <div class="nav-chat" onclick="openInbox()">
+      <span>💬</span>
+      <span>Chat</span>
+      <span id="chatBadge" class="chat-badge" style="display:none">0</span>
+    </div>
   </div>
   <div class="nav-actions">
-    <button id="loginBtn" class="btn-primary"
-onclick="openModal('authModal')">
-  Log In
-</button>
-    <button class="btn-primary" onclick="openModal('authModal')">Sign Up Free</button>
+    <button class="btn-primary" onclick="openModal('authModal')">Log In</button>
+    <button class="btn-primary btn-amber-nav" onclick="openModal('authModal')">Sign Up Free</button>
   </div>
 </nav>
 
 <!-- HERO -->
 <section class="hero">
+
+  <!-- LEFT SIDE -->
+
   <div class="hero-left">
-    <div class="hero-eyebrow">College Marketplace — Save Big</div>
-    <h1>Buy &amp; Sell<br/>College Books<br/><em>Smarter</em></h1>
-    <p class="hero-sub">India's first AI-powered college textbook marketplace. Buy used books at 60% off, sell yours in minutes. Chat in real-time. No middlemen.</p>
+
+    <div class="hero-eyebrow">
+      • COLLEGE MARKETPLACE — SAVE BIG
+    </div>
+
+    <h1>
+      Buy & Sell
+      <br>
+      College Books
+      <br>
+
+      <em>
+        Smarter
+      </em>
+
+    </h1>
+
+    <p class="hero-sub">
+
+      India's first AI-powered college textbook marketplace.
+
+      Buy used books at 60% off, sell yours in minutes.
+
+      Chat in real-time. No middlemen.
+
+    </p>
+
     <div class="hero-cta">
-      <button class="btn-lg btn-amber" onclick="openModal('authModal')">🚀 Get Started Free</button>
-      <button class="btn-lg btn-outline" onclick="document.getElementById('listings').scrollIntoView({behavior:'smooth'})">Browse Books →</button>
+
+      <button class="btn-lg btn-amber" onclick="openModal('authModal')">
+
+        🚀 Get Started Free
+
+      </button>
+
+      <button class="btn-lg btn-outline" onclick="document.getElementById('listings').scrollIntoView({behavior:'smooth'})">
+
+        Browse Books →
+
+      </button>
+
     </div>
-    <div class="hero-stats">
-      <div>
-        <h2 id="booksCount">0</h2>
-        <p>Books Listed</p>
-      </div>
-      <div>
-        <h2 id="usersCount">0</h2>
-        <p>Students</p>
-      </div>
-      <div>
-        <h2 id="savedAmount">₹0</h2>
-        <p>Saved by Students</p>
-      </div>
-    </div>
+
   </div>
+
+  <!-- RIGHT SIDE -->
+
   <div class="hero-visual">
-    <div class="book-stack">
-      <div class="book"></div>
-      <div class="book"></div>
-      <div class="book"></div>
-      <div class="book"></div>
-      <div class="book-badge">📚 Save upto 60%</div>
-      <div class="book-badge-2">✅ Verified</div>
+
+    <!-- NETFLIX SLIDER -->
+
+    <div class="netflix-slider">
+
+      <button
+        class="slide-btn prev"
+        onclick="prevSlide()"
+      >
+        ❮
+      </button>
+
+      <div class="slides">
+
+        <!-- BOOK 1 -->
+
+        <div class="slide active">
+
+          <img
+            src="https://images-na.ssl-images-amazon.com/images/I/81s6DUyQCZL.jpg"
+          >
+
+          <div class="slide-info">
+
+            <h2>
+              Atomic Habits
+            </h2>
+
+            <p>
+              James Clear
+            </p>
+
+          </div>
+
+        </div>
+
+        <!-- BOOK 2 -->
+
+        <div class="slide">
+
+          <img
+            src="https://images-na.ssl-images-amazon.com/images/I/71aFt4+OTOL.jpg"
+          >
+
+          <div class="slide-info">
+
+            <h2>
+              Rich Dad Poor Dad
+            </h2>
+
+            <p>
+              Robert Kiyosaki
+            </p>
+
+          </div>
+
+        </div>
+
+        <!-- BOOK 3 -->
+
+        <div class="slide">
+
+          <img
+            src="https://images-na.ssl-images-amazon.com/images/I/61Iz2yy2CKL.jpg"
+          >
+
+          <div class="slide-info">
+
+            <h2>
+              Psychology Of Money
+            </h2>
+
+            <p>
+              Morgan Housel
+            </p>
+
+          </div>
+
+        </div>
+
+        <!-- BOOK 4 -->
+
+        <div class="slide">
+
+          <img
+            src="https://images-na.ssl-images-amazon.com/images/I/81WcnNQ-TBL.jpg"
+          >
+
+          <div class="slide-info">
+
+            <h2>
+              Ikigai
+            </h2>
+
+            <p>
+              Hector Garcia
+            </p>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <button
+        class="slide-btn next"
+        onclick="nextSlide()"
+      >
+        ❯
+      </button>
+
     </div>
+
+    <!-- STATS -->
+
+    <div class="hero-stats">
+
+      <div>
+
+        <h2 id="booksCount">
+          8
+        </h2>
+
+        <p>
+          Books Listed
+        </p>
+
+      </div>
+
+      <div>
+
+        <h2 id="usersCount">
+          5
+        </h2>
+
+        <p>
+          Students
+        </p>
+
+      </div>
+
+      <div>
+
+        <h2 id="savedAmount">
+          ₹1600
+        </h2>
+
+        <p>
+          Saved by Students
+        </p>
+
+      </div>
+
+    </div>
+
   </div>
+
 </section>
 
 <!-- SEARCH -->
@@ -87,11 +261,11 @@ onclick="openModal('authModal')">
       <option>Fiction/Others</option>
     </select>
     <input class="search-input" type="text" placeholder="Search by title, author, ISBN, or subject..."/>
-    <button class="search-btn" onclick="alert('Search feature active! Connect to MongoDB full-text search API.')">🔍 Search</button>
+    <button class="search-btn">🔍 Search</button>
   </div>
   <div class="search-tags">
     <span>Popular:</span>
-    <span class="tag" onclick="alert('Showing Data Structures books near you')">Data Structures</span>
+    <span class="tag">Data Structures</span>
     <span class="tag">Operating Systems</span>
     <span class="tag">Gray's Anatomy</span>
     <span class="tag">Engineering Maths</span>
@@ -146,8 +320,8 @@ onclick="openModal('authModal')">
     </div>
     <div class="feature-card">
       <div class="feature-icon" style="background:#fff9c4">🔔</div>
-      <h3>Wishlist & Alerts</h3>
-      <p>Save books to your wishlist. Get instant notifications when price drops or a new copy of your desired book is listed.</p>
+      <h3>Wishlist &amp; Alerts</h3>
+      <p>Save books to your wishlist. Get instant notifications when price drops or a new copy is listed.</p>
       <span class="feature-tag">Smart Alerts</span>
     </div>
     <div class="feature-card">
@@ -159,7 +333,7 @@ onclick="openModal('authModal')">
     <div class="feature-card">
       <div class="feature-icon" style="background:#e8eaf6">🎓</div>
       <h3>College-Only Mode</h3>
-      <p>Enable college verification. Restrict your listings to only students from your campus for maximum trust and safety.</p>
+      <p>Enable college verification. Restrict your listings to only students from your campus for maximum trust.</p>
       <span class="feature-tag">Verified Only</span>
     </div>
   </div>
@@ -174,17 +348,14 @@ onclick="openModal('authModal')">
     </div>
     <a href="#">View all 12,400+ books →</a>
   </div>
-  <div class="books-grid">
+  <div class="books-grid" id="booksContainer">
     <div class="book-card" onclick="openModal('authModal')">
       <div class="book-thumb" style="background:#dbeafe">📘<span class="book-condition cond-good">Good</span></div>
       <div class="book-info">
-        <div class="book-title">Data Structures & Algorithms</div>
+        <div class="book-title">Data Structures &amp; Algorithms</div>
         <div class="book-author">Thomas Cormen · CLRS</div>
         <div class="book-meta">
-          <div>
-            <div class="book-price">₹320</div>
-            <div class="book-orig">MRP ₹899</div>
-          </div>
+          <div><div class="book-price">₹320</div><div class="book-orig">MRP ₹899</div></div>
           <div class="book-stars">★★★★★</div>
         </div>
         <div class="book-location">IIT Bombay, 0.3km</div>
@@ -196,10 +367,7 @@ onclick="openModal('authModal')">
         <div class="book-title">Gray's Anatomy</div>
         <div class="book-author">Henry Gray · 42nd Ed.</div>
         <div class="book-meta">
-          <div>
-            <div class="book-price">₹1,400</div>
-            <div class="book-orig">MRP ₹4,200</div>
-          </div>
+          <div><div class="book-price">₹1,400</div><div class="book-orig">MRP ₹4,200</div></div>
           <div class="book-stars">★★★★☆</div>
         </div>
         <div class="book-location">AIIMS Delhi, 1.2km</div>
@@ -211,10 +379,7 @@ onclick="openModal('authModal')">
         <div class="book-title">Engineering Maths Vol. 2</div>
         <div class="book-author">H.K. Dass</div>
         <div class="book-meta">
-          <div>
-            <div class="book-price">₹180</div>
-            <div class="book-orig">MRP ₹550</div>
-          </div>
+          <div><div class="book-price">₹180</div><div class="book-orig">MRP ₹550</div></div>
           <div class="book-stars">★★★★★</div>
         </div>
         <div class="book-location">VIT Vellore, 0.7km</div>
@@ -226,10 +391,7 @@ onclick="openModal('authModal')">
         <div class="book-title">Operating System Concepts</div>
         <div class="book-author">Silberschatz · 10th Ed.</div>
         <div class="book-meta">
-          <div>
-            <div class="book-price">₹250</div>
-            <div class="book-orig">MRP ₹799</div>
-          </div>
+          <div><div class="book-price">₹250</div><div class="book-orig">MRP ₹799</div></div>
           <div class="book-stars">★★★☆☆</div>
         </div>
         <div class="book-location">BITS Pilani, 2.1km</div>
@@ -238,7 +400,19 @@ onclick="openModal('authModal')">
   </div>
 </section>
 
-<!-- CHAT PREVIEW -->
+<!-- MY UPLOADS -->
+<section class="listings-section" id="myUploadsSection">
+  <div class="listings-header">
+    <div>
+      <div class="section-eyebrow">My Uploads</div>
+      <h2>Books you uploaded</h2>
+    </div>
+    <a id="myUploadsViewAll" href="all-books.html">View all uploads →</a>
+  </div>
+  <div class="books-grid" id="myUploadsContainer"></div>
+</section>
+
+<!-- CHAT SECTION -->
 <section class="chat-section" id="chatSection">
   <div>
     <div class="section-eyebrow">Real-Time Chat</div>
@@ -258,9 +432,17 @@ onclick="openModal('authModal')">
         <span style="font-size:.9rem">Share book photos and QR codes in chat</span>
       </div>
     </div>
-    <button class="btn-lg btn-amber" style="margin-top:2rem" onclick="openModal('authModal')">Start Chatting →</button>
+    <button class="btn-lg btn-amber" style="margin-top:2rem" onclick="startChatting()">Start Chatting →</button>
   </div>
-  
+</section>
+
+<!-- INBOX SECTION -->
+<section id="inboxSection" class="inbox-wrap" style="display:none;">
+  <div class="inbox-header">
+    <h2>Your Chats</h2>
+    <button class="btn-ghost" onclick="closeInbox()">✕ Close</button>
+  </div>
+  <div id="chatList"></div>
 </section>
 
 <!-- HOW IT WORKS -->
@@ -283,7 +465,7 @@ onclick="openModal('authModal')">
     </div>
     <div class="step">
       <div class="step-num">3</div>
-      <div class="step-title">Chat & Negotiate</div>
+      <div class="step-title">Chat &amp; Negotiate</div>
       <div class="step-desc">Interested buyers message you instantly. Agree on price via real-time chat.</div>
     </div>
     <div class="step">
@@ -308,7 +490,7 @@ onclick="openModal('authModal')">
         <div class="review-avatar" style="background:#2d5a8e">ME</div>
         <div>
           <div class="review-name">Md Ezaz Ansari</div>
-          <div class="review-college">B.Tech CSE </div>
+          <div class="review-college">B.Tech CSE</div>
         </div>
       </div>
     </div>
@@ -348,7 +530,7 @@ onclick="openModal('authModal')">
 </section>
 
 <!-- FOOTER -->
-<footer>
+<footer id="contact-us">
   <div class="footer-brand">
     <div class="nav-logo" style="color:var(--paper)">
       <div class="logo-icon">📖</div>
@@ -371,7 +553,7 @@ onclick="openModal('authModal')">
       <li><a href="#">Engineering</a></li>
       <li><a href="#">Medical</a></li>
       <li><a href="#">MBA / Commerce</a></li>
-      <li><a href="#">Fiction & Others</a></li>
+      <li><a href="#">Fiction &amp; Others</a></li>
     </ul>
   </div>
   <div>
@@ -379,8 +561,16 @@ onclick="openModal('authModal')">
     <ul>
       <li><a href="#">About Us</a></li>
       <li><a href="#">Admin Panel</a></li>
-      <li><a href="#">Contact</a></li>
       <li><a href="#">Privacy Policy</a></li>
+    </ul>
+  </div>
+  <div>
+    <h4>Contact Us</h4>
+    <ul class="footer-contact-list">
+      <li><a href="https://wa.me/9162723030?text=Hi%20BookSwap,%20I%20need%20help" target="_blank" rel="noreferrer">WhatsApp</a></li>
+      <li><a href="mailto:ansarimdezaz01@gmail.com?subject=BookSwap%20Support">Mail</a></li>
+      <li><a href="tel:+9162723030">Call 9162723030</a></li>
+      <li><a href="sms:+9162723030?body=Hi%20BookSwap,%20I%20need%20help">SMS</a></li>
     </ul>
   </div>
 </footer>
@@ -399,60 +589,47 @@ onclick="openModal('authModal')">
       <button class="tab-btn active" onclick="switchTab('login')">Log In</button>
       <button class="tab-btn" onclick="switchTab('signup')">Sign Up</button>
     </div>
-<!--Login Form -->
-    <form
-  id="loginForm"
-  autocomplete="off"
-  onsubmit="event.preventDefault(); loginUser();"
->
-
-      <label>Email</label><br>
-      <input type="email" id="loginEmail" autocomplete="new-password" required><br><br>
-
-      <label>Password</label><br>
-      <input 
-  type="password"
-  id="loginPassword"
-  autocomplete="new-password"
-  placeholder="Enter password"
-  required
-  ><br><br>
-
-      <button
-  type="submit"
-  id="loginBtn"
-  class="form-submit"
->
-  Log In
-</button>
-
+    <!-- Login Form -->
+    <form id="loginForm" autocomplete="off" onsubmit="event.preventDefault(); loginUser();">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" autocomplete="new-password" placeholder="your@college.ac.in" required>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" autocomplete="new-password" placeholder="Enter password" required>
+      </div>
+      <button type="submit" class="form-submit">Log In</button>
     </form>
-<!--Signup Form -->
+    <!-- Signup Form -->
     <div id="signupForm" style="display:none">
-  <div class="form-group">
-    <label>Full Name</label>
-    <input type="text" id="name" placeholder="Rahul Sharma"/>
-  </div>
-  <div class="form-group">
-    <label>College Email</label>
-    <input type="email" id="email" placeholder="rahul@iit.ac.in" autocomplete="new-password"/>
-  </div>
-  <div class="form-group">
-    <label>College & City</label>
-    <input type="text" id="college" placeholder="IIT Bombay, Mumbai"/>
-  </div>
-  <div class="form-group">
-    <label>Password</label>
-    <input 
-  type="password"
-  id="password"
-  autocomplete="new-password"
-  placeholder="Create a strong password"
-/>
-  </div>
-  <button class="form-submit" onclick="signupUser()">Create Free Account</button>
-</div>
-    <p class="form-footer" style="margin-top:.8rem">By signing up you agree to our <a href="#">Terms</a></p>
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="signupName" placeholder="Rahul Sharma"/>
+      </div>
+      <div class="form-group">
+        <label>College Email</label>
+        <input type="email" id="signupEmail" placeholder="rahul@iit.ac.in" autocomplete="new-password"/>
+      </div>
+      <div class="form-group">
+        <label>College &amp; City</label>
+        <input type="text" id="signupCollege" placeholder="IIT Bombay, Mumbai"/>
+      </div>
+      <div class="form-group">
+        <label>Location</label>
+        <input type="text" id="signupLocation" placeholder="Mumbai, Maharashtra" required/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="signupPassword" autocomplete="new-password" placeholder="Create a strong password"/>
+      </div>
+      <div class="form-group">
+        <label>Re-enter Password</label>
+        <input type="password" id="signupConfirmPassword" autocomplete="new-password" placeholder="Re-enter your password"/>
+      </div>
+      <button class="form-submit" onclick="signupUser()">Create Free Account</button>
+    </div>
+    <p class="form-footer">By signing up you agree to our <a href="#">Terms</a></p>
   </div>
 </div>
 
@@ -464,12 +641,27 @@ onclick="openModal('authModal')">
     <p class="modal-sub">Takes about 2 minutes. Auto-fill with ISBN!</p>
     <div class="form-group">
       <label>ISBN or Book Title</label>
-      <input type="text" id="isbnInput" placeholder="e.g. 978-0262033848 or 'CLRS'"/>
+      <input type="text" id="sellTitle" placeholder="e.g. 978-0262033848 or 'CLRS'"/>
       <div class="ai-suggest">🤖 AI will auto-suggest title, author, and MRP using Google Books API</div>
     </div>
     <div class="form-group">
+      <label>Category</label>
+      <select id="bookCategory">
+        <option value="">Select Category</option>
+        <option value="Engineering">Engineering</option>
+        <option value="Medical">Medical</option>
+        <option value="MBA/Commerce">MBA/Commerce</option>
+        <option value="Fiction/Others">Fiction/Others</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="form-group" id="otherCategoryGroup" style="display:none;">
+      <label>Write Your Category</label>
+      <input type="text" id="otherCategory" placeholder="e.g. Law, Architecture, Music"/>
+    </div>
+    <div class="form-group">
       <label>Condition</label>
-      <select>
+      <select id="bookCondition">
         <option>New (Unused)</option>
         <option>Good (Minor highlights)</option>
         <option>Fair (Worn, notes)</option>
@@ -478,11 +670,11 @@ onclick="openModal('authModal')">
     <div class="price-row">
       <div class="form-group">
         <label>Your Price (₹)</label>
-        <input type="text" placeholder="e.g. 350"/>
+        <input type="number" id="bookPrice" placeholder="e.g. 350"/>
       </div>
       <div class="form-group">
         <label>Listing Type</label>
-        <select>
+        <select id="listingType">
           <option>Sell</option>
           <option>Exchange</option>
           <option>Both</option>
@@ -490,21 +682,20 @@ onclick="openModal('authModal')">
       </div>
     </div>
     <div class="form-group">
+      <label>Location</label>
+      <input type="text" id="location" placeholder="Mumbai, Maharashtra"/>
+    </div>
+    <div class="form-group">
       <label>Upload Photos</label>
-
       <input type="file" id="bookImages" accept="image/*" multiple style="display:none">
-
       <div class="upload-zone" onclick="document.getElementById('bookImages').click()">
         📷 Click to upload book photos<br/>
         <small>Upload up to 5 photos</small>
       </div>
+      <div id="previewContainer" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;"></div>
     </div>
     <button class="form-submit" id="listBookBtn">List Book Now</button>
   </div>
-</div>
-
-<div id="premiumSection" class="blur">
-  🔒 Login to unlock this feature
 </div>
 
 <script src="script.js"></script>

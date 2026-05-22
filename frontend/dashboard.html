@@ -6,108 +6,188 @@
 <title>BookSwap — College Marketplace</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="style.css">
-</head>
-<body class="dashboard-page">
-
-<!-- NAV -->
 <nav>
   <div class="nav-logo">
     <div class="logo-icon">📖</div>
     Book<span>Swap</span>
   </div>
+
   <div class="nav-links">
-    <a href="#" onclick="showSection('browse')">Browse Books</a>
-    <a href="#" onclick="showSection('sell')">Sell Books</a>
+    <a href="#listings">Browse Books</a>
+    <button class="nav-link-btn" onclick="openModal('sellModal')">Sell Books</button>
     <a href="#features">Features</a>
     <a href="#how">How it Works</a>
-
+    <a href="#contact-us">Contact Us</a>
     <div class="nav-chat" id="chatBtn" onclick="openInbox()">
-  <span>💬</span>
-  <span>Chat</span>
-  <span id="chatBadge" class="chat-badge">0</span>
-</div>
+      <span>💬</span>
+      <span>Chat</span>
+      <span id="chatBadge" class="chat-badge">0</span>
+    </div>
   </div>
 
   <div class="nav-actions">
-    <div class="welcome-bar">
-      <div class="welcome-left">
-        <div class="user-icon">
-          <i class="fa-solid fa-user"></i>
-        </div>
-
-        <h2>
-          Welcome,
-          <span id="welcomeName">rahul</span> 🎉
-        </h2>
+    <div class="welcome-card">
+      <div class="avatar" id="welcomeAvatar">F</div>
+      <div class="welcome-text">
+        <h2>Welcome, <span id="welcomeName">farhan</span></h2>
       </div>
 
-      <button class="logout-btn" onclick="logout()">
-        <i class="fa-solid fa-right-from-bracket"></i>
-        Logout
-      </button>
+      <div class="menu-wrapper">
+        <button class="menu-btn" onclick="toggleMenu()">⋮</button>
+
+        <div id="profileMenu" class="profile-menu">
+          <div class="menu-item" onclick="openProfile()">👤 View Profile</div>
+          <div class="menu-item">
+            <span>🎨 Theme</span>
+            <select id="themeSelect" class="theme-select" onchange="changeTheme(this.value)">
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="blue">Blue</option>
+            </select>
+          </div>
+          <div class="menu-item logout" onclick="logoutUser()">🚪 Logout</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
     </div>
   </div>
 </nav>
 
 <!-- HERO -->
 <section class="hero">
-  <div class="hero-left">
-    <div class="hero-eyebrow">College Marketplace — Save Big</div>
-    <h1>Buy &amp; Sell<br/>College Books<br/><em>Smarter</em></h1>
-    <p class="hero-sub">India's first AI-powered college textbook marketplace. Buy used books at 60% off, sell yours in minutes. Chat in real-time. No middlemen.</p>
-    <div class="hero-cta">
-      <button class="btn-lg btn-outline" onclick="document.getElementById('listings').scrollIntoView({behavior:'smooth'})">Browse Books →</button>
-    </div>
-    <div class="hero-stats">
-      <div>
-        <h2 id="booksCount">0</h2>
-        <p>Books Listed</p>
-      </div>
-      <div>
-        <h2 id="usersCount">0</h2>
-        <p>Students</p>
-      </div>
-      <div>
-        <h2 id="savedAmount">₹0</h2>
-        <p>Saved by Students</p>
-      </div>
-    </div>
-  </div>
-  <div class="hero-visual">
-    <div class="book-stack">
-      <div class="book"></div>
-      <div class="book"></div>
-      <div class="book"></div>
-      <div class="book"></div>
-      <div class="book-badge">📚 Save 60%</div>
-      <div class="book-badge-2">✅ Verified</div>
-    </div>
-  </div>
-</section>
 
-<!-- SEARCH -->
-<section class="search-section">
-  <div class="search-label">Find your textbook instantly</div>
-  <div class="search-bar">
-    <select class="search-filter">
-      <option>All Categories</option>
-      <option>Engineering</option>
-      <option>Medical</option>
-      <option>MBA/Commerce</option>
-      <option>Fiction/Others</option>
-    </select>
-    <input class="search-input" type="text" placeholder="Search by title, author, ISBN, or subject..."/>
-    <button class="search-btn" onclick="alert('Search feature active! Connect to MongoDB full-text search API.')">🔍 Search</button>
+  <!-- LEFT SIDE -->
+
+  <div class="hero-left">
+
+    <div class="hero-eyebrow">
+      • COLLEGE MARKETPLACE — SAVE BIG
+    </div>
+
+    <h1>
+      Buy & Sell
+      <br>
+      College Books
+      <br>
+
+      <em>
+        Smarter
+      </em>
+
+    </h1>
+
+    <p class="hero-sub">
+
+      India's first AI-powered college textbook marketplace.
+
+      Buy used books at 60% off, sell yours in minutes.
+
+      Chat in real-time. No middlemen.
+
+    </p>
+
+    <div class="hero-cta">
+
+      <button class="btn-lg btn-outline" onclick="document.getElementById('listings').scrollIntoView({behavior:'smooth'})">Browse Books →</button>
+
+    </div>
+
   </div>
-  <div class="search-tags">
-    <span>Popular:</span>
-    <span class="tag" onclick="alert('Showing Data Structures books near you')">Data Structures</span>
-    <span class="tag">Operating Systems</span>
-    <span class="tag">Gray's Anatomy</span>
-    <span class="tag">Engineering Maths</span>
-    <span class="tag">VLSI Design</span>
-    <span class="tag">Pharmacology</span>
+
+  <!-- RIGHT SIDE -->
+
+  <div class="hero-visual">
+
+    <!-- NETFLIX SLIDER -->
+
+    <div class="netflix-slider">
+
+      <div class="slider-kicker">
+        Featured seller uploads
+      </div>
+
+      <button
+        class="slide-btn prev"
+        onclick="prevSlide()"
+      >
+        ❮
+      </button>
+
+      <div class="slides" id="featuredBooksSlides">
+
+        <div class="slide active slide-placeholder">
+
+          <div class="slide-info">
+
+            <h2>
+              Loading featured books...
+            </h2>
+
+            <p>
+              Seller uploads will appear here.
+            </p>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <button
+        class="slide-btn next"
+        onclick="nextSlide()"
+      >
+        ❯
+      </button>
+
+    </div>
+
+    <!-- STATS -->
+
+    <div class="hero-stats">
+
+      <div>
+
+        <h2 id="booksCount">
+          8
+        </h2>
+
+        <p>
+          Books Listed
+        </p>
+
+      </div>
+
+      <div>
+
+        <h2 id="usersCount">
+          5
+        </h2>
+
+        <p>
+          Students
+        </p>
+
+      </div>
+
+      <div>
+
+        <h2 id="savedAmount">
+          ₹1600
+        </h2>
+
+        <p>
+          Saved by Students
+        </p>
+
+      </div>
+
+    </div>
+
   </div>
+
 </section>
 
 <!-- FEATURES -->
@@ -187,8 +267,47 @@
   <div class="books-grid" id="booksContainer"></div>
 </section>
 
+<!-- MY UPLOADS -->
+<section class="listings-section" id="myUploadsSection">
+  <div class="listings-header">
+    <div>
+      <div class="section-eyebrow">My Uploads</div>
+      <h2>Books you uploaded</h2>
+    </div>
+    <a id="myUploadsViewAll" href="all-books.html" style="color:var(--muted);font-weight:600;">View all uploads →</a>
+  </div>
+  <div class="books-grid" id="myUploadsContainer"></div>
+</section>
+
 <!-- CHAT PREVIEW -->
 <section class="chat-section" id="chatSection">
+  <!-- 🔥 INBOX SECTION -->
+
+<section
+  id="inboxSection"
+  class="inbox-wrap"
+  style="display:none;"
+>
+
+  <div class="inbox-header">
+
+    <h2>Your Chats</h2>
+
+    <button
+      class="btn-ghost"
+      onclick="closeInbox()"
+    >
+      ✕ Close
+    </button>
+
+  </div>
+
+  <div id="chatList"></div>
+
+</section>
+
+
+
   <div>
     <div class="section-eyebrow">Real-Time Chat</div>
     <h2>Talk to sellers<br/>before you buy</h2>
@@ -207,7 +326,7 @@
         <span style="font-size:.9rem">Share book photos and QR codes in chat</span>
       </div>
     </div>
-    <button class="btn-lg btn-amber" style="margin-top:2rem" onclick="openModal('authModal')">Start Chatting →</button>
+    <button class="btn-lg btn-amber" style="margin-top:2rem" onclick="startChatting()">Start Chatting →</button>
   </div>
   <div class="chat-mockup">
     <div class="chat-header">
@@ -328,7 +447,7 @@
 </section>
 
 <!-- FOOTER -->
-<footer>
+<footer id="contact-us">
   <div class="footer-brand">
     <div class="nav-logo" style="color:var(--paper)">
       <div class="logo-icon">📖</div>
@@ -359,13 +478,21 @@
     <ul>
       <li><a href="#">About Us</a></li>
       <li><a href="#">Admin Panel</a></li>
-      <li><a href="#">Contact</a></li>
       <li><a href="#">Privacy Policy</a></li>
+    </ul>
+  </div>
+  <div>
+    <h4>Contact Us</h4>
+    <ul class="footer-contact-list">
+      <li><a href="https://wa.me/9162723030?text=Hi%20BookSwap,%20I%20need%20help" target="_blank" rel="noreferrer">WhatsApp</a></li>
+      <li><a href="mailto:ansarimdezaz01@gmail.com?subject=BookSwap%20Support">Mail</a></li>
+      <li><a href="tel:+9162723030">Call 9162723030</a></li>
+      <li><a href="sms:+9162723030?body=Hi%20BookSwap,%20I%20need%20help">SMS</a></li>
     </ul>
   </div>
 </footer>
 <div class="footer-bottom">
-  <p>© 2025 BookSwap. Built for college students 🎓</p>
+  <p>© 2026 BookSwap. Built for college students 🎓</p>
   <p>Node.js · MongoDB · Socket.IO · React</p>
 </div>
 
@@ -405,9 +532,17 @@
     <label>College & City</label>
     <input type="text" id="college" placeholder="IIT Bombay, Mumbai"/>
   </div>
+    <div class="form-group">
+      <label>Location</label>
+      <input type="text" id="location" placeholder="Mumbai, Maharashtra" required/>
+    </div>
   <div class="form-group">
     <label>Password</label>
     <input type="password" id="password" placeholder="Create a strong password"/>
+  </div>
+  <div class="form-group">
+    <label>Re-enter Password</label>
+    <input type="password" id="confirmPassword" placeholder="Re-enter your password"/>
   </div>
   <button class="form-submit" onclick="signupUser()">Create Free Account</button>
 </div>
@@ -442,10 +577,20 @@
       </select>
     </div>
 
+    <div class="form-group" id="otherCategoryGroup" style="display:none;">
+      <label>Write Your Category</label>
+      <input type="text" id="otherCategory" placeholder="e.g. Law, Architecture, Music"/>
+    </div>
+
     <!-- PRICE -->
     <div class="form-group">
       <label>Price (₹)</label>
       <input type="text" id="bookPrice" placeholder="e.g. 350"/>
+    </div>
+
+    <div class="form-group">
+      <label>Location</label>
+      <input type="text" id="bookLocation" placeholder="Mumbai, Maharashtra"/>
     </div>
 
     <!-- IMAGE UPLOAD -->
@@ -464,7 +609,6 @@
     </button>
 
   </div>
-</div>
 
 <script src="script.js"></script>
 
@@ -544,6 +688,7 @@ async function loadBooksHome() {
           <div class="book-info">
             <div class="book-title">${book.title}</div>
             <div class="book-author">${book.seller}</div>
+            <div class="book-location">${book.location || 'Location not shared'}</div>
             <div class="book-price">₹${book.price}</div>
           </div>
         </div>
@@ -555,8 +700,61 @@ async function loadBooksHome() {
   }
 }
 
+  async function loadMyUploads() {
+    try {
+      const currentUser = localStorage.getItem("userName") || "";
+      const container = document.getElementById("myUploadsContainer");
+      const viewAllLink = document.getElementById("myUploadsViewAll");
+
+      if (!container) return;
+
+      if (viewAllLink) {
+        viewAllLink.href = currentUser ? `all-books.html?seller=${encodeURIComponent(currentUser)}` : "all-books.html";
+      }
+
+      if (!currentUser) {
+        container.innerHTML = '<div class="book-card"><div class="book-info"><div class="book-title">No uploads yet</div><div class="book-author">Log in to view your book listings.</div></div></div>';
+        return;
+      }
+
+      const res = await fetch("http://localhost:5000/books");
+      if (!res.ok) return;
+
+      const books = await res.json();
+      const myBooks = books.filter(book => (book.seller || "").trim() === currentUser.trim());
+
+      const previewBooks = myBooks.slice(0, 4);
+
+      if (!previewBooks.length) {
+        container.innerHTML = '<div class="book-card"><div class="book-info"><div class="book-title">No uploads yet</div><div class="book-author">Books you list will appear here.</div></div></div>';
+        return;
+      }
+
+      container.innerHTML = "";
+
+      previewBooks.forEach(book => {
+        container.innerHTML += `
+          <div class="book-card">
+            <img src="${book.images?.[0] || book.image || 'https://via.placeholder.com/120'}"
+     style="width:100%; height:120px; object-fit:cover; border-radius:8px;" />
+
+            <div class="book-info">
+              <div class="book-title">${book.title || "No title"}</div>
+              <div class="book-author">${book.seller || "Unknown"}</div>
+              <div class="book-location">${book.location || 'Location not shared'}</div>
+              <div class="book-price">₹${book.price || 0}</div>
+            </div>
+          </div>
+        `;
+      });
+    } catch (err) {
+      console.error("❌ MY UPLOADS ERROR:", err);
+    }
+  }
+
 window.addEventListener("load", () => {
   loadBooksHome();
+  loadMyUploads();
   loadStats();
 });
 </script>
@@ -583,7 +781,19 @@ async function addBook() {
     Number(document.getElementById("bookPrice").value);
 
   const category =
-    document.getElementById("bookCategory").value;
+    typeof getSelectedBookCategory === "function"
+      ? getSelectedBookCategory()
+      : document.getElementById("bookCategory").value;
+
+  const locationInput = document.getElementById("bookLocation") || document.getElementById("location");
+  const savedLocation = localStorage.getItem("location") || "";
+  let location = locationInput ? locationInput.value.trim() : "";
+  if (!location) {
+    location = savedLocation.trim();
+    if (locationInput && location) {
+      locationInput.value = location;
+    }
+  }
 
   const seller =
     localStorage.getItem("userName") || "User";
@@ -591,8 +801,24 @@ async function addBook() {
   const files =
     document.getElementById("bookImages").files;
 
+  const submitButton = document.querySelector('#sellModal .form-submit');
+  const originalButtonHtml = submitButton ? submitButton.innerHTML : '';
+
+  function setUploadingState(isUploading) {
+    if (!submitButton) return;
+    submitButton.disabled = isUploading;
+    submitButton.innerHTML = isUploading
+      ? '<span class="upload-spinner"></span> Uploading...'
+      : originalButtonHtml;
+  }
+
   if (!title || !price || !category) {
     alert("All fields required ❗");
+    return;
+  }
+
+  if (document.getElementById("bookCategory")?.value === "Other" && !category) {
+    alert("Please write your custom category ❗");
     return;
   }
 
@@ -603,6 +829,7 @@ async function addBook() {
   formData.append("price", price);
   formData.append("seller", seller);
   formData.append("category", category);
+  formData.append("location", location || savedLocation || "Location not shared");
 
   // ✅ IMAGE
   for (let i = 0; i < files.length; i++) {
@@ -610,6 +837,7 @@ async function addBook() {
   }
 
   try {
+    setUploadingState(true);
 
     const res = await fetch(
       "http://localhost:5000/add-book",
@@ -625,11 +853,24 @@ async function addBook() {
 
     if (res.ok) {
 
-      alert("Book added successfully 🎉");
+      if (typeof showAutoPopup === "function") {
+        showAutoPopup("Book added successfully ", 1000);
+      } else {
+        alert("Book added successfully ");
+      }
 
       closeModal("sellModal");
 
+      if (document.getElementById("bookLocation")) {
+        document.getElementById("bookLocation").value = "";
+      }
+
+      if (document.getElementById("location")) {
+        document.getElementById("location").value = localStorage.getItem("location") || "";
+      }
+
       loadBooksHome();
+      loadMyUploads();
 
     } else {
 
@@ -643,51 +884,29 @@ async function addBook() {
 
     alert("Server not reachable ❌");
 
+  } finally {
+    setUploadingState(false);
   }
 
 }
 </script>
 
 <script>
-document.getElementById("bookImages").addEventListener("change", function(e) {
-  const container = document.getElementById("previewContainer");
-  container.innerHTML = "";
+  function syncBookLocationFromSignup() {
+    const savedLocation = localStorage.getItem("location") || "";
+    const bookLocationInput = document.getElementById("bookLocation");
+    const locationInput = document.getElementById("location");
 
-  const files = Array.from(e.target.files);
-
-  files.forEach((file, index) => {
-    const wrapper = document.createElement("div");
-    wrapper.style.position = "relative";
-
-    const img = document.createElement("img");
-    img.src = URL.createObjectURL(file);
-    img.style.width = "80px";
-    img.style.height = "80px";
-    img.style.objectFit = "cover";
-    img.style.borderRadius = "8px";
-
-    // ⭐ FIRST IMAGE = COVER
-    if (index === 0) {
-      img.style.border = "3px solid green";
-
-      const tag = document.createElement("span");
-      tag.innerText = "Cover";
-      tag.style.position = "absolute";
-      tag.style.top = "2px";
-      tag.style.left = "2px";
-      tag.style.background = "green";
-      tag.style.color = "white";
-      tag.style.fontSize = "10px";
-      tag.style.padding = "2px 5px";
-      tag.style.borderRadius = "5px";
-
-      wrapper.appendChild(tag);
+    if (bookLocationInput && !bookLocationInput.value) {
+      bookLocationInput.value = savedLocation;
     }
 
-    wrapper.appendChild(img);
-    container.appendChild(wrapper);
-  });
-});
+    if (locationInput && !locationInput.value) {
+      locationInput.value = savedLocation;
+    }
+  }
+
+  window.addEventListener("DOMContentLoaded", syncBookLocationFromSignup);
 </script>
 
 <div id="thankPopup" style="

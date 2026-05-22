@@ -60,8 +60,9 @@
         localStorage.getItem("userName");
 
       if (!currentUser) {
-        window.location.href = "index.html";
-        return;
+        
+
+        
       }
 
       const res = await fetch(
@@ -81,12 +82,18 @@
 
       <div
         class="chat-user"
-        onclick="openChat('${user.sender}')"
+        onclick="openChat('${user.user}')"
       >
 
-        <h3>${user.sender}</h3>
+        <h3>${user.user}</h3>
 
-        <p>${user.message}</p>
+        <p>${user.lastMessage}</p>
+
+        ${
+          user.unread > 0
+            ? `<span class="unread-badge">${user.unread}</span>`
+            : ""
+        }
 
       </div>
 
