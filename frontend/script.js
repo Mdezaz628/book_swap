@@ -27,10 +27,22 @@ function clearFirstExistingInputs(ids) {
   });
 }
 
+function getProfileStorageIdentity() {
+  const email = (localStorage.getItem("email") || "").trim().toLowerCase();
+  const userName = (localStorage.getItem("userName") || "").trim().toLowerCase();
+
+  return email || userName || "guest";
+}
+
+function getProfileImageStorageKey(identity) {
+  return `profileImage:${String(identity || getProfileStorageIdentity()).replace(/[^a-z0-9_-]+/gi, "_")}`;
+}
+
 function applyProfilePhotoToElement(element, fallbackInitial) {
   if (!element) return;
 
-  const savedImage = localStorage.getItem("profileImage");
+  const scopedKey = getProfileImageStorageKey();
+  const savedImage = localStorage.getItem(scopedKey);
 
   if (savedImage) {
     element.style.backgroundImage = `url('${savedImage}')`;

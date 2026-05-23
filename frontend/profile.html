@@ -397,6 +397,26 @@ body{
 
 <script>
 
+function getProfileStorageIdentity(){
+  const email = (localStorage.getItem("email") || "").trim().toLowerCase();
+  const userName = (localStorage.getItem("userName") || "").trim().toLowerCase();
+
+  return email || userName || "guest";
+}
+
+function getProfileImageStorageKey(identity){
+  return `profileImage:${String(identity || getProfileStorageIdentity()).replace(/[^a-z0-9_-]+/gi, "_")}`;
+}
+
+function loadProfileImageForCurrentUser(){
+  const scopedKey = getProfileImageStorageKey();
+  const savedImage = localStorage.getItem(scopedKey);
+
+  if (savedImage) {
+    document.getElementById("profileImage").src = savedImage;
+  }
+}
+
 function applyProfileTheme(theme){
   document.body.classList.remove("light-theme", "dark-theme", "blue-theme");
   document.body.classList.add(`${theme}-theme`);
@@ -445,19 +465,7 @@ window.onload = () => {
       "location"
     ) || "";
 
-  // image
-  const savedImage =
-    localStorage.getItem(
-      "profileImage"
-    );
-
-  if(savedImage){
-
-    document.getElementById(
-      "profileImage"
-    ).src = savedImage;
-
-  }
+  loadProfileImageForCurrentUser();
 
 };
 
@@ -501,11 +509,14 @@ function saveProfile(){
     locationValue
   );
 
+  const profileImageElement = document.getElementById(
+    "profileImage"
+  );
+  const scopedKey = getProfileImageStorageKey();
+
   localStorage.setItem(
-    "profileImage",
-    document.getElementById(
-      "profileImage"
-    ).src
+    scopedKey,
+    profileImageElement ? profileImageElement.src : ""
   );
 
   alert("Profile Saved ✅");
@@ -536,7 +547,7 @@ document.getElementById(
       ).src = imageData;
 
       localStorage.setItem(
-        "profileImage",
+        getProfileImageStorageKey(),
         imageData
       );
 

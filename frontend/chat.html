@@ -45,15 +45,21 @@
       <div>
         <h3 id="chatUserName"></h3>
         <p class="online-status">
-          ● Online now
+          <span class="online-dot">●</span>
           <span id="notifyBadge"></span>
         </p>
       </div>
+      <div class="chat-header-actions">
+        <button class="btn-ghost qr-show-btn" onclick="showQrPreview()">Show QR</button>
+        <button class="btn-ghost qr-top-btn" onclick="generateQrCode()">Confirm & Generate QR</button>
+      </div>
     </div>
 
+    <div id="chatDateHeader" class="chat-date-header"></div>
     <div class="chat-body" id="chatBox"></div>
 
     <div class="deal-confirm-box" id="dealConfirmBox">
+      <button class="deal-cancel" onclick="cancelDealConfirm()">✕</button>
       <div class="deal-confirm-title">Deal confirmation</div>
       <div class="deal-confirm-row">
         <input
@@ -73,6 +79,7 @@
       <div class="qr-preview-details" id="qrPreviewDetails"></div>
       <div class="qr-preview-actions">
         <button class="deal-confirm-btn secondary" onclick="downloadCurrentQr()">Download QR</button>
+        <button class="deal-confirm-btn secondary" onclick="hideQrPreview()">Hide QR</button>
       </div>
     </div>
 
@@ -121,6 +128,7 @@
   let latestQrPayload = null;
   let latestQrDataUrl = "";
   let latestDealPrice = null;
+  let latestQrHidden = false;
 
   console.log('CHAT INIT ->', { currentUser, selectedSeller, roomId });
 
@@ -218,6 +226,7 @@
 
     await Promise.all(promises);
     await loadLatestDealVerification();
+    insertTodayDateHeader();
     hideChatLoading();
   });
 
@@ -322,6 +331,23 @@
       latestQrDataUrl = canvas
         ? canvas.toDataURL("image/png")
         : (image ? image.src : "");
+      // Append the generated QR as a chat message with timestamp
+      try {
+        const chatBox = document.getElementById('chatBox');
+        if (chatBox && latestQrDataUrl) {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'msg-wrap msg-wrap-sent';
+          wrapper.innerHTML = `
+            <div class="msg msg-qr">
+              <div class="msg-text">Verification QR</div>
+              <div class="qr-img"><img src="${latestQrDataUrl}" alt="QR code"></div>
+              <div class="msg-meta"><span class="msg-time">${payload.date} ${payload.time}</span></div>
+            </div>
+          `;
+          chatBox.appendChild(wrapper);
+          chatBox.scrollTop = chatBox.scrollHeight;
+        }
+      } catch (e) { console.warn('Could not append QR into chat', e); }
     }, 0);
 
     details.innerHTML = `
@@ -336,6 +362,47 @@
 
     qrCard.style.display = "grid";
     qrCard.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function generateQrCode() {
+    if (!selectedSeller) {
+      alert("Select a seller first");
+      return;
+    }
+
+    const dealInput = document.getElementById("dealPriceInput");
+    const dealBox = document.getElementById("dealConfirmBox");
+    const rawPrice = dealInput ? dealInput.value : latestDealPrice;
+    const price = extractPriceFromText(rawPrice);
+
+    if (!price) {
+      // No valid price yet — reveal and focus the deal confirmation UI so user can type it.
+      if (dealBox) {
+        dealBox.style.display = 'block';
+        dealBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      if (dealInput) {
+        dealInput.focus();
+        try { dealInput.select(); } catch (e) {}
+      }
+
+      updateDealHelp('Enter a price above and click Confirm price to send it for verification.');
+      return;
+    }
+
+    latestDealPrice = price;
+    if (dealInput) {
+      dealInput.value = price;
+    }
+
+
+    // Ensure the confirm UI is visible, then send the confirm action so server can process it.
+    if (dealBox) {
+      dealBox.style.display = 'block';
+      dealBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    confirmDealPrice(price);
+    updateDealHelp(`Price sent for confirmation. QR will appear after both sides confirm ₹${price}.`);
   }
 
   function updateDealHelp(message) {
@@ -375,6 +442,47 @@
     link.remove();
   }
 
+  function hideQrPreview() {
+    const qrCard = document.getElementById('qrPreviewCard');
+    if (qrCard) {
+      qrCard.style.display = 'none';
+      latestQrHidden = true;
+    }
+  }
+
+  function showQrPreview() {
+    if (!latestQrPayload) {
+      alert('No QR available yet');
+      return;
+    }
+    const qrCard = document.getElementById('qrPreviewCard');
+    if (qrCard) {
+      qrCard.style.display = 'grid';
+      qrCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      latestQrHidden = false;
+    }
+  }
+
+  function cancelDealConfirm() {
+    const dealBox = document.getElementById('dealConfirmBox');
+    const dealInput = document.getElementById('dealPriceInput');
+    if (dealInput) dealInput.value = '';
+    if (dealBox) dealBox.style.display = 'none';
+    latestDealPrice = null;
+    updateDealHelp('Deal confirmation cancelled');
+  }
+
+  function insertTodayDateHeader() {
+    const el = document.getElementById('chatDateHeader');
+    if (!el) return;
+    const now = new Date();
+    const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    el.textContent = now.toLocaleDateString(undefined, opts);
+    el.style.textAlign = 'center';
+    el.style.padding = '10px 0';
+    el.style.color = 'var(--muted)';
+  }
+
   function confirmDealPrice(priceOverride) {
     const dealInput = document.getElementById("dealPriceInput");
     const rawPrice = typeof priceOverride !== "undefined" ? priceOverride : (dealInput ? dealInput.value : "");
@@ -406,8 +514,26 @@
 
   function handleDealStatus(state) {
     const confirmations = (state?.confirmations || []).length;
-    const waitingFor = (state?.waitingFor || []).join(", ") || "the other person";
-    updateDealHelp(`${confirmations} side(s) confirmed. Waiting for ${waitingFor}.`);
+    const waitingForArr = state?.waitingFor || [];
+    const waitingForText = waitingForArr.join(", ") || "the other person";
+    updateDealHelp(`${confirmations} side(s) confirmed. Waiting for ${waitingForText}.`);
+
+    // Prefill and show the deal confirmation UI so the other participant can confirm
+    const dealBox = document.getElementById("dealConfirmBox");
+    const dealInput = document.getElementById("dealPriceInput");
+    if (dealBox) dealBox.style.display = 'block';
+    if (dealInput && typeof state.price !== 'undefined') {
+      dealInput.value = state.price;
+    }
+
+    // If the current user is expected to confirm, prompt them explicitly
+    if (waitingForArr.includes(currentUser)) {
+      updateDealHelp(`Please confirm ₹${state.price} to generate the verification QR.`);
+      if (dealInput) {
+        dealInput.focus();
+        try { dealInput.select(); } catch (e) {}
+      }
+    }
   }
 
   function handleDealConfirmed(payload) {
