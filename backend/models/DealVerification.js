@@ -10,6 +10,14 @@ const dealVerificationSchema = new mongoose.Schema({
   code: String,
   confirmedBy: String,
   confirmedAt: String,
+  status: {
+    type: String,
+    default: 'completed'
+  },
+  riskScore: {
+    type: Number,
+    default: 0
+  },
   confirmations: {
     type: [String],
     default: []

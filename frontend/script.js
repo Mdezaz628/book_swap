@@ -1020,6 +1020,8 @@ async function signupUser() {
 async function loginUser() {
   const email = document.getElementById("loginEmail").value;
   const password = document.getElementById("loginPassword").value;
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const adminEmail = "ansarimdezaz01@gmail.com";
 
   try {
     const res = await fetch("http://localhost:5000/api/auth/login", {
@@ -1035,8 +1037,18 @@ async function loginUser() {
     if (data.message.includes("Login successful"))  {
       localStorage.setItem("token", data.token);
       localStorage.setItem("userName", data.name); // ⭐ ADD THIS
+      localStorage.setItem("role", data.role || "user");
+      if (data.role === "admin" || normalizedEmail === adminEmail) {
+        localStorage.setItem("adminToken", data.token);
+        localStorage.setItem("adminEmail", normalizedEmail);
+      } else {
+        localStorage.removeItem("adminToken");
+        localStorage.removeItem("adminEmail");
+      }
       showAutoPopup("Login success 🎉", 1000);
-      const redirectTarget = sessionStorage.getItem("postLoginRedirect") || "dashboard.html";
+      const redirectTarget = (data.role === "admin" || normalizedEmail === adminEmail)
+        ? "admin.html"
+        : (sessionStorage.getItem("postLoginRedirect") || "dashboard.html");
       sessionStorage.removeItem("postLoginRedirect");
       setTimeout(() => {
         window.location.href = redirectTarget;
@@ -1122,9 +1134,12 @@ async function loadBooksHome() {
     container.innerHTML = "";
 
     // 🔥 सिर्फ 4 books
-    const limitedBooks = books.slice(0, 4);
+    const limitedBooks = [...books]
+      .sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)))
+      .slice(0, 4);
 
     limitedBooks.forEach(book => {
+  const featuredLabel = book.featured ? `<span class="book-badge featured">${book.featured}</span>` : '';
   container.innerHTML += `
     <div class="book-card">
 
@@ -1134,6 +1149,7 @@ async function loadBooksHome() {
       />
 
       <div class="book-info">
+        <div class="book-badges">${featuredLabel}</div>
         <div class="book-title">${book.title || "No title"}</div>
         <div class="book-author">${book.seller || "Unknown"}</div>
         <div class="book-location">${getBookLocation(book)}</div>
@@ -1259,25 +1275,30 @@ async function loadFeaturedBooksSlider() {
     }
 
     const books = await res.json();
-    const featuredBooks = (books || []).slice(0, 6);
+    const featuredBooks = (books || [])
+      .filter((book) => book.featured)
+      .sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)))
+      .slice(0, 6);
 
     if (!featuredBooks.length) {
       slider.innerHTML = `
         <div class="slide active slide-placeholder">
           <div class="slide-info">
             <h2>No featured books yet</h2>
-            <p>Seller uploads will show up here once books are listed.</p>
+            <p>Admin-marked featured books will show up here.</p>
           </div>
         </div>
       `;
       return;
     }
 
-    while (featuredBooks.length < 6) {
-      featuredBooks.push(featuredBooks[featuredBooks.length % books.length]);
+    const sliderBooks = featuredBooks;
+
+    while (sliderBooks.length < 6 && sliderBooks.length > 0) {
+      sliderBooks.push(sliderBooks[sliderBooks.length % sliderBooks.length]);
     }
 
-    slider.innerHTML = featuredBooks.map((book, index) => {
+    slider.innerHTML = sliderBooks.map((book, index) => {
       const imageUrl = resolveBookImageSrc(book.images && book.images.length > 0 ? book.images[0] : '');
       const sellerName = book.seller || 'Unknown seller';
       const bookTitle = book.title || 'Untitled book';
@@ -1288,6 +1309,7 @@ async function loadFeaturedBooksSlider() {
         <div class="slide ${index === 0 ? 'active' : ''}">
           <img src="${imageUrl}" alt="${bookTitle}">
           <div class="slide-info">
+            ${book.featured ? `<span class="book-badge featured">${book.featured}</span>` : ''}
             <h2>${bookTitle}</h2>
             <p>${sellerName} · ${bookLocation} · ₹${price}</p>
             <button class="slide-chat-btn" onclick="event.stopPropagation(); chatWithSeller(${JSON.stringify(sellerName)})">
@@ -1409,7 +1431,85 @@ function initSocket() {
     localStorage.setItem("unreadCount", nextCount);
     updateBadge(nextCount);
   });
+
+  socket.on("adminNotification", (notification) => {
+    const label = notification?.title || "Admin notice";
+    showAutoPopup(label, 2500);
+  });
+
+  socket.on("announcementUpdated", (announcement) => {
+    renderStickyAnnouncement(announcement);
+  });
+
+  socket.on("forceLogout", (payload) => {
+    localStorage.clear();
+    sessionStorage.clear();
+    showAutoPopup(payload?.reason || "You have been logged out", 2500);
+    setTimeout(() => {
+      window.location.href = "index.html";
+    }, 600);
+  });
 }
+
+function renderStickyAnnouncement(announcement) {
+  const existing = document.getElementById("stickyAnnouncementBar");
+  if (existing) existing.remove();
+  if (!announcement || !announcement.active) return;
+
+  const bar = document.createElement("div");
+  bar.id = "stickyAnnouncementBar";
+  bar.style.position = "sticky";
+  bar.style.top = "0";
+  bar.style.zIndex = "9999";
+  bar.style.background = "linear-gradient(90deg, #0f172a, #1d4ed8)";
+  bar.style.color = "white";
+  bar.style.padding = "10px 16px";
+  bar.style.display = "flex";
+  bar.style.justifyContent = "space-between";
+  bar.style.alignItems = "center";
+  bar.style.gap = "12px";
+  bar.innerHTML = `
+    <div>
+      <strong>${announcement.title || 'Announcement'}</strong>
+      <span style="margin-left:8px;opacity:.95">${announcement.message || ''}</span>
+    </div>
+    <button type="button" aria-label="Dismiss announcement" style="background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:6px 10px;cursor:pointer">×</button>
+  `;
+  bar.querySelector('button').addEventListener('click', () => bar.remove());
+  document.body.prepend(bar);
+}
+
+async function loadStickyAnnouncement() {
+  try {
+    const res = await fetch('http://localhost:5000/announcements/active');
+    if (!res.ok) return;
+    const data = await res.json();
+    renderStickyAnnouncement(data.announcement);
+  } catch (err) {
+    console.warn('Announcement load failed', err);
+  }
+}
+
+async function loadLatestBroadcast() {
+  try {
+    const res = await fetch('http://localhost:5000/notifications/latest');
+    if (!res.ok) return;
+    const data = await res.json();
+    const notification = data.notification;
+    if (!notification?.message) return;
+
+    const lastSeen = localStorage.getItem('lastBroadcastSeen');
+    if (lastSeen === String(notification.createdAt || '')) return;
+
+    localStorage.setItem('lastBroadcastSeen', String(notification.createdAt || ''));
+    showAutoPopup(notification.title || 'Broadcast', 2500);
+  } catch (err) {
+    console.warn('Broadcast load failed', err);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', loadStickyAnnouncement);
+window.addEventListener('DOMContentLoaded', loadLatestBroadcast);
 
 window.addEventListener("focus", () => {
   localStorage.setItem("unreadCount", 0);

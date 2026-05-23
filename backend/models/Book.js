@@ -12,8 +12,24 @@ const bookSchema = new mongoose.Schema({
 
   location: String,
 
-  images: [String]
+  images: [String],
+  featured: {
+    type: String,
+    default: ''
+  },
+  reviewStatus: {
+    type: String,
+    default: 'pending'
+  },
+  reportCount: {
+    type: Number,
+    default: 0
+  },
+  suspiciousScore: {
+    type: Number,
+    default: 0
+  }
 
-});
+}, { timestamps: true });
 
 module.exports = mongoose.model("Book", bookSchema);

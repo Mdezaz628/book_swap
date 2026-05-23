@@ -99,7 +99,7 @@ function resolveBookImageSrc(imagePath) {
 
 async function loadBooks() {
   const res = await fetch("http://localhost:5000/books") ;
-  allBooks = await res.json();
+  allBooks = (await res.json()).slice().sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)));
 
   if (selectedSeller) {
     const heading = document.querySelector("h2[style*='text-align:center']");
@@ -117,6 +117,7 @@ function displayBooks(books) {
   container.innerHTML = "";
 
   books.forEach(book => {
+    const featuredBadge = book.featured ? `<span class="book-badge featured">${book.featured}</span>` : '';
 
     container.innerHTML += `
 
@@ -132,6 +133,10 @@ onclick="openImageGallery('${encodeURIComponent(JSON.stringify(book.images || [b
 >
 
         <div class="all-books-card-body">
+
+          <div class="book-badges">
+            ${featuredBadge}
+          </div>
 
           <h3 class="all-books-card-title">
             ${book.title}

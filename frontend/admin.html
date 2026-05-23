@@ -1,210 +1,1230 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>SWAPTOME Admin</title>
+  <title>SWAPTOME Admin Console</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <div id="adminLoader" class="loading-overlay"><div class="spinner" aria-hidden="true"></div></div>
   <style>
-    .admin-wrap{padding:20px;max-width:1100px;margin:0 auto}
-    .cards{display:flex;gap:12px;margin-bottom:16px}
-    .card{background:var(--card);padding:14px;border-radius:8px;flex:1;box-shadow:var(--shadow)}
-    .section{margin-top:20px}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:8px;border-bottom:1px solid var(--border);text-align:left}
-    .btn{padding:6px 10px;border-radius:6px;border:none;cursor:pointer}
-    .btn-danger{background:#e53935;color:white}
-    .btn-muted{background:#f1f1f1}
-    .controls{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+    :root {
+      --ink: #1a1208;
+      --paper: #f5f0e8;
+      --cream: #ede8da;
+      --amber: #e8820c;
+      --amber-light: #fbb045;
+      --rust: #c0441b;
+      --sage: #4a7c59;
+      --slate: #3d4f5c;
+      --muted: #8a7f6e;
+      --card: #fdfaf4;
+      --border: #d4cdb8;
+      --shadow: 0 18px 45px rgba(26, 18, 8, .08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'DM Sans', sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #f7f3ec 0%, #efe4d2 100%);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      opacity: .45;
+      z-index: -1;
+    }
+
+    .shell {
+      max-width: 1520px;
+      margin: 0 auto;
+      padding: 24px 24px 56px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 18px;
+      background: rgba(253, 250, 244, .92);
+      border: 1px solid rgba(212, 205, 184, .9);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      position: sticky;
+      top: 12px;
+      z-index: 20;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 900;
+      letter-spacing: .4px;
+      font-size: 1.05rem;
+    }
+
+    .brand .logo-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #ffcf86, #e8820c);
+      color: #fff;
+      box-shadow: 0 12px 28px rgba(232, 130, 12, .22);
+      flex-shrink: 0;
+    }
+
+    .brand span { color: var(--amber); }
+
+    .login {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .admin-status {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.9);
+      color: var(--slate);
+      font-size: .9rem;
+      font-weight: 700;
+    }
+
+    .admin-status strong { color: var(--ink); }
+
+    .admin-authenticated .login input,
+    .admin-authenticated #loginBtn {
+      display: none;
+    }
+
+    .admin-authenticated .admin-status {
+      display: inline-flex;
+    }
+
+    .login input,
+    .searchbar input,
+    .searchbar select,
+    .form-grid input,
+    .form-grid select {
+      background: #fff;
+      color: var(--ink);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      outline: none;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
+    }
+
+    .login input::placeholder,
+    .searchbar input::placeholder,
+    .form-grid input::placeholder { color: var(--muted); }
+
+    .btn {
+      border: none;
+      border-radius: 14px;
+      padding: 11px 16px;
+      cursor: pointer;
+      font-weight: 700;
+      white-space: nowrap;
+      min-height: 44px;
+      transition: transform .2s ease, box-shadow .2s ease, background .2s ease, color .2s ease;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--amber-light), var(--amber));
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(232,130,12,.18);
+    }
+
+    .btn-ghost {
+      background: rgba(255,255,255,.85);
+      color: var(--ink);
+      border: 1px solid var(--border);
+    }
+
+    .btn-danger {
+      background: #f25f6c;
+      color: #fff;
+    }
+
+    .btn-active {
+      background: linear-gradient(135deg, #1d4ed8, #0f766e);
+      color: #fff;
+      border-color: transparent;
+      box-shadow: 0 12px 24px rgba(29, 78, 216, .18);
+    }
+
+    .btn-good {
+      background: #2dbf76;
+      color: #fff;
+    }
+
+    .admin-header {
+      text-align: left;
+      margin: 28px 4px 18px;
+    }
+
+    .admin-header .section-sub {
+      margin: .9rem 0 0;
+      max-width: 62ch;
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10,10,10,0.28);
+      z-index: 9999;
+    }
+
+    .loading-overlay.show { display: flex; }
+
+    .spinner {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      border: 6px solid rgba(255,255,255,0.12);
+      border-top-color: var(--amber);
+      animation: spin 1s linear infinite;
+      box-shadow: 0 8px 30px rgba(232,130,12,.18);
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .grid-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 104px;
+      justify-content: center;
+    }
+
+    .stat strong { font-size: 2rem; line-height: 1; }
+    .stat span { color: var(--muted); font-weight: 600; }
+
+    .section { margin-top: 20px; }
+
+    .section h2 {
+      margin: 0 0 12px;
+      font-family: 'Playfair Display', serif;
+      font-size: 1.4rem;
+      color: var(--ink);
+    }
+
+    .charts {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(340px, .65fr);
+      gap: 16px;
+    }
+
+    .canvas-box { height: 320px; }
+
+    .panel {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .panel h2 {
+      margin: 0;
+      font-size: 1.25rem;
+      line-height: 1.15;
+    }
+
+    .panel-copy {
+      margin: -2px 0 2px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: .95rem;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(232, 130, 12, .12);
+      color: #b86900;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .status-pill.good {
+      background: rgba(45, 191, 118, .14);
+      color: #1e8f57;
+    }
+
+    .status-pill.bad {
+      background: rgba(242, 95, 108, .14);
+      color: #c83b4b;
+    }
+
+    .searchbar,
+    .form-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .searchbar > *,
+    .form-grid > * {
+      min-width: 0;
+      flex: 1 1 160px;
+    }
+
+    .searchbar #searchQuery {
+      flex-basis: 220px;
+      flex-grow: 2;
+    }
+
+    .searchbar #searchType {
+      flex-basis: 160px;
+    }
+
+    .searchbar .btn,
+    .form-grid .btn {
+      flex: 1 1 140px;
+    }
+
+    .form-grid select,
+    .form-grid input {
+      width: 100%;
+      min-width: 0;
+      flex: 1 1 220px;
+    }
+
+    .form-grid .btn-primary,
+    .form-grid .btn-ghost,
+    .searchbar .btn {
+      width: auto;
+    }
+
+    .form-grid .span-2 {
+      flex-basis: 100%;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background: #fff;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
+    }
+
+    table {
+      width: 100%;
+      min-width: 720px;
+      border-collapse: collapse;
+      background: #fff;
+    }
+
+    #usersTable,
+    #booksTable {
+      min-width: 100%;
+    }
+
+    #usersTable .action-cell,
+    #booksTable .action-cell {
+      min-width: 250px;
+    }
+
+    #usersTable .action-cell .toolbar,
+    #booksTable .action-cell .toolbar {
+      flex-wrap: wrap;
+    }
+
+    #usersTable .action-cell .btn,
+    #booksTable .action-cell .btn {
+      padding: 10px 12px;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(212, 205, 184, .7);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--slate);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      background: rgba(237, 232, 218, .45);
+    }
+
+    td small { color: var(--muted); }
+
+    tbody tr:hover { background: rgba(237, 232, 218, .28); }
+
+    tbody tr:last-child td { border-bottom: none; }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: rgba(26, 18, 8, .08);
+      color: var(--ink);
+      margin-right: 6px;
+      margin-top: 4px;
+    }
+
+    .tag.good { background: rgba(45, 191, 118, .14); color: #1e8f57; }
+    .tag.warn { background: rgba(232, 130, 12, .14); color: #b86900; }
+    .tag.bad { background: rgba(242, 95, 108, .14); color: #c83b4b; }
+
+    .two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .three-col { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .muted { color: var(--muted); }
+    .mini-list { display: flex; flex-direction: column; gap: 10px; }
+    .mini-item { padding: 14px; border: 1px solid var(--border); border-radius: 16px; background: #fff; }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+    .toolbar .btn { padding: 10px 14px; }
+    .toolbar.compact { gap: 10px; }
+    .toolbar.compact .btn { flex: 1 1 92px; }
+    .action-cell .toolbar { justify-content: flex-start; }
+    .action-cell .btn { min-width: 92px; }
+    .mt-10 { margin-top: 10px; }
+    .mt-12 { margin-top: 12px; }
+    .spacer-10 { height: 10px; }
+    .spacer-12 { height: 12px; }
+    .hidden { display: none !important; }
+
+    /* Section/card toggle UI */
+    .section { position: relative; }
+    .section-toggle-btn {
+      position: absolute;
+      right: 12px;
+      top: 8px;
+      background: rgba(255,255,255,.92);
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--slate);
+      z-index: 5;
+    }
+
+    .card.panel { position: relative; }
+    .card.panel.feature-panel {
+      background: linear-gradient(180deg, rgba(253, 250, 244, .98), rgba(252, 246, 236, .96));
+      border-color: rgba(212, 205, 184, .95);
+    }
+    .card,
+    .panel,
+    .charts > *,
+    .two-col > *,
+    .three-col > * {
+      min-width: 0;
+    }
+    .card-toggle-btn {
+      background: rgba(255,255,255,.9);
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--slate);
+      margin-left: 8px;
+      font-size: 12px;
+    }
+
+    /* Collapsed section hides its inner content but keeps header if present */
+    .section.collapsed > *:not(.section-header) { display: none !important; }
+
+    /* Collapsed card keeps its `h2` but hides other panel contents */
+    .card.panel.collapsed > :not(h2) { display: none !important; }
+
+    .control-surface {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .control-surface .mini-item {
+      background: rgba(255,255,255,.85);
+    }
+
+    @media (max-width: 1100px) {
+      .grid-cards,
+      .charts,
+      .two-col,
+      .three-col { grid-template-columns: 1fr 1fr; }
+
+      .searchbar { grid-template-columns: 1fr 1fr; }
+
+      .form-grid { grid-template-columns: 1fr; }
+
+      .form-grid .span-2 {
+        grid-column: auto;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .shell { padding: 16px 14px 40px; }
+      .grid-cards,
+      .charts,
+      .two-col,
+      .three-col,
+      .searchbar,
+      .form-grid { grid-template-columns: 1fr; }
+      .topbar { flex-direction: column; align-items: flex-start; }
+      .login { width: 100%; }
+      .login input { width: 100%; }
+      .searchbar .btn,
+      .form-grid .btn { width: 100%; }
+      table { min-width: 640px; }
+    }
   </style>
 </head>
-<body>
-  <nav style="padding:12px;display:flex;align-items:center;gap:12px;background:var(--card)">
-    <div class="nav-logo"><div class="logo-icon">📖</div>SWAP<span>TOME</span></div>
-    <h2 style="margin:0 0 0 8px">Admin Dashboard</h2>
-  </nav>
-
-  <div class="admin-wrap">
-
-    <div class="controls" id="loginControls">
-      <input id="adminEmail" type="email" placeholder="admin email" />
-      <input id="adminPassword" type="password" placeholder="password" />
-      <button class="btn" id="loginBtn">Login</button>
-      <button class="btn" id="logoutBtn" style="display:none">Logout</button>
+<body class="admin-page">
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand"><div class="logo-icon">📖</div><div>SWAP<span>TOME</span> Admin</div></div>
+      <div class="login">
+        <input id="adminEmail" type="email" placeholder="admin email">
+        <input id="adminPassword" type="password" placeholder="password">
+        <button class="btn btn-primary" id="loginBtn">Login</button>
+        <div class="admin-status" id="adminStatus">Signed in as <strong id="adminStatusEmail">admin</strong></div>
+        <button class="btn btn-ghost hidden" id="logoutBtn">Logout</button>
+      </div>
     </div>
 
-    <div class="cards">
-      <div class="card"><strong>Total Users</strong><div id="totalUsers" style="font-size:20px">—</div></div>
-      <div class="card"><strong>Total Books</strong><div id="totalBooks" style="font-size:20px">—</div></div>
-      <div class="card"><strong>Total Deals</strong><div id="totalDeals" style="font-size:20px">—</div></div>
+    <div class="section-header admin-header">
+      <div class="section-eyebrow">Admin Dashboard</div>
+      <h2>Control the marketplace from one place</h2>
+      <p class="section-sub">Monitor books, users, reports, deals, exports, and live insights with a cleaner dashboard layout.</p>
     </div>
 
-    <div class="section">
-      <h3>Overview (Chart.js)</h3>
-      <canvas id="overviewChart" width="600" height="200"></canvas>
+    <div class="grid-cards section">
+      <div class="card stat"><span>Total Users</span><strong id="totalUsers">—</strong></div>
+      <div class="card stat"><span>Total Books</span><strong id="totalBooks">—</strong></div>
+      <div class="card stat"><span>Total Deals</span><strong id="totalDeals">—</strong></div>
+      <div class="card stat"><span>Messages Sent</span><strong id="totalMessages">—</strong></div>
+      <div class="card stat"><span>Pending Reports</span><strong id="pendingReports">—</strong></div>
+      <div class="card stat"><span>Live Users</span><strong id="liveUsers">—</strong></div>
+      <div class="card stat"><span>Active Chats</span><strong id="activeChats">—</strong></div>
+      <div class="card stat"><span>Ongoing Deals</span><strong id="ongoingDeals">—</strong></div>
     </div>
 
-    <div class="section">
-      <h3>Users</h3>
-      <table id="usersTable">
-        <thead><tr><th>Name</th><th>Email</th><th>Blocked</th><th>Actions</th></tr></thead>
-        <tbody></tbody>
-      </table>
+    <div class="section charts">
+      <div class="card panel">
+        <h2>Analytics Overview</h2>
+        <div class="canvas-box"><canvas id="overviewChart"></canvas></div>
+      </div>
+      <div class="card panel">
+        <h2>Top Categories</h2>
+        <div id="topCategoryRoot" class="canvas-box"></div>
+      </div>
     </div>
 
-    <div class="section">
-      <h3>Books</h3>
-      <table id="booksTable">
-        <thead><tr><th>Title</th><th>Seller</th><th>Category</th><th>Price</th><th>Actions</th></tr></thead>
-        <tbody></tbody>
-      </table>
+    <div class="section three-col">
+      <div class="card panel">
+        <h2>Admin Search</h2>
+        <div class="searchbar">
+          <input id="searchQuery" placeholder="Search...">
+          <select id="searchType">
+            <option value="all">All</option>
+            <option value="user">User by email</option>
+            <option value="book">Book by title</option>
+            <option value="deal">Deal by ID</option>
+            <option value="report">Report</option>
+          </select>
+          <button class="btn btn-primary" id="searchBtn">Search</button>
+          <button class="btn btn-ghost" id="clearSearchBtn">Clear</button>
+        </div>
+        <div id="searchResults" class="mini-list mt-12"></div>
+      </div>
+      <div class="card panel feature-panel">
+        <h2>Broadcast & Announcement</h2>
+        <p class="panel-copy">Push a one-time broadcast to connected users or publish a sticky announcement that appears across the app.</p>
+        <div class="control-surface">
+          <div class="mini-item" id="broadcastPreviewBox">
+            <strong>Latest broadcast</strong>
+            <div class="muted mt-12" id="broadcastPreviewText">Nothing sent yet.</div>
+            <div class="mt-12"><span class="status-pill" id="broadcastStatusPill">Idle</span></div>
+          </div>
+          <div class="form-grid">
+            <input id="broadcastTitle" placeholder="Notification title">
+            <input id="broadcastMessage" placeholder="Notification message">
+            <button class="btn btn-primary" id="broadcastBtn" type="button">Broadcast</button>
+            <button class="btn btn-ghost" id="clearBroadcastBtn" type="button">Clear</button>
+          </div>
+          <div class="mini-item" id="announcementPreviewBox">
+            <strong>Active announcement</strong>
+            <div class="muted mt-12" id="announcementPreviewText">No active banner loaded.</div>
+            <div class="mt-12"><span class="status-pill" id="announcementStatusPill">Loading state</span></div>
+          </div>
+          <div class="form-grid">
+            <input id="announcementTitle" placeholder="Sticky announcement title">
+            <input id="announcementMessage" placeholder="Sticky announcement message">
+            <select id="announcementActive"><option value="true">Active</option><option value="false">Inactive</option></select>
+            <button class="btn btn-primary" id="announcementBtn" type="button">Save Banner</button>
+          </div>
+        </div>
+      </div>
+      <div class="card panel">
+        <h2>Exports</h2>
+        <div class="toolbar">
+          <button class="btn btn-ghost" data-export="users">users.csv</button>
+          <button class="btn btn-ghost" data-export="books">books.csv</button>
+          <button class="btn btn-ghost" data-export="deals">deals.csv</button>
+          <button class="btn btn-ghost" data-export="reports">reports.csv</button>
+        </div>
+        <div class="spacer-12"></div>
+        <h2>AI Insight</h2>
+        <div id="aiInsight" class="muted">Load data to see trend analysis.</div>
+      </div>
     </div>
 
-    <div class="section">
-      <h3>Recharts Example</h3>
-      <div id="rechartsRoot"></div>
+    <div class="section two-col">
+      <div class="card panel">
+        <h2>Pending Reports</h2>
+        <div class="toolbar">
+          <button class="btn btn-ghost report-filter" data-status="pending">Pending</button>
+          <button class="btn btn-ghost report-filter" data-status="resolved">Resolved</button>
+          <button class="btn btn-ghost report-filter" data-status="all">All</button>
+        </div>
+        <div class="table-wrap mt-10"><table id="reportsTable"><thead><tr><th>Type</th><th>Target</th><th>Reason</th><th>Status</th><th>Risk</th><th>Action</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card panel">
+        <h2>Deal Monitoring</h2>
+        <div class="toolbar">
+          <button class="btn btn-ghost deal-filter" data-status="all">All</button>
+          <button class="btn btn-ghost deal-filter" data-status="completed">Completed</button>
+          <button class="btn btn-ghost deal-filter" data-status="pending">Pending</button>
+          <button class="btn btn-ghost deal-filter" data-status="failed">Failed</button>
+        </div>
+        <div class="table-wrap mt-10"><table id="dealsTable"><thead><tr><th>Room</th><th>Buyer</th><th>Seller</th><th>Price</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+      </div>
     </div>
 
+    <div class="section two-col">
+      <div class="card panel">
+        <h2>Users</h2>
+        <div class="table-wrap"><table id="usersTable"><thead><tr><th>Name</th><th>Email</th><th>Flags</th><th>Risk</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card panel">
+        <h2>Books</h2>
+        <div class="table-wrap"><table id="booksTable"><thead><tr><th>Title</th><th>Seller</th><th>Category</th><th>Flags</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+
+    <div class="section two-col">
+      <div class="card panel">
+        <h2>Verification Queue</h2>
+        <div class="table-wrap"><table id="verificationTable"><thead><tr><th>User</th><th>Email</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card panel">
+        <h2>Fraud Detection Score</h2>
+        <div class="table-wrap"><table id="fraudTable"><thead><tr><th>Type</th><th>Item</th><th>Score</th><th>Flag</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+
+    <div class="section two-col">
+      <div class="card panel">
+        <h2>Leaderboard</h2>
+        <div class="table-wrap"><table id="leaderboardTable"><thead><tr><th>User</th><th>Email</th><th>Score</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card panel">
+        <h2>Live Monitoring</h2>
+        <div id="liveSummary" class="mini-list"></div>
+      </div>
+    </div>
   </div>
 
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- React + ReactDOM (UMD) -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <!-- Recharts UMD (from unpkg) -->
   <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+  <script src="http://localhost:5000/socket.io/socket.io.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script>
     const apiBase = 'http://localhost:5000';
+    let overviewChart;
+    let socket;
+    let currentReportStatus = 'pending';
+    let currentDealStatus = 'all';
 
     function tokenHeader() {
       const token = localStorage.getItem('adminToken') || '';
       return token ? { Authorization: 'Bearer ' + token } : {};
     }
 
-    async function loadData() {
+    async function api(path, options = {}) {
+      const headers = Object.assign({}, tokenHeader(), options.headers || {});
+      const res = await fetch(apiBase + path, Object.assign({}, options, { headers }));
+      const contentType = res.headers.get('content-type') || '';
+      const data = contentType.includes('application/json') ? await res.json() : await res.text();
+      if (!res.ok) throw new Error(typeof data === 'string' ? data : data.message || 'Request failed');
+      return data;
+    }
+
+    function updateLoginState() {
+      const token = localStorage.getItem('adminToken');
+      const email = localStorage.getItem('adminEmail') || 'admin';
+      document.body.classList.toggle('admin-authenticated', !!token);
+      document.getElementById('adminStatusEmail').textContent = email;
+      document.getElementById('logoutBtn').classList.toggle('hidden', !token);
+      document.getElementById('loginBtn').classList.toggle('hidden', !!token);
+    }
+
+    function decodeJwtPayload(token) {
       try {
-        const headers = Object.assign({}, tokenHeader());
-        const statsRes = await fetch(apiBase + '/admin/stats', { headers });
-        if (!statsRes.ok) throw new Error('Unauthorized');
-        const stats = await statsRes.json();
-        document.getElementById('totalUsers').textContent = stats.users;
-        document.getElementById('totalBooks').textContent = stats.books;
-        document.getElementById('totalDeals').textContent = stats.deals;
-
-        // Chart
-        const ctx = document.getElementById('overviewChart').getContext('2d');
-        if (window.overviewChart) window.overviewChart.destroy();
-        window.overviewChart = new Chart(ctx, {
-          type: 'doughnut',
-          data: {
-            labels: ['Users','Books','Deals'],
-            datasets: [{ data: [stats.users, stats.books, stats.deals], backgroundColor:['#4caf50','#2196f3','#ffb300'] }]
-          }
-        });
-
-        // Users
-        const usersRes = await fetch(apiBase + '/admin/users', { headers });
-        const usersData = await usersRes.json();
-        renderUsers(usersData.users || []);
-
-        // Books
-        const booksRes = await fetch(apiBase + '/admin/books', { headers });
-        const booksData = await booksRes.json();
-        renderBooks(booksData.books || []);
-
-        renderRecharts([{name:'Users',value:stats.users},{name:'Books',value:stats.books},{name:'Deals',value:stats.deals}]);
-
-      } catch (err) {
-        Swal.fire({ icon: 'error', title: 'Load failed', text: 'Could not load admin data. Check login and server.' });
-        console.error(err);
+        const payload = token.split('.')[1];
+        if (!payload) return null;
+        const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+        const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+        return JSON.parse(atob(padded));
+      } catch {
+        return null;
       }
     }
 
-    function renderUsers(users){
-      const tbody = document.querySelector('#usersTable tbody'); tbody.innerHTML = '';
-      users.forEach(u => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${u.name||''}</td><td>${u.email||''}</td><td>${u.blocked? 'Yes':'No'}</td><td>
-          <button class='btn btn-muted' onclick="toggleBlock('${u._id}', ${u.blocked})">${u.blocked? 'Unblock':'Block'}</button>
-        </td>`;
-        tbody.appendChild(tr);
-      });
+    function promoteAdminSessionFromUserToken() {
+      if (localStorage.getItem('adminToken')) return;
+      const token = localStorage.getItem('token');
+      const role = localStorage.getItem('role');
+      const email = (localStorage.getItem('adminEmail') || '').trim().toLowerCase();
+      const fallbackAdminEmail = 'ansarimdezaz01@gmail.com';
+      const tokenPayload = token ? decodeJwtPayload(token) : null;
+      const tokenRole = String(tokenPayload?.role || '').toLowerCase();
+
+      if (token && (role === 'admin' || tokenRole === 'admin' || email === fallbackAdminEmail)) {
+        localStorage.setItem('adminToken', token);
+        localStorage.setItem('adminEmail', email || fallbackAdminEmail);
+        if (tokenRole === 'admin' && role !== 'admin') {
+          localStorage.setItem('role', 'admin');
+        }
+      }
     }
 
-    async function toggleBlock(id, currently) {
-      try {
-        const headers = Object.assign({'Content-Type':'application/json'}, tokenHeader());
-        const res = await fetch(apiBase + '/admin/users/' + id + '/block', { method:'PUT', headers, body: JSON.stringify({ block: !currently }) });
-        if (!res.ok) throw new Error('Failed');
-        Swal.fire({ icon: 'success', title: 'Success' });
-        await loadData();
-      } catch (err) { console.error(err); Swal.fire({ icon:'error', title:'Action failed' }) }
+    async function login() {
+      const email = document.getElementById('adminEmail').value.trim();
+      const password = document.getElementById('adminPassword').value.trim();
+      const res = await fetch(apiBase + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+      const data = await res.json();
+      if (!res.ok || !data.token || data.role !== 'admin') {
+        Swal.fire({ icon: 'error', title: 'Admin login failed', text: data.message || 'Not an admin account' });
+        return;
+      }
+      localStorage.setItem('adminToken', data.token);
+      localStorage.setItem('adminEmail', email);
+      updateLoginState();
+      connectLiveSocket();
+      Swal.fire({ icon: 'success', title: 'Logged in as admin' });
+      await loadDashboard();
     }
 
-    function renderBooks(books){
-      const tbody = document.querySelector('#booksTable tbody'); tbody.innerHTML = '';
-      books.forEach(b => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${b.title||''}</td><td>${b.seller||''}</td><td>${b.category||''}</td><td>₹${b.price||0}</td><td>
-          <button class='btn btn-danger' onclick="deleteBook('${b._id}')">Delete</button>
-        </td>`;
-        tbody.appendChild(tr);
-      });
-    }
-
-    async function deleteBook(id){
-      const confirmed = await Swal.fire({ icon:'warning', title:'Delete?', showCancelButton:true });
-      if (!confirmed.isConfirmed) return;
-      try{
-        const headers = tokenHeader();
-        const res = await fetch(apiBase + '/admin/books/' + id, { method:'DELETE', headers });
-        if(!res.ok) throw new Error('Failed');
-        Swal.fire({ icon:'success', title:'Deleted' });
-        await loadData();
-      }catch(e){console.error(e);Swal.fire({ icon:'error', title:'Delete failed' })}
-    }
-
-    document.getElementById('loginBtn').addEventListener('click', async () => {
-      const email = document.getElementById('adminEmail').value;
-      const password = document.getElementById('adminPassword').value;
-      try {
-        const res = await fetch(apiBase + '/api/auth/login', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ email, password }) });
-        const data = await res.json();
-        if (!res.ok || !data.token) { Swal.fire({ icon:'error', title:'Login failed', text: data.message || 'Invalid' }); return; }
-        localStorage.setItem('adminToken', data.token);
-        document.getElementById('logoutBtn').style.display = 'inline-block';
-        document.getElementById('loginBtn').style.display = 'none';
-        Swal.fire({ icon:'success', title:'Logged in' });
-        await loadData();
-      } catch (err) { console.error(err); Swal.fire({ icon:'error', title:'Login error' }); }
-    });
-
-    document.getElementById('logoutBtn').addEventListener('click', () => {
+    function logout() {
       localStorage.removeItem('adminToken');
-      document.getElementById('logoutBtn').style.display = 'none';
-      document.getElementById('loginBtn').style.display = 'inline-block';
-      Swal.fire({ icon:'success', title:'Logged out' });
-    });
-
-    // Auto-check token on load
-    (function(){ if (localStorage.getItem('adminToken')) { document.getElementById('logoutBtn').style.display = 'inline-block'; document.getElementById('loginBtn').style.display = 'none'; loadData(); } })();
-
-    // RECHARTS render using UMD Recharts
-    function renderRecharts(data){
-      try{
-        const { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } = Recharts;
-        const root = document.getElementById('rechartsRoot'); root.innerHTML = '';
-        const e = React.createElement;
-        const ChartComp = () => e(ResponsiveContainer, { width:'100%', height:200 },
-          e(BarChart, { data }, e(Bar, { dataKey:'value', fill:'#8884d8' }), e(XAxis, { dataKey:'name' }), e(YAxis), e(Tooltip))
-        );
-        ReactDOM.render(e(ChartComp), root);
-      }catch(err){ console.warn('Recharts failed', err); }
+      localStorage.removeItem('adminEmail');
+      if (socket) socket.disconnect();
+      updateLoginState();
+      window.location.href = 'index.html';
     }
 
+    async function loadDashboard() {
+      const loader = document.getElementById('adminLoader');
+      const show = () => loader?.classList?.add('show');
+      const hide = () => loader?.classList?.remove('show');
+      show();
+      try {
+        const results = await Promise.allSettled([
+          api('/admin/stats'),
+          api('/admin/analytics'),
+          api('/admin/live'),
+          api(`/admin/reports?status=${encodeURIComponent(currentReportStatus)}`),
+          api(`/admin/deals?status=${encodeURIComponent(currentDealStatus)}`),
+          api('/admin/users'),
+          api('/admin/books'),
+          api('/admin/fraud-scores'),
+          api('/admin/leaderboard'),
+          api('/admin/ai-insights')
+        ]);
+
+        const [statsRes, analyticsRes, liveRes, reportsRes, dealsRes, usersRes, booksRes, fraudRes, leaderboardRes, aiRes] = results;
+        const stats = statsRes.status === 'fulfilled' ? statsRes.value : {};
+        const analytics = analyticsRes.status === 'fulfilled' ? analyticsRes.value : {};
+        const live = liveRes.status === 'fulfilled' ? liveRes.value : {};
+        const reports = reportsRes.status === 'fulfilled' ? reportsRes.value : { reports: [] };
+        const deals = dealsRes.status === 'fulfilled' ? dealsRes.value : { deals: [] };
+        const users = usersRes.status === 'fulfilled' ? usersRes.value : { users: [] };
+        const books = booksRes.status === 'fulfilled' ? booksRes.value : { books: [] };
+        const fraud = fraudRes.status === 'fulfilled' ? fraudRes.value : { flaggedUsers: [], flaggedBooks: [] };
+        const leaderboard = leaderboardRes.status === 'fulfilled' ? leaderboardRes.value : { leaderboard: [] };
+        const aiInsights = aiRes.status === 'fulfilled' ? aiRes.value : {};
+
+        const failed = results.filter((result) => result.status === 'rejected');
+        if (failed.length) {
+          console.warn('Some admin endpoints failed', failed.map((result) => result.reason?.message || result.reason));
+        }
+
+        renderStats(stats, live);
+        if (analyticsRes.status === 'fulfilled') {
+          try {
+            renderOverviewCharts(analytics);
+          } catch (err) {
+            console.warn('Analytics widgets failed to render', err);
+          }
+        }
+        renderReports(reports.reports || []);
+        renderDeals(deals.deals || []);
+        renderUsers(users.users || []);
+        renderBooks(books.books || []);
+        renderVerificationQueue(users.users || []);
+        renderFraud(fraud);
+        renderLeaderboard(leaderboard.leaderboard || []);
+        renderLive(live, stats);
+        renderAiInsight(aiInsights, analytics);
+      } finally {
+        hide();
+      }
+    }
+
+    function renderStats(stats, live) {
+      document.getElementById('totalUsers').textContent = stats.users ?? '—';
+      document.getElementById('totalBooks').textContent = stats.books ?? '—';
+      document.getElementById('totalDeals').textContent = stats.deals ?? '—';
+      document.getElementById('totalMessages').textContent = stats.messages ?? '—';
+      document.getElementById('pendingReports').textContent = stats.reports ?? '—';
+      document.getElementById('liveUsers').textContent = live.onlineUsers?.length ?? 0;
+      document.getElementById('activeChats').textContent = live.activeChats?.length ?? 0;
+      document.getElementById('ongoingDeals').textContent = live.ongoingDeals?.length ?? 0;
+    }
+
+    function renderOverviewCharts(analytics) {
+      const ctx = document.getElementById('overviewChart').getContext('2d');
+      if (overviewChart) overviewChart.destroy();
+      const daily = analytics.daily || [];
+      if (typeof Chart === 'undefined') {
+        console.warn('Chart.js is not available');
+        return;
+      }
+      overviewChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: daily.map((row) => row.name),
+          datasets: [
+            { label: 'Daily Active Users', data: daily.map((row) => row.users), borderColor: '#4f8cff', backgroundColor: 'rgba(79,140,255,.12)', tension: 0.35 },
+            { label: 'Books Uploaded / Day', data: daily.map((row) => row.books), borderColor: '#4a7c59', backgroundColor: 'rgba(74,124,89,.10)', tension: 0.35 },
+            { label: 'Successful Swaps', data: daily.map((row) => row.deals), borderColor: '#e8820c', backgroundColor: 'rgba(232,130,12,.10)', tension: 0.35 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#3d4f5c' } } },
+          scales: {
+            x: { ticks: { color: '#8a7f6e' }, grid: { color: 'rgba(26,18,8,.06)' } },
+            y: { ticks: { color: '#8a7f6e' }, grid: { color: 'rgba(26,18,8,.06)' } }
+          }
+        }
+      });
+
+      const categories = analytics.topCategories || [];
+      const root = document.getElementById('topCategoryRoot');
+      root.innerHTML = '';
+      if (typeof Recharts === 'undefined' || typeof React === 'undefined' || typeof ReactDOM === 'undefined') {
+        console.warn('React/Recharts widgets are not available');
+        return;
+      }
+      const { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } = Recharts;
+      const e = React.createElement;
+      const ChartComp = () => e(ResponsiveContainer, { width: '100%', height: 300 },
+        e(BarChart, { data: categories, margin: { top: 10, right: 10, left: 0, bottom: 10 } },
+          e(CartesianGrid, { stroke: 'rgba(26,18,8,.08)' }),
+          e(XAxis, { dataKey: 'name', tick: { fill: '#3d4f5c' } }),
+          e(YAxis, { tick: { fill: '#3d4f5c' } }),
+          e(Tooltip),
+          e(Bar, { dataKey: 'value', fill: '#e8820c' })
+        )
+      );
+      ReactDOM.render(e(ChartComp), root);
+    }
+
+    function renderReports(items) {
+      const tbody = document.querySelector('#reportsTable tbody');
+      tbody.innerHTML = '';
+      items.forEach((item) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${item.type || ''}</td>
+          <td>${item.targetLabel || item.targetId || ''}<br><small>${item.targetId || ''}</small></td>
+          <td>${item.reason || ''}</td>
+          <td><span class="tag ${item.status === 'resolved' ? 'good' : item.status === 'pending' ? 'warn' : 'bad'}">${item.status || 'pending'}</span></td>
+          <td>${item.riskScore || 0}</td>
+          <td><div class="toolbar"><button class="btn btn-good" data-report-action="resolve">Resolve</button><button class="btn btn-danger" data-report-action="escalate">Escalate</button></div></td>
+        `;
+        row.querySelector('[data-report-action="resolve"]').addEventListener('click', () => resolveReport(item._id, 'resolved', 'Resolved by admin'));
+        row.querySelector('[data-report-action="escalate"]').addEventListener('click', () => resolveReport(item._id, 'escalated', 'Escalated by admin'));
+        tbody.appendChild(row);
+      });
+    }
+
+    async function resolveReport(id, action, note) {
+      try {
+        setStatusPill('broadcastStatusPill', 'Working...');
+        await api(`/admin/reports/${id}/resolve`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, adminNote: note }) });
+        await loadDashboard();
+        Swal.fire({ icon: 'success', title: 'Report updated' });
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: err.message || 'Unable to update report' });
+      } finally {
+        setStatusPill('broadcastStatusPill', 'Ready', 'good');
+      }
+    }
+
+    function renderDeals(items) {
+      const tbody = document.querySelector('#dealsTable tbody');
+      tbody.innerHTML = '';
+      items.forEach((item) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>${item.roomId || item.id || ''}</td><td>${item.buyer || ''}</td><td>${item.seller || ''}</td><td>₹${item.price || 0}</td><td><span class="tag ${item.status === 'completed' ? 'good' : item.status === 'failed' ? 'bad' : 'warn'}">${item.status || 'pending'}</span></td>`;
+        tbody.appendChild(row);
+      });
+    }
+
+    function renderUsers(items) {
+      const tbody = document.querySelector('#usersTable tbody');
+      tbody.innerHTML = '';
+      items.forEach((item) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${item.name || ''}</td>
+          <td>${item.email || ''}</td>
+          <td>
+            ${item.blocked ? '<span class="tag bad">Blocked</span>' : ''}
+            ${item.shadowBanned ? '<span class="tag warn">Shadow banned</span>' : ''}
+            ${item.collegeVerified ? '<span class="tag good">Verified</span>' : '<span class="tag">Pending verification</span>'}
+          </td>
+          <td>${item.riskScore || 0}</td>
+          <td class="action-cell"><div class="toolbar compact"><button class="btn btn-ghost" type="button" data-user-action="toggleBlock">${item.blocked ? 'Unblock' : 'Block'}</button><button class="btn btn-ghost" type="button" data-user-action="toggleShadow">${item.shadowBanned ? 'Unshadow' : 'Shadow Ban'}</button><button class="btn btn-danger" type="button" data-user-action="logout">Logout</button></div></td>
+        `;
+        row.querySelector('[data-user-action="toggleBlock"]').addEventListener('click', () => toggleBlock(item._id, !item.blocked));
+        row.querySelector('[data-user-action="toggleShadow"]').addEventListener('click', () => toggleShadowBan(item._id, !item.shadowBanned));
+        row.querySelector('[data-user-action="logout"]').addEventListener('click', () => forceLogout(item._id));
+        tbody.appendChild(row);
+      });
+    }
+
+    function renderVerificationQueue(items) {
+      const tbody = document.querySelector('#verificationTable tbody');
+      tbody.innerHTML = '';
+      items.filter((item) => (item.verificationStatus || 'pending') === 'pending').forEach((item) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>${item.name || ''}</td><td>${item.email || ''}</td><td><span class="tag warn">Pending</span></td><td><div class="toolbar"><button class="btn btn-good">Approve</button><button class="btn btn-danger">Reject</button></div></td>`;
+        row.querySelector('.btn-good').addEventListener('click', () => setVerification(item._id, 'approved', true));
+        row.querySelector('.btn-danger').addEventListener('click', () => setVerification(item._id, 'rejected', false));
+        tbody.appendChild(row);
+      });
+    }
+
+    function renderFraud(data) {
+      const tbody = document.querySelector('#fraudTable tbody');
+      tbody.innerHTML = '';
+      (data.flaggedUsers || []).forEach((user) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>User</td><td>${user.name || user.email || ''}</td><td>${user.riskScore || 0}</td><td>${(user.riskScore || 0) >= 70 ? '<span class="tag bad">HIGH</span>' : (user.riskScore || 0) >= 40 ? '<span class="tag warn">MEDIUM</span>' : '<span class="tag good">LOW</span>'}</td>`;
+        tbody.appendChild(row);
+      });
+      (data.flaggedBooks || []).forEach((book) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>Book</td><td>${book.title || ''}</td><td>${book.suspiciousScore || 0}</td><td>${book.reviewStatus || 'pending'}</td>`;
+        tbody.appendChild(row);
+      });
+    }
+
+    function renderLeaderboard(items) { const tbody = document.querySelector('#leaderboardTable tbody'); tbody.innerHTML = ''; items.forEach((item) => { const row = document.createElement('tr'); row.innerHTML = `<td>${item.name || ''}</td><td>${item.email || ''}</td><td>${item.score || 0}</td>`; tbody.appendChild(row); }); }
+    function renderBooks(items) {
+      const tbody = document.querySelector('#booksTable tbody'); tbody.innerHTML = '';
+      items.forEach((item) => {
+        const row = document.createElement('tr');
+        const isFeatured = item.featured === 'Featured';
+        const isTrending = item.featured === 'Trending';
+        const isUrgent = item.featured === 'Urgent Sale';
+        row.innerHTML = `<td>${item.title || ''}</td><td>${item.seller || ''}</td><td>${item.category || ''}</td><td>${item.featured ? `<span class="tag good">${item.featured}</span>` : '<span class="tag">Normal</span>'}${item.reviewStatus && item.reviewStatus !== 'approved' ? `<span class="tag warn">${item.reviewStatus}</span>` : ''}${(item.reportCount || 0) > 0 ? `<span class="tag bad">Reports: ${item.reportCount}</span>` : ''}</td><td class="action-cell"><div class="toolbar compact"><button class="btn btn-ghost${isFeatured ? ' btn-active' : ''}" type="button" data-book-action="feature">${isFeatured ? 'Featured' : 'Feature'}</button><button class="btn btn-ghost${isTrending ? ' btn-active' : ''}" type="button" data-book-action="trending">${isTrending ? 'Trending' : 'Trending'}</button><button class="btn btn-ghost${isUrgent ? ' btn-active' : ''}" type="button" data-book-action="urgent">${isUrgent ? 'Urgent' : 'Urgent'}</button><button class="btn btn-ghost${item.reviewStatus === 'approved' ? ' btn-active' : ''}" type="button" data-book-action="review">${item.reviewStatus === 'approved' ? 'Reviewed' : 'Review'}</button><button class="btn btn-danger" type="button" data-book-action="delete">Delete</button></div></td>`;
+        row.querySelector('[data-book-action="feature"]').addEventListener('click', () => setBookFeatured(item._id, isFeatured ? '' : 'Featured'));
+        row.querySelector('[data-book-action="trending"]').addEventListener('click', () => setBookFeatured(item._id, isTrending ? '' : 'Trending'));
+        row.querySelector('[data-book-action="urgent"]').addEventListener('click', () => setBookFeatured(item._id, isUrgent ? '' : 'Urgent Sale'));
+        row.querySelector('[data-book-action="review"]').addEventListener('click', () => setBookReview(item._id, item.reviewStatus === 'approved' ? 'pending' : 'approved'));
+        row.querySelector('[data-book-action="delete"]').addEventListener('click', () => deleteBook(item._id));
+        tbody.appendChild(row);
+      });
+    }
+
+    function renderLive(live, stats) { document.getElementById('liveSummary').innerHTML = `<div class="mini-item"><strong>${live.onlineUsers?.length || 0}</strong> online users</div><div class="mini-item"><strong>${live.activeChats?.length || 0}</strong> active chats</div><div class="mini-item"><strong>${live.ongoingDeals?.length || 0}</strong> ongoing deals</div><div class="mini-item"><strong>${stats.messages || 0}</strong> messages tracked</div>`; }
+    function renderAiInsight(aiInsights, analytics) {
+      if (aiInsights?.summary) {
+        document.getElementById('aiInsight').textContent = aiInsights.summary;
+        return;
+      }
+      const categories = analytics.topCategories || [];
+      const top = categories[0];
+      const second = categories[1];
+      document.getElementById('aiInsight').textContent = top ? `Engineering books are trending this week. ${top.name} is leading${second ? `, followed by ${second.name}.` : '.'}` : 'Not enough data yet to generate insights.';
+    }
+
+    function setStatusPill(id, text, tone = '') {
+      const pill = document.getElementById(id);
+      if (!pill) return;
+      pill.textContent = text;
+      pill.className = `status-pill${tone ? ` ${tone}` : ''}`;
+    }
+
+    function setControlPreview(prefix, title, message, meta) {
+      const preview = document.getElementById(`${prefix}PreviewText`);
+      if (!preview) return;
+      const safeTitle = title || 'Untitled';
+      const safeMessage = message || 'No message provided.';
+      const safeMeta = meta || '';
+      preview.innerHTML = `<strong>${safeTitle}</strong><div class="muted mt-12">${safeMessage}</div>${safeMeta ? `<div class="muted mt-12">${safeMeta}</div>` : ''}`;
+    }
+
+    async function hydrateControlSurface() {
+      try {
+        const [broadcastRes, announcementRes] = await Promise.allSettled([
+          api('/notifications/latest'),
+          api('/announcements/active')
+        ]);
+
+        if (broadcastRes.status === 'fulfilled' && broadcastRes.value?.notification) {
+          const notification = broadcastRes.value.notification;
+          setControlPreview('broadcast', notification.title, notification.message, notification.createdAt ? new Date(notification.createdAt).toLocaleString() : '');
+          setStatusPill('broadcastStatusPill', 'Ready', 'good');
+        } else {
+          setStatusPill('broadcastStatusPill', 'Idle');
+        }
+
+        if (announcementRes.status === 'fulfilled' && announcementRes.value?.announcement) {
+          const announcement = announcementRes.value.announcement;
+          document.getElementById('announcementTitle').value = announcement.title || '';
+          document.getElementById('announcementMessage').value = announcement.message || '';
+          document.getElementById('announcementActive').value = String(Boolean(announcement.active));
+          setControlPreview('announcement', announcement.title, announcement.message, announcement.active ? 'Visible now' : 'Hidden');
+          setStatusPill('announcementStatusPill', announcement.active ? 'Active' : 'Inactive', announcement.active ? 'good' : 'bad');
+        } else {
+          setStatusPill('announcementStatusPill', 'No active banner');
+        }
+      } catch (err) {
+        console.warn('Control surface preload failed', err);
+      }
+    }
+
+    async function toggleBlock(id, block) {
+      try {
+        await api(`/admin/users/${id}/block`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ block }) });
+        await loadDashboard();
+        Swal.fire({ icon: 'success', title: block ? 'User blocked' : 'User unblocked' });
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: err.message || 'Unable to update user' });
+      }
+    }
+
+    async function toggleShadowBan(id, shadowBanned) {
+      try {
+        await api(`/admin/users/${id}/shadowban`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ shadowBanned }) });
+        await loadDashboard();
+        Swal.fire({ icon: 'success', title: shadowBanned ? 'User shadow banned' : 'Shadow ban removed' });
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: err.message || 'Unable to update user' });
+      }
+    }
+
+    async function forceLogout(id) {
+      try {
+        await api(`/admin/users/${id}/logout`, { method: 'POST' });
+        Swal.fire({ icon: 'success', title: 'Logout signal sent' });
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: err.message || 'Unable to logout user' });
+      }
+    }
+
+    async function setVerification(id, verificationStatus, collegeVerified) {
+      try {
+        await api(`/admin/users/${id}/verification`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ verificationStatus, collegeVerified }) });
+        await loadDashboard();
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: err.message || 'Unable to update verification' });
+      }
+    }
+
+    async function deleteBook(id) {
+      const result = await Swal.fire({ icon: 'warning', title: 'Delete book?', showCancelButton: true, confirmButtonText: 'Delete' });
+      if (!result.isConfirmed) return;
+      try {
+        await api(`/admin/books/${id}`, { method: 'DELETE' });
+        await loadDashboard();
+        Swal.fire({ icon: 'success', title: 'Book deleted' });
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: err.message || 'Unable to delete book' });
+      }
+    }
+
+    async function setBookFeatured(id, featured) {
+      try {
+        await api(`/admin/books/${id}/feature`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ featured }) });
+        await loadDashboard();
+        Swal.fire({ icon: 'success', title: featured ? `${featured} applied` : 'Feature cleared' });
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: err.message || 'Unable to update book' });
+      }
+    }
+
+    async function setBookReview(id, reviewStatus) {
+      try {
+        await api(`/admin/books/${id}/review`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reviewStatus }) });
+        await loadDashboard();
+        Swal.fire({ icon: 'success', title: 'Book review updated' });
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: err.message || 'Unable to update review' });
+      }
+    }
+    async function loadReports(status) { currentReportStatus = status; renderReports((await api(`/admin/reports?status=${encodeURIComponent(status)}`)).reports || []); }
+    async function loadDeals(status) { currentDealStatus = status; renderDeals((await api(`/admin/deals?status=${encodeURIComponent(status)}`)).deals || []); }
+
+    async function searchAdmin() {
+      const q = document.getElementById('searchQuery').value.trim();
+      const type = document.getElementById('searchType').value;
+      if (!q) return document.getElementById('searchResults').innerHTML = '';
+      const data = await api(`/admin/search?type=${encodeURIComponent(type)}&q=${encodeURIComponent(q)}`);
+      const box = document.getElementById('searchResults'); box.innerHTML = '';
+      [['Users', data.users || []], ['Books', data.books || []], ['Deals', data.deals || []], ['Reports', data.reports || []]].forEach(([label, items]) => { if (!items.length) return; const item = document.createElement('div'); item.className = 'mini-item'; item.innerHTML = `<strong>${label}</strong><div class="muted">${items.map((row) => row.email || row.name || row.title || row.code || row.reason || row._id).slice(0, 5).join('<br>')}</div>`; box.appendChild(item); });
+    }
+
+    async function exportCsv(resource) { const res = await fetch(`${apiBase}/admin/export/${resource}`, { headers: tokenHeader() }); if (!res.ok) throw new Error('Export failed'); const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${resource}.csv`; a.click(); URL.revokeObjectURL(url); }
+    async function saveNotification() {
+      const title = document.getElementById('broadcastTitle').value.trim();
+      const message = document.getElementById('broadcastMessage').value.trim();
+      if (!title || !message) {
+        Swal.fire({ icon: 'warning', title: 'Add a title and message first' });
+        return;
+      }
+      setStatusPill('broadcastStatusPill', 'Sending...');
+      const response = await api('/admin/notifications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, message }) });
+      setControlPreview('broadcast', response?.notification?.title || title, response?.notification?.message || message, response?.notification?.createdAt ? new Date(response.notification.createdAt).toLocaleString() : 'Just now');
+      setStatusPill('broadcastStatusPill', 'Broadcast sent', 'good');
+      document.getElementById('broadcastTitle').value = '';
+      document.getElementById('broadcastMessage').value = '';
+      Swal.fire({ icon: 'success', title: 'Notification broadcasted' });
+    }
+
+    async function saveAnnouncement() {
+      const title = document.getElementById('announcementTitle').value.trim();
+      const message = document.getElementById('announcementMessage').value.trim();
+      const active = document.getElementById('announcementActive').value === 'true';
+      if (!title || !message) {
+        Swal.fire({ icon: 'warning', title: 'Add an announcement title and message first' });
+        return;
+      }
+      setStatusPill('announcementStatusPill', 'Saving...');
+      const response = await api('/admin/announcements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, message, active }) });
+      const announcement = response?.announcement || { title, message, active };
+      setControlPreview('announcement', announcement.title, announcement.message, announcement.active ? 'Visible now' : 'Hidden');
+      setStatusPill('announcementStatusPill', announcement.active ? 'Active' : 'Inactive', announcement.active ? 'good' : 'bad');
+      Swal.fire({ icon: 'success', title: 'Announcement saved' });
+    }
+
+    function connectLiveSocket() { if (typeof io === 'undefined') return; if (socket) socket.disconnect(); socket = io(apiBase, { transports: ['websocket', 'polling'] }); socket.on('liveStatsUpdate', (payload) => { document.getElementById('liveUsers').textContent = payload.onlineUsers ?? 0; document.getElementById('activeChats').textContent = payload.activeChats ?? 0; document.getElementById('ongoingDeals').textContent = payload.ongoingDeals ?? 0; }); }
+
+    document.getElementById('loginBtn').addEventListener('click', login);
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+    document.getElementById('searchBtn').addEventListener('click', searchAdmin);
+    document.getElementById('clearSearchBtn').addEventListener('click', () => { document.getElementById('searchQuery').value = ''; document.getElementById('searchResults').innerHTML = ''; });
+    document.getElementById('broadcastBtn').addEventListener('click', saveNotification);
+    document.getElementById('clearBroadcastBtn').addEventListener('click', () => { document.getElementById('broadcastTitle').value = ''; document.getElementById('broadcastMessage').value = ''; });
+    document.getElementById('announcementBtn').addEventListener('click', saveAnnouncement);
+    document.querySelectorAll('[data-export]').forEach((btn) => btn.addEventListener('click', () => exportCsv(btn.dataset.export).catch((err) => Swal.fire({ icon: 'error', title: err.message }))));
+    document.querySelectorAll('.report-filter').forEach((btn) => btn.addEventListener('click', () => loadReports(btn.dataset.status)));
+    document.querySelectorAll('.deal-filter').forEach((btn) => btn.addEventListener('click', () => loadDeals(btn.dataset.status)));
+
+    function addSectionToggles() {
+      document.querySelectorAll('.section').forEach((section) => {
+        // add section-level toggle (skip the main header area which already is descriptive)
+        const btn = document.createElement('button');
+        btn.className = 'section-toggle-btn';
+        btn.type = 'button';
+        btn.textContent = 'Hide';
+        btn.title = 'Hide / Show section';
+        section.prepend(btn);
+        btn.addEventListener('click', () => {
+          section.classList.toggle('collapsed');
+          btn.textContent = section.classList.contains('collapsed') ? 'Show' : 'Hide';
+        });
+      });
+
+      document.querySelectorAll('.card.panel').forEach((card) => {
+        const h2 = card.querySelector('h2');
+        if (!h2) return;
+        const btn = document.createElement('button');
+        btn.className = 'card-toggle-btn';
+        btn.type = 'button';
+        btn.textContent = 'Hide';
+        btn.title = 'Hide / Show panel';
+        h2.appendChild(btn);
+        btn.addEventListener('click', () => {
+          card.classList.toggle('collapsed');
+          btn.textContent = card.classList.contains('collapsed') ? 'Show' : 'Hide';
+        });
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      promoteAdminSessionFromUserToken();
+      updateLoginState();
+      connectLiveSocket();
+      addSectionToggles();
+      await hydrateControlSurface();
+      if (localStorage.getItem('adminToken')) await loadDashboard();
+    });
   </script>
 </body>
 </html>

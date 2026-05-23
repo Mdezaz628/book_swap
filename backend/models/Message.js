@@ -12,6 +12,13 @@ const messageSchema = new mongoose.Schema({
 
   time: String,
 
+  moderatedStatus: {
+    type: String,
+    default: 'pending'
+  },
+
+  flaggedReason: String,
+
   isRead: {
     type: Boolean,
     default: false

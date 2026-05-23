@@ -1534,6 +1534,39 @@ h2 {
 
 .book-info { padding: 10px; }
 
+.book-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.book-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.book-badge.featured {
+  background: linear-gradient(135deg, #1d4ed8, #0f766e);
+  color: #fff;
+}
+
+.book-badge.pending {
+  background: rgba(232, 130, 12, .14);
+  color: #b86900;
+}
+
+.book-badge.reviewed {
+  background: rgba(45, 191, 118, .14);
+  color: #1e8f57;
+}
+
 .book-title {
   font-weight: 700;
   font-size: .9rem;
@@ -4033,3 +4066,51 @@ body.light-theme .form-submit:hover {
   .books-grid { grid-template-columns: 1fr; }
   .nav-actions .btn-primary:first-child { display: none; }
 }
+
+/* Hero stats: keep two metrics side-by-side and responsive */
+.hero-stats {
+  display: grid !important;
+  grid-template-columns: auto auto;
+  gap: 10rem;
+  align-items: center;
+  justify-content: center;
+  justify-items: stretch;
+  width: max-content;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+.hero-stats > div {
+  text-align: right;
+  padding: 0 0.24rem;
+}
+.hero-stats h2 {
+  font-family: 'Space Mono', monospace;
+  font-size: clamp(1.6rem, 3.8vw, 2.6rem);
+  margin: 0;
+  line-height: 1;
+}
+.hero-stats p {
+  margin: 0.15rem 0 0;
+  font-size: 0.95rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .hero-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); justify-items: end; }
+  .hero-stats > div { text-align: right; }
+}
+
+@media (max-width: 480px) {
+  /* on very small screens reduce sizes but remain side-by-side */
+  .hero-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4rem; }
+  .hero-stats h2 { font-size: 1.12rem; }
+  .hero-stats p { font-size: 0.82rem; }
+  .hero-stats > div { padding: 0.1rem 0.14rem; }
+  .hero-stats { justify-items: center; }
+  .hero-stats > div { text-align: center; }
+}
+
+/* Align first stat left and second stat right for desktop/tablet */
+.hero-stats > div:first-child { justify-self: start; text-align: left; }
+.hero-stats > div:last-child { justify-self: end; text-align: right; }
