@@ -594,6 +594,10 @@
           <div class="form-grid">
             <input id="broadcastTitle" placeholder="Notification title">
             <input id="broadcastMessage" placeholder="Notification message">
+            <label class="checkbox-row" style="grid-column:1 / -1;display:flex;align-items:center;gap:10px;font-weight:600;color:var(--muted)">
+              <input type="checkbox" id="broadcastImportant">
+              Mark as important
+            </label>
             <button class="btn btn-primary" id="broadcastBtn" type="button">Broadcast</button>
             <button class="btn btn-ghost" id="clearBroadcastBtn" type="button">Clear</button>
           </div>
@@ -613,10 +617,34 @@
       <div class="card panel">
         <h2>Exports</h2>
         <div class="toolbar">
-          <button class="btn btn-ghost" data-export="users">users.csv</button>
-          <button class="btn btn-ghost" data-export="books">books.csv</button>
-          <button class="btn btn-ghost" data-export="deals">deals.csv</button>
-          <button class="btn btn-ghost" data-export="reports">reports.csv</button>
+          <div class="export-item">
+            <button class="btn btn-ghost" data-export="users" aria-haspopup="true" aria-expanded="false">users.csv</button>
+            <div class="export-menu" role="menu" aria-hidden="true">
+              <button class="export-action" role="menuitem" data-action="view">View</button>
+              <button class="export-action" role="menuitem" data-action="download">Download</button>
+            </div>
+          </div>
+          <div class="export-item">
+            <button class="btn btn-ghost" data-export="books" aria-haspopup="true" aria-expanded="false">books.csv</button>
+            <div class="export-menu" role="menu" aria-hidden="true">
+              <button class="export-action" role="menuitem" data-action="view">View</button>
+              <button class="export-action" role="menuitem" data-action="download">Download</button>
+            </div>
+          </div>
+          <div class="export-item">
+            <button class="btn btn-ghost" data-export="deals" aria-haspopup="true" aria-expanded="false">deals.csv</button>
+            <div class="export-menu" role="menu" aria-hidden="true">
+              <button class="export-action" role="menuitem" data-action="view">View</button>
+              <button class="export-action" role="menuitem" data-action="download">Download</button>
+            </div>
+          </div>
+          <div class="export-item">
+            <button class="btn btn-ghost" data-export="reports" aria-haspopup="true" aria-expanded="false">reports.csv</button>
+            <div class="export-menu" role="menu" aria-hidden="true">
+              <button class="export-action" role="menuitem" data-action="view">View</button>
+              <button class="export-action" role="menuitem" data-action="download">Download</button>
+            </div>
+          </div>
         </div>
         <div class="spacer-12"></div>
         <h2>AI Insight</h2>
@@ -678,6 +706,27 @@
         <div id="liveSummary" class="mini-list"></div>
       </div>
     </div>
+
+    <div class="section two-col">
+      <div class="card panel">
+        <h2>Admin Inbox</h2>
+        <p class="panel-copy">All user messages mirrored to the admin account are shown here.</p>
+        <div class="toolbar" style="margin-bottom:12px;flex-wrap:wrap;gap:10px">
+          <input id="adminInboxSearch" class="filter-input" placeholder="Search user or message">
+          <button class="btn btn-ghost" id="adminInboxAllBtn" type="button">All</button>
+          <button class="btn btn-ghost" id="adminInboxUnreadBtn" type="button">Unread</button>
+          <button class="btn btn-ghost" id="adminInboxImportantBtn" type="button">Important</button>
+        </div>
+        <div id="adminInboxList" class="mini-list"></div>
+      </div>
+      <div class="card panel">
+        <h2>Inbox Tips</h2>
+        <div class="mini-list">
+          <div class="mini-item"><strong>Live incoming</strong><div class="muted mt-12">Admin receives a copy of each user chat message in real time and stores it in the inbox.</div></div>
+          <div class="mini-item"><strong>Account name</strong><div class="muted mt-12">Use the admin username configured in the backend for the inbox mailbox.</div></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -693,10 +742,113 @@
     let socket;
     let currentReportStatus = 'pending';
     let currentDealStatus = 'all';
+    const adminMailboxUser = 'admin';
+    let adminInboxItems = [];
+    let adminInboxFilter = 'all';
 
     function tokenHeader() {
       const token = localStorage.getItem('adminToken') || '';
       return token ? { Authorization: 'Bearer ' + token } : {};
+    }
+    // Export menu behavior: toggle on focus/click, handle view/download
+    document.addEventListener('DOMContentLoaded', () => {
+      const exportItems = document.querySelectorAll('.export-item');
+      exportItems.forEach(item => {
+        const button = item.querySelector('button[data-export]');
+        const menu = item.querySelector('.export-menu');
+
+        // open on click or focus
+        button.addEventListener('click', (e) => {
+          const expanded = button.getAttribute('aria-expanded') === 'true';
+          closeAllExportMenus();
+          button.setAttribute('aria-expanded', String(!expanded));
+          menu.setAttribute('aria-hidden', String(expanded));
+        });
+
+        button.addEventListener('focus', () => {
+          closeAllExportMenus();
+          button.setAttribute('aria-expanded', 'true');
+          menu.setAttribute('aria-hidden', 'false');
+        });
+
+        // keyboard: Esc closes
+        item.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Escape') {
+            button.setAttribute('aria-expanded', 'false');
+            menu.setAttribute('aria-hidden', 'true');
+            button.focus();
+          }
+        });
+
+        // menu action handlers
+        menu.querySelectorAll('.export-action').forEach(act => {
+          act.addEventListener('click', async (ev) => {
+            const action = act.dataset.action; // view | download
+            const which = button.dataset.export; // users | books | ...
+            handleExportAction(which, action);
+            // close menu
+            button.setAttribute('aria-expanded', 'false');
+            menu.setAttribute('aria-hidden', 'true');
+          });
+        });
+      });
+
+      // close menus on outside click
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.export-item')) closeAllExportMenus();
+      });
+    });
+
+    function closeAllExportMenus() {
+      document.querySelectorAll('.export-item').forEach(it => {
+        const btn = it.querySelector('button[data-export]');
+        const menu = it.querySelector('.export-menu');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+        if (menu) menu.setAttribute('aria-hidden', 'true');
+      });
+    }
+
+    async function handleExportAction(which, action) {
+      const url = `${apiBase}/admin/export/${which}`; // backend expects singular "export"
+      try {
+        const headers = tokenHeader();
+        if (action === 'view') {
+          const res = await fetch(url, { headers });
+          if (!res.ok) return Swal.fire('Error', 'Unable to fetch export (status ' + res.status + ')');
+          const text = await res.text();
+          const trimmed = text.trim();
+          if (!trimmed) return Swal.fire('No data', 'No records found for ' + which, 'info');
+          // If only header row or very small, show friendly message
+          const lines = trimmed.split('\n').filter(Boolean);
+          if (lines.length <= 1) return Swal.fire('No data', 'No records found for ' + which, 'info');
+          Swal.fire({ title: which + ' — Preview', html: '<pre style="text-align:left;white-space:pre-wrap;max-height:400px;overflow:auto">'+escapeHtml(trimmed)+'</pre>', width: '80%' });
+        } else if (action === 'download') {
+          const res = await fetch(url, { headers });
+          if (!res.ok) return Swal.fire('Error', 'Unable to download export (status ' + res.status + ')');
+          const blob = await res.blob();
+          if (!blob || blob.size === 0) return Swal.fire('No data', 'No records to download for ' + which, 'info');
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = which + '.csv';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(blobUrl);
+        }
+      } catch (err) {
+        console.error(err);
+        Swal.fire('Error', 'Failed to fetch export.', 'error');
+      }
+    }
+
+    function escapeHtml(unsafe) {
+      return unsafe
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
     }
 
     async function api(path, options = {}) {
@@ -1144,16 +1296,18 @@
     async function saveNotification() {
       const title = document.getElementById('broadcastTitle').value.trim();
       const message = document.getElementById('broadcastMessage').value.trim();
+      const important = document.getElementById('broadcastImportant').checked;
       if (!title || !message) {
         Swal.fire({ icon: 'warning', title: 'Add a title and message first' });
         return;
       }
       setStatusPill('broadcastStatusPill', 'Sending...');
-      const response = await api('/admin/notifications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, message }) });
-      setControlPreview('broadcast', response?.notification?.title || title, response?.notification?.message || message, response?.notification?.createdAt ? new Date(response.notification.createdAt).toLocaleString() : 'Just now');
+      const response = await api('/admin/notifications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, message, important }) });
+      setControlPreview('broadcast', response?.notification?.title || title, response?.notification?.message || message, response?.notification?.important ? 'Important' : (response?.notification?.createdAt ? new Date(response.notification.createdAt).toLocaleString() : 'Just now'));
       setStatusPill('broadcastStatusPill', 'Broadcast sent', 'good');
       document.getElementById('broadcastTitle').value = '';
       document.getElementById('broadcastMessage').value = '';
+      document.getElementById('broadcastImportant').checked = false;
       Swal.fire({ icon: 'success', title: 'Notification broadcasted' });
     }
 
@@ -1173,7 +1327,66 @@
       Swal.fire({ icon: 'success', title: 'Announcement saved' });
     }
 
-    function connectLiveSocket() { if (typeof io === 'undefined') return; if (socket) socket.disconnect(); socket = io(apiBase, { transports: ['websocket', 'polling'] }); socket.on('liveStatsUpdate', (payload) => { document.getElementById('liveUsers').textContent = payload.onlineUsers ?? 0; document.getElementById('activeChats').textContent = payload.activeChats ?? 0; document.getElementById('ongoingDeals').textContent = payload.ongoingDeals ?? 0; }); }
+    function connectLiveSocket() {
+      if (typeof io === 'undefined') return;
+      if (socket) socket.disconnect();
+      socket = io(apiBase, { transports: ['websocket', 'polling'] });
+      socket.on('connect', () => {
+        socket.emit('joinUser', adminMailboxUser);
+      });
+      socket.on('liveStatsUpdate', (payload) => { document.getElementById('liveUsers').textContent = payload.onlineUsers ?? 0; document.getElementById('activeChats').textContent = payload.activeChats ?? 0; document.getElementById('ongoingDeals').textContent = payload.ongoingDeals ?? 0; });
+      socket.on('receiveMessage', () => { loadAdminInbox(); });
+    }
+
+    async function loadAdminInbox() {
+      const list = document.getElementById('adminInboxList');
+      if (!list) return;
+      try {
+        const data = await api(`/inbox/${encodeURIComponent(adminMailboxUser)}`);
+        adminInboxItems = data || [];
+        renderAdminInbox();
+      } catch (err) {
+        list.innerHTML = '<div class="mini-item"><strong>Could not load admin inbox</strong><div class="muted mt-12">Check the backend connection and admin login.</div></div>';
+      }
+    }
+
+    function renderAdminInbox() {
+      const list = document.getElementById('adminInboxList');
+      if (!list) return;
+
+      const query = (document.getElementById('adminInboxSearch')?.value || '').trim().toLowerCase();
+      let items = [...adminInboxItems];
+
+      if (adminInboxFilter === 'unread') {
+        items = items.filter((item) => Number(item.unread || 0) > 0);
+      } else if (adminInboxFilter === 'important') {
+        items = items.filter((item) => String(item.lastMessage || '').toLowerCase().includes('important'));
+      }
+
+      if (query) {
+        items = items.filter((item) => {
+          const user = String(item.user || '').toLowerCase();
+          const message = String(item.lastMessage || '').toLowerCase();
+          return user.includes(query) || message.includes(query);
+        });
+      }
+
+      if (!items.length) {
+        list.innerHTML = '<div class="mini-item"><strong>No matching messages</strong><div class="muted mt-12">Try another search or clear the filter.</div></div>';
+        return;
+      }
+
+      list.innerHTML = items.map((item) => `
+        <div class="mini-item">
+          <strong>${item.user || 'Unknown user'}</strong>
+          <div class="muted mt-12">${item.lastMessage || 'No message'}</div>
+          <div class="mt-12" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <span class="status-pill ${item.unread ? 'good' : ''}">${item.unread ? item.unread + ' unread' : 'Seen'}</span>
+            <span class="status-pill">${item.user === 'admin' ? 'System' : 'User'}</span>
+          </div>
+        </div>
+      `).join('');
+    }
 
     document.getElementById('loginBtn').addEventListener('click', login);
     document.getElementById('logoutBtn').addEventListener('click', logout);
@@ -1182,9 +1395,14 @@
     document.getElementById('broadcastBtn').addEventListener('click', saveNotification);
     document.getElementById('clearBroadcastBtn').addEventListener('click', () => { document.getElementById('broadcastTitle').value = ''; document.getElementById('broadcastMessage').value = ''; });
     document.getElementById('announcementBtn').addEventListener('click', saveAnnouncement);
-    document.querySelectorAll('[data-export]').forEach((btn) => btn.addEventListener('click', () => exportCsv(btn.dataset.export).catch((err) => Swal.fire({ icon: 'error', title: err.message }))));
+    // Export buttons now use a contextual menu (View / Download). Legacy direct-export handler removed to avoid double actions.
     document.querySelectorAll('.report-filter').forEach((btn) => btn.addEventListener('click', () => loadReports(btn.dataset.status)));
     document.querySelectorAll('.deal-filter').forEach((btn) => btn.addEventListener('click', () => loadDeals(btn.dataset.status)));
+    document.getElementById('adminInboxSearch')?.addEventListener('input', renderAdminInbox);
+    document.getElementById('adminInboxAllBtn')?.addEventListener('click', () => { adminInboxFilter = 'all'; renderAdminInbox(); });
+    document.getElementById('adminInboxUnreadBtn')?.addEventListener('click', () => { adminInboxFilter = 'unread'; renderAdminInbox(); });
+    document.getElementById('adminInboxImportantBtn')?.addEventListener('click', () => { adminInboxFilter = 'important'; renderAdminInbox(); });
+    loadAdminInbox();
 
     function addSectionToggles() {
       document.querySelectorAll('.section').forEach((section) => {

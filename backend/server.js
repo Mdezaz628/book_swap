@@ -26,6 +26,7 @@ const pendingDeals = new Map();
 const onlineUsers = new Map();
 const socketUsers = new Map();
 const activeRooms = new Set();
+const ADMIN_INBOX_USER = process.env.ADMIN_INBOX_USER || 'admin';
 
 function getJwtSecret() {
   return process.env.JWT_SECRET || 'secretkey123';
@@ -632,10 +633,10 @@ app.get('/admin/fraud-scores', adminMiddleware, async (req, res) => {
 
 app.post('/admin/notifications', adminMiddleware, async (req, res) => {
   try {
-    const { title, message } = req.body;
-    const notification = { title, message, createdAt: new Date().toISOString() };
+    const { title, message, important = false } = req.body;
+    const notification = { title, message, important: !!important, createdAt: new Date().toISOString() };
     io.emit('adminNotification', notification);
-    await adminAction(req, 'broadcast_notification', 'notification', title || 'broadcast', { title, message });
+    await adminAction(req, 'broadcast_notification', 'notification', title || 'broadcast', { title, message, important: !!important });
     res.json({ message: 'Notification broadcasted', notification });
   } catch (err) {
     console.error('Broadcast notification error', err);
@@ -651,11 +652,34 @@ app.get('/notifications/latest', async (req, res) => {
       notification: {
         title: latest.meta?.title || latest.targetId || 'Broadcast',
         message: latest.meta?.message || '',
+        important: !!latest.meta?.important,
         createdAt: latest.createdAt
       }
     });
   } catch (err) {
     console.error('Latest notification error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.get('/notifications/history', async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 20, 100);
+    const notifications = await AdminLog.find({ action: 'broadcast_notification' })
+      .sort({ createdAt: 1 })
+      .limit(limit);
+
+    res.json({
+      notifications: notifications.map((item) => ({
+        title: item.meta?.title || item.targetId || 'Broadcast',
+        message: item.meta?.message || '',
+        important: !!item.meta?.important,
+        createdAt: item.createdAt,
+        adminEmail: item.adminEmail
+      }))
+    });
+  } catch (err) {
+    console.error('Broadcast history error', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -940,6 +964,19 @@ io.on("connection", (socket) => {
         moderatedStatus: isShadowBanned ? 'shadow' : 'approved'
       });
       await newMessage.save();
+
+      if (String(data.sender || '').trim() !== ADMIN_INBOX_USER && String(data.receiver || '').trim() !== ADMIN_INBOX_USER) {
+        const adminRoomId = [String(data.sender || '').trim(), ADMIN_INBOX_USER].sort().join('_');
+        const adminCopy = new Message({
+          ...data,
+          roomId: adminRoomId,
+          receiver: ADMIN_INBOX_USER,
+          isRead: false,
+          moderatedStatus: isShadowBanned ? 'shadow' : 'approved'
+        });
+        await adminCopy.save();
+        io.to(ADMIN_INBOX_USER).emit("receiveMessage", adminCopy);
+      }
 
       if (isShadowBanned) {
         io.to(data.sender).emit("receiveMessage", data);

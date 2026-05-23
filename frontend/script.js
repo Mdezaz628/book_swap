@@ -64,31 +64,26 @@ function applyProfilePhotoToElement(element, fallbackInitial) {
   }
 }
 
-function showAutoPopup(message, durationMs = 1000) {
+function showAutoPopup(message, durationMs = 1000, subtitle = '') {
   let popup = document.getElementById("autoPopupToast");
 
   if (!popup) {
     popup = document.createElement("div");
     popup.id = "autoPopupToast";
-    popup.style.position = "fixed";
-    popup.style.left = "50%";
-    popup.style.top = "24px";
-    popup.style.transform = "translateX(-50%)";
-    popup.style.zIndex = "99999";
-    popup.style.padding = "12px 18px";
-    popup.style.borderRadius = "999px";
-    popup.style.background = "rgba(15, 23, 42, 0.96)";
-    popup.style.color = "#fff";
-    popup.style.boxShadow = "0 16px 36px rgba(0,0,0,.28)";
-    popup.style.fontWeight = "700";
-    popup.style.fontSize = "14px";
-    popup.style.pointerEvents = "none";
-    popup.style.opacity = "0";
-    popup.style.transition = "opacity .2s ease, transform .2s ease";
+    popup.className = "broadcast-toast";
     document.body.appendChild(popup);
   }
 
-  popup.textContent = message;
+  popup.innerHTML = `
+    <div class="broadcast-toast__row">
+      <div class="broadcast-toast__icon">🔔</div>
+      <div class="broadcast-toast__content">
+        <div class="broadcast-toast__title">${message}</div>
+        ${subtitle ? `<div class="broadcast-toast__message">${subtitle}</div>` : ''}
+        <span class="broadcast-toast__pill">Broadcast</span>
+      </div>
+    </div>
+  `;
   popup.style.opacity = "1";
   popup.style.transform = "translateX(-50%) translateY(0)";
 
@@ -97,6 +92,82 @@ function showAutoPopup(message, durationMs = 1000) {
     popup.style.opacity = "0";
     popup.style.transform = "translateX(-50%) translateY(-6px)";
   }, durationMs);
+}
+
+function persistBroadcast(notification) {
+  if (!notification) return;
+
+  try {
+    localStorage.setItem('latestBroadcast', JSON.stringify(notification));
+    if (notification.createdAt) {
+      localStorage.setItem('lastBroadcastSeen', String(notification.createdAt));
+    }
+  } catch (err) {
+    console.warn('Failed to persist broadcast', err);
+  }
+}
+
+function getBroadcastKey(notification) {
+  if (!notification) return '';
+  const title = String(notification.title || '').trim();
+  const message = String(notification.message || '').trim();
+  const important = notification.important ? '1' : '0';
+  const createdAt = String(notification.createdAt || '').trim();
+  return [title, message, important, createdAt].join('|');
+}
+
+function shouldShowBroadcast(notification) {
+  const key = getBroadcastKey(notification);
+  if (!key) return false;
+
+  try {
+    const lastKey = localStorage.getItem('lastBroadcastToastKey') || '';
+    if (lastKey === key) return false;
+    localStorage.setItem('lastBroadcastToastKey', key);
+  } catch (err) {
+    console.warn('Could not store broadcast dedupe key', err);
+  }
+
+  return true;
+}
+
+function formatBroadcastTime(value) {
+  if (!value) return '';
+  try {
+    return new Date(value).toLocaleString();
+  } catch (err) {
+    return String(value);
+  }
+}
+
+function removeBroadcastBanner() {
+  const existing = document.getElementById('broadcastBanner');
+  if (existing) existing.remove();
+}
+
+function renderBroadcastBanner(notification) {
+  removeBroadcastBanner();
+  if (!notification || !notification.important) return;
+
+  const bar = document.createElement('div');
+  bar.id = 'broadcastBanner';
+  bar.className = 'broadcast-banner';
+  bar.setAttribute('role', 'status');
+  bar.setAttribute('aria-live', 'polite');
+  const when = formatBroadcastTime(notification.createdAt);
+  bar.innerHTML = `
+    <div class="broadcast-banner__content">
+      <div class="broadcast-banner__title-row">
+        <strong class="broadcast-banner__title">${notification.title || 'Important broadcast'}</strong>
+        <span class="broadcast-banner__pill">Important</span>
+      </div>
+      <div class="broadcast-banner__message">${notification.message || ''}</div>
+      <div class="broadcast-banner__meta">
+        ${when ? `<span class="broadcast-banner__time">${when}</span>` : ''}
+      </div>
+    </div>
+  `;
+  document.body.prepend(bar);
 }
 
 window.addEventListener('DOMContentLoaded', clearPersistedFields);
@@ -619,7 +690,7 @@ async function loadInbox() {
     try { const chatBox = document.getElementById('chatBox'); if (chatBox) { chatBox.innerHTML = '<div class="no-chats"><div class="no-chats-text"><h3>Server unreachable</h3><p>Could not load inbox. Try again later.</p></div></div>'; } } catch (e) {}
     return;
   }
-  const users = await res.json();
+  let users = await res.json();
   const chatList = document.getElementById("chatList");
 
   if (!chatList) return;
@@ -650,6 +721,31 @@ async function loadInbox() {
   const archivedChats = new Set(getArchivedChats());
   const activeUsers = [];
   const archivedUsers = [];
+
+  const latestBroadcast = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('latestBroadcast') || 'null');
+    } catch (err) {
+      return null;
+    }
+  })();
+
+  const hasAdminThread = users.some((user) => user.user === 'admin');
+  const adminLastMessage = latestBroadcast?.message || 'Admin broadcasts and notices appear here.';
+  if (currentUser && currentUser !== 'admin') {
+    const adminRow = {
+      user: 'admin',
+      lastMessage: adminLastMessage,
+      unread: 0,
+      isAdminNotice: true
+    };
+
+    if (hasAdminThread) {
+      users = users.map((user) => user.user === 'admin' ? { ...user, lastMessage: adminLastMessage } : user);
+    } else {
+      users.unshift(adminRow);
+    }
+  }
 
   users.forEach(user => {
     const isActiveChat = currentSeller === user.user;
@@ -1433,8 +1529,13 @@ function initSocket() {
   });
 
   socket.on("adminNotification", (notification) => {
+    persistBroadcast(notification);
+    if (notification?.important) {
+      renderBroadcastBanner(notification);
+    }
+    if (!shouldShowBroadcast(notification)) return;
     const label = notification?.title || "Admin notice";
-    showAutoPopup(label, 2500);
+    showAutoPopup(label, 2500, notification?.message || '');
   });
 
   socket.on("announcementUpdated", (announcement) => {
@@ -1493,18 +1594,40 @@ async function loadStickyAnnouncement() {
 async function loadLatestBroadcast() {
   try {
     const res = await fetch('http://localhost:5000/notifications/latest');
-    if (!res.ok) return;
+    if (!res.ok) {
+      const cached = JSON.parse(localStorage.getItem('latestBroadcast') || 'null');
+      if (cached?.important) renderBroadcastBanner(cached);
+      return;
+    }
     const data = await res.json();
     const notification = data.notification;
-    if (!notification?.message) return;
+    if (!notification?.message) {
+      const cached = JSON.parse(localStorage.getItem('latestBroadcast') || 'null');
+      if (cached?.important) renderBroadcastBanner(cached);
+      return;
+    }
+
+    persistBroadcast(notification);
 
     const lastSeen = localStorage.getItem('lastBroadcastSeen');
-    if (lastSeen === String(notification.createdAt || '')) return;
+    if (lastSeen !== String(notification.createdAt || '')) {
+      localStorage.setItem('lastBroadcastSeen', String(notification.createdAt || ''));
+    }
 
-    localStorage.setItem('lastBroadcastSeen', String(notification.createdAt || ''));
-    showAutoPopup(notification.title || 'Broadcast', 2500);
+    if (notification.important) {
+      renderBroadcastBanner(notification);
+    } else {
+      if (!shouldShowBroadcast(notification)) return;
+      showAutoPopup(notification.title || 'Broadcast', 2500, notification.message || '');
+    }
   } catch (err) {
     console.warn('Broadcast load failed', err);
+    try {
+      const cached = JSON.parse(localStorage.getItem('latestBroadcast') || 'null');
+      if (cached?.important) renderBroadcastBanner(cached);
+    } catch (cacheErr) {
+      console.warn('Cached broadcast load failed', cacheErr);
+    }
   }
 }
 

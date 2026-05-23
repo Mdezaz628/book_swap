@@ -208,6 +208,19 @@
       return;
     }
 
+    if (selectedSeller === 'admin') {
+      try {
+        const inputRow = document.querySelector('.chat-input-row');
+        const dealBox = document.getElementById('dealConfirmBox');
+        if (inputRow) inputRow.style.display = 'none';
+        if (dealBox) dealBox.style.display = 'none';
+        await loadAdminBroadcastHistory();
+      } catch (err) {
+        console.warn('Could not load admin notice thread', err);
+      }
+      return;
+    }
+
     // show spinner while loading inbox and messages
     showChatLoading();
 
@@ -318,11 +331,19 @@
     if (!qrBox || !qrCard || !details) return;
 
     qrBox.innerHTML = "";
+    const qrText = [
+      'SWAPTOME_VERIFICATION',
+      `code=${payload.code}`,
+      `buyer=${payload.buyer}`,
+      `seller=${payload.seller}`,
+      `price=${payload.price}`,
+      `room=${payload.roomId}`
+    ].join('|');
     new QRCode(qrBox, {
-      text: JSON.stringify(payload),
-      width: 220,
-      height: 220,
-      correctLevel: QRCode.CorrectLevel.M
+      text: qrText,
+      width: 280,
+      height: 280,
+      correctLevel: QRCode.CorrectLevel.H
     });
 
     window.setTimeout(() => {
@@ -337,10 +358,19 @@
         if (chatBox && latestQrDataUrl) {
           const wrapper = document.createElement('div');
           wrapper.className = 'msg-wrap msg-wrap-sent';
+          wrapper.id = 'generatedQrMessage';
           wrapper.innerHTML = `
             <div class="msg msg-qr">
               <div class="msg-text">Verification QR</div>
               <div class="qr-img"><img src="${latestQrDataUrl}" alt="QR code"></div>
+              <div class="qr-message-details">
+                <div><strong>Buyer:</strong> ${payload.buyer}</div>
+                <div><strong>Seller:</strong> ${payload.seller}</div>
+                <div><strong>Price:</strong> ₹${payload.price}</div>
+                <div><strong>Date:</strong> ${payload.date}</div>
+                <div><strong>Time:</strong> ${payload.time}</div>
+                <div><strong>Code:</strong> ${payload.code}</div>
+              </div>
               <div class="msg-meta"><span class="msg-time">${payload.date} ${payload.time}</span></div>
             </div>
           `;
@@ -360,8 +390,67 @@
       <div><strong>Verification Code:</strong> ${payload.code}</div>
     `;
 
-    qrCard.style.display = "grid";
-    qrCard.scrollIntoView({ behavior: "smooth", block: "center" });
+    qrCard.style.display = "none";
+    const generatedQrMessage = document.getElementById('generatedQrMessage');
+    if (generatedQrMessage) {
+      generatedQrMessage.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  }
+
+  async function loadAdminBroadcastHistory() {
+    const chatBox = document.getElementById('chatBox');
+    if (!chatBox) return;
+
+    chatBox.innerHTML = '';
+    try {
+      const cached = JSON.parse(localStorage.getItem('latestBroadcast') || 'null');
+      const res = await fetch('http://localhost:5000/notifications/history?limit=25');
+      const data = res.ok ? await res.json() : { notifications: [] };
+      const notifications = (data.notifications || []).length ? data.notifications : (cached ? [cached] : []);
+
+      if (!notifications.length) {
+        chatBox.innerHTML = '<div class="no-chats"><div class="no-chats-text"><h3>No admin notices yet</h3><p>Admin broadcasts will appear here.</p></div></div>';
+        return;
+      }
+
+      notifications.forEach((item) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'msg-wrap msg-wrap-recv';
+        wrapper.innerHTML = `
+          <div class="msg msg-recv">
+            <div class="msg-text"><strong>${item.title || 'Admin notice'}</strong></div>
+            <div class="msg-text">${item.message || ''}</div>
+            <div class="qr-message-details">
+              <div><strong>Status:</strong> ${item.important ? 'Important broadcast' : 'Broadcast'}</div>
+              <div><strong>Date:</strong> ${item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ''}</div>
+              <div><strong>Time:</strong> ${item.createdAt ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</div>
+            </div>
+          </div>
+        `;
+        chatBox.appendChild(wrapper);
+      });
+
+      chatBox.scrollTop = chatBox.scrollHeight;
+    } catch (err) {
+      console.warn('Could not load admin broadcast history', err);
+      const fallback = JSON.parse(localStorage.getItem('latestBroadcast') || 'null');
+      if (fallback) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'msg-wrap msg-wrap-recv';
+        wrapper.innerHTML = `
+          <div class="msg msg-recv">
+            <div class="msg-text"><strong>${fallback.title || 'Admin notice'}</strong></div>
+            <div class="msg-text">${fallback.message || ''}</div>
+            <div class="qr-message-details">
+              <div><strong>Status:</strong> ${fallback.important ? 'Important broadcast' : 'Broadcast'}</div>
+              <div><strong>Date:</strong> ${fallback.createdAt ? new Date(fallback.createdAt).toLocaleDateString() : ''}</div>
+              <div><strong>Time:</strong> ${fallback.createdAt ? new Date(fallback.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</div>
+            </div>
+          </div>
+        `;
+        chatBox.appendChild(wrapper);
+      }
+    }
   }
 
   function generateQrCode() {
@@ -455,10 +544,9 @@
       alert('No QR available yet');
       return;
     }
-    const qrCard = document.getElementById('qrPreviewCard');
-    if (qrCard) {
-      qrCard.style.display = 'grid';
-      qrCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const generatedQrMessage = document.getElementById('generatedQrMessage');
+    if (generatedQrMessage) {
+      generatedQrMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
       latestQrHidden = false;
     }
   }
@@ -571,6 +659,11 @@
       input.value.trim();
 
     if (!message) return;
+
+    if (selectedSeller === 'admin') {
+      alert('You cannot message admin directly. Please use the notice thread to view updates.');
+      return;
+    }
 
     const time =
       new Date().toLocaleTimeString([], {
