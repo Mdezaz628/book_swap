@@ -14,7 +14,11 @@
 </head>
 <body class="all-books-page">
 
-<div style="margin:20px;">
+<div style="margin:20px; display:flex; align-items:center; justify-content:flex-start; gap:16px; flex-wrap:wrap;">
+  <div class="nav-logo" style="font-size:1.2rem; margin-right:8px;">
+    <div class="logo-icon">📖</div>
+    SWAP<span>TOME</span>
+  </div>
   <button onclick="goHome()" class="back-btn">← Back to Home</button>
 </div>
 
@@ -38,15 +42,16 @@
     <option value="">Select Category</option>
 
     <option value="Engineering">Engineering</option>
+    <option value="MBA/Commerce">MBA/Commerce</option>
+    <option value="Fiction/Others">Fiction/Others</option>
     <option value="Novel">Novel</option>
+    <option value="Medical">Medical</option>
     <option value="School">School</option>
-    <option value="Science">Science</option>
-    <option value="History">History</option>
 
     <option value="Other">Other</option>
   </select>
 
-  <input type="text" id="otherCategory" placeholder="Write your category...">
+  <input type="text" id="otherCategory" placeholder="Write your category..." style="display:none;">
 
 </div>
 
@@ -58,6 +63,22 @@ let allBooks = [];
 let currentCategory = "All";
 let selectedSeller = new URLSearchParams(window.location.search).get("seller") || "";
 let currentUser = (localStorage.getItem("userName") || selectedSeller || "").trim();
+
+function normalizeText(value) {
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function getActiveCategoryFilter() {
+  const categorySelect = document.getElementById("categorySelect");
+  const otherCategoryInput = document.getElementById("otherCategory");
+  const selectedCategory = categorySelect?.value || "";
+
+  if (selectedCategory === "Other") {
+    return normalizeText(otherCategoryInput?.value || "");
+  }
+
+  return normalizeText(selectedCategory);
+}
 
 function canManageBook(book) {
   const ownerName = (currentUser || selectedSeller || "").trim();
@@ -104,10 +125,11 @@ function displayBooks(books) {
         <img
   src="${resolveBookImageSrc(book.images?.[0] || book.image)}"
 
-onclick="openImage('${resolveBookImageSrc(book.images?.[0] || book.image)}')"
+onclick="openImageGallery('${encodeURIComponent(JSON.stringify(book.images || [book.image]))}')"
 
   class="all-books-card-image"
-/>
+/
+>
 
         <div class="all-books-card-body">
 
@@ -164,11 +186,15 @@ onclick="openImage('${resolveBookImageSrc(book.images?.[0] || book.image)}')"
 // 🔍 SEARCH
 function filterBooks() {
   const search = document.getElementById("searchInput").value.toLowerCase();
+  const activeCategory = getActiveCategoryFilter();
 
   const filtered = allBooks.filter(book =>
     (!selectedSeller || (book.seller || "").trim() === selectedSeller.trim()) &&
     book.title.toLowerCase().includes(search) &&
-    (currentCategory === "All" || book.category === currentCategory)
+    (
+      currentCategory === "All" ||
+      (currentCategory === "Other" ? (!activeCategory || normalizeText(book.category).includes(activeCategory)) : normalizeText(book.category) === normalizeText(currentCategory))
+    )
   );
 
   displayBooks(filtered);
@@ -181,6 +207,16 @@ function filterCategory(cat) {
 }
 
 const categorySelect = document.getElementById("categorySelect");
+const otherCategoryInput = document.getElementById("otherCategory");
+
+if (otherCategoryInput) {
+  otherCategoryInput.addEventListener("input", () => {
+    if (categorySelect?.value === "Other") {
+      currentCategory = "Other";
+      filterBooks();
+    }
+  });
+}
 
 categorySelect.addEventListener("change", function () {
 
@@ -188,13 +224,15 @@ categorySelect.addEventListener("change", function () {
 
   // OTHER INPUT SHOW
   if (selectedCategory === "Other") {
-    document.getElementById("otherCategory").style.display = "block";
+    if (otherCategoryInput) otherCategoryInput.style.display = "block";
   } else {
-    document.getElementById("otherCategory").style.display = "none";
+    if (otherCategoryInput) otherCategoryInput.style.display = "none";
+    if (otherCategoryInput) otherCategoryInput.value = "";
   }
 
   // FILTER BOOKS
-  filterCategory(selectedCategory);
+  currentCategory = selectedCategory || "All";
+  filterBooks();
 
 });
 
@@ -208,6 +246,10 @@ function setSellerFilterFromQuery() {
   const searchInput = document.getElementById("searchInput");
   if (searchInput) searchInput.placeholder = `Search uploads by ${selectedSeller}...`;
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  setSellerFilterFromQuery();
+});
 
 function toggleBookMenu(bookId, event) {
   if (event) event.stopPropagation();
@@ -281,6 +323,49 @@ function closeImage() {
   document.getElementById("imageModal").style.display = "none";
 }
 
+// Gallery: open array of images (encoded JSON)
+let galleryImages = [];
+let galleryIndex = 0;
+
+function openImageGallery(encoded) {
+  try {
+    const arr = JSON.parse(decodeURIComponent(encoded));
+    if (!Array.isArray(arr) || arr.length === 0) {
+      alert('No images available');
+      return;
+    }
+    galleryImages = arr;
+    galleryIndex = 0;
+    renderGallery();
+    document.getElementById('imageModal').style.display = 'flex';
+  } catch (e) {
+    console.warn('Could not parse gallery images', e);
+    openImage(decodeURIComponent(encoded));
+  }
+}
+
+function renderGallery() {
+  const imgEl = document.getElementById('fullImage');
+  if (!imgEl) return;
+  imgEl.src = resolveBookImageSrc(galleryImages[galleryIndex]);
+  const counter = document.getElementById('galleryCounter');
+  if (counter) counter.textContent = `${galleryIndex + 1} / ${galleryImages.length}`;
+}
+
+function galleryNext(e) {
+  if (e) e.stopPropagation();
+  if (!galleryImages.length) return;
+  galleryIndex = (galleryIndex + 1) % galleryImages.length;
+  renderGallery();
+}
+
+function galleryPrev(e) {
+  if (e) e.stopPropagation();
+  if (!galleryImages.length) return;
+  galleryIndex = (galleryIndex - 1 + galleryImages.length) % galleryImages.length;
+  renderGallery();
+}
+
 function chatWithSeller(name) {
   localStorage.setItem("chatSeller", name);
     window.location.href = `chat.html?seller=${encodeURIComponent(name)}`;
@@ -299,7 +384,7 @@ document.addEventListener('click', () => {
     display:none;
     position:fixed;
     inset:0;
-    background:rgba(0,0,0,0.9);
+    background:rgba(0,0,0,0.55);
     justify-content:center;
     align-items:center;
     z-index:9999;
@@ -307,14 +392,48 @@ document.addEventListener('click', () => {
   onclick="closeImage()"
 >
 
-  <img
-    id="fullImage"
+  <div
+    onclick="event.stopPropagation()"
     style="
-      max-width:90%;
-      max-height:90%;
-      border-radius:12px;
+      position:relative;
+      width:min(92vw, 760px);
+      max-height:86vh;
+      background:rgba(10,14,22,0.98);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:18px;
+      padding:16px;
+      box-shadow:0 24px 60px rgba(0,0,0,0.45);
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      align-items:center;
+      justify-content:center;
     "
-  />
+  >
+    <div style="display:flex; width:100%; justify-content:space-between; align-items:center; gap:12px; color:#fff; font-weight:700;">
+      <span>Image Preview</span>
+      <span id="galleryCounter"></span>
+      <button onclick="closeImage()" style="background:transparent; color:#fff; border:none; font-size:24px; cursor:pointer; line-height:1;">✕</button>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:10px; width:100%; justify-content:center;">
+      <button onclick="galleryPrev(event)" style="background:rgba(255,255,255,0.08); color:white; border:none; width:44px; height:44px; border-radius:50%; font-size:24px; cursor:pointer;">‹</button>
+
+      <img
+        id="fullImage"
+        style="
+          width:100%;
+          max-width:680px;
+          max-height:68vh;
+          object-fit:contain;
+          border-radius:14px;
+          background:#000;
+        "
+      />
+
+      <button onclick="galleryNext(event)" style="background:rgba(255,255,255,0.08); color:white; border:none; width:44px; height:44px; border-radius:50%; font-size:24px; cursor:pointer;">›</button>
+    </div>
+  </div>
 
 </div>
 </body>

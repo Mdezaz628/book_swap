@@ -400,7 +400,7 @@ io.on("connection", (socket) => {
       if (bothConfirmed) {
         const now = new Date();
         const payload = {
-          type: "BOOKSWAP_VERIFICATION",
+          type: "SWAPTOME_VERIFICATION",
           buyer: existing.sender,
           seller: existing.receiver,
           price,

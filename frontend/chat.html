@@ -25,7 +25,7 @@
 <nav>
   <div class="nav-logo">
     <div class="logo-icon">📖</div>
-    Book<span>Swap</span>
+    SWAP<span>TOME</span>
   </div>
   <div class="nav-actions">
   <button class="btn-ghost" onclick="goBack()">⬅ Back</button>
@@ -417,7 +417,7 @@
     const code = `BS-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
     return {
-      type: "BOOKSWAP_VERIFICATION",
+      type: "SWAPTOME_VERIFICATION",
       buyer: currentUser,
       seller: selectedSeller || "Seller",
       price: Number(price),
@@ -436,7 +436,7 @@
 
     const link = document.createElement("a");
     link.href = latestQrDataUrl;
-    link.download = `Bookswap_QR_${latestQrPayload?.code || "verification"}.png`;
+    link.download = `SWAPTOME_QR_${latestQrPayload?.code || "verification"}.png`;
     document.body.appendChild(link);
     link.click();
     link.remove();

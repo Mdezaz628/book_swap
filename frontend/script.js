@@ -1103,6 +1103,14 @@ async function loadBooksHome() {
     const res = await fetch("http://localhost:5000/books");
     if (!res.ok) {
       console.warn('Books API returned', res.status);
+      const container = document.getElementById("booksContainer");
+      if (container) {
+        container.innerHTML = `\
+          <div style="padding:18px;border-radius:12px;background:#fff6f6;border:1px solid #ffd6d6;color:#7a1a1a;">\
+            Could not load books (server returned ${res.status}).\
+            <div style="margin-top:8px;font-size:13px;color:#333">Start the backend: <code>cd backend && node server.js</code></div>\
+          </div>`;
+      }
       return;
     }
     const books = await res.json();
@@ -1138,8 +1146,17 @@ async function loadBooksHome() {
 
   } catch (err) {
     console.log(err);
+    const container = document.getElementById("booksContainer");
+    if (container) {
+      container.innerHTML = `\
+        <div style="padding:18px;border-radius:12px;background:#fff6f6;border:1px solid #ffd6d6;color:#7a1a1a;">\
+          Could not load books (network error).\
+          <div style="margin-top:8px;font-size:13px;color:#333">Ensure the backend is running: <code>cd backend && node server.js</code></div>\
+        </div>`;
+    }
   }
 }
+
 
 window.addEventListener("DOMContentLoaded", loadBooksHome);
 
@@ -1168,7 +1185,18 @@ async function loadMyUploadsHome() {
     }
 
     const res = await fetch("http://localhost:5000/books");
-    if (!res.ok) return;
+    if (!res.ok) {
+      console.warn('Books API returned', res.status);
+      container.innerHTML = `
+        <div class="book-card" style="width:100%; cursor:default;">
+          <div class="book-info">
+            <div class="book-title">Could not load uploads (server error)</div>
+            <div class="book-author">Start backend: cd backend && node server.js</div>
+          </div>
+        </div>
+      `;
+      return;
+    }
 
     const books = await res.json();
     const myBooks = (books || []).filter((book) => (book.seller || "").trim() === currentUser);
@@ -1219,6 +1247,14 @@ async function loadFeaturedBooksSlider() {
     const res = await fetch("http://localhost:5000/books");
     if (!res.ok) {
       console.warn('Featured books API returned', res.status);
+      slider.innerHTML = `
+        <div class="slide active slide-placeholder">
+          <div class="slide-info">
+            <h2>Could not load featured books</h2>
+            <p>Start backend: <code>cd backend && node server.js</code></p>
+          </div>
+        </div>
+      `;
       return;
     }
 
@@ -1266,6 +1302,14 @@ async function loadFeaturedBooksSlider() {
     showSlide(0);
   } catch (err) {
     console.warn('Could not load featured books slider', err);
+    slider.innerHTML = `
+      <div class="slide active slide-placeholder">
+        <div class="slide-info">
+          <h2>Could not load featured books</h2>
+          <p>Network error. Start backend: <code>cd backend && node server.js</code></p>
+        </div>
+      </div>
+    `;
   }
 }
 
