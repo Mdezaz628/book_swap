@@ -1,0 +1,210 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SWAPTOME Admin</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .admin-wrap{padding:20px;max-width:1100px;margin:0 auto}
+    .cards{display:flex;gap:12px;margin-bottom:16px}
+    .card{background:var(--card);padding:14px;border-radius:8px;flex:1;box-shadow:var(--shadow)}
+    .section{margin-top:20px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;border-bottom:1px solid var(--border);text-align:left}
+    .btn{padding:6px 10px;border-radius:6px;border:none;cursor:pointer}
+    .btn-danger{background:#e53935;color:white}
+    .btn-muted{background:#f1f1f1}
+    .controls{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+  </style>
+</head>
+<body>
+  <nav style="padding:12px;display:flex;align-items:center;gap:12px;background:var(--card)">
+    <div class="nav-logo"><div class="logo-icon">📖</div>SWAP<span>TOME</span></div>
+    <h2 style="margin:0 0 0 8px">Admin Dashboard</h2>
+  </nav>
+
+  <div class="admin-wrap">
+
+    <div class="controls" id="loginControls">
+      <input id="adminEmail" type="email" placeholder="admin email" />
+      <input id="adminPassword" type="password" placeholder="password" />
+      <button class="btn" id="loginBtn">Login</button>
+      <button class="btn" id="logoutBtn" style="display:none">Logout</button>
+    </div>
+
+    <div class="cards">
+      <div class="card"><strong>Total Users</strong><div id="totalUsers" style="font-size:20px">—</div></div>
+      <div class="card"><strong>Total Books</strong><div id="totalBooks" style="font-size:20px">—</div></div>
+      <div class="card"><strong>Total Deals</strong><div id="totalDeals" style="font-size:20px">—</div></div>
+    </div>
+
+    <div class="section">
+      <h3>Overview (Chart.js)</h3>
+      <canvas id="overviewChart" width="600" height="200"></canvas>
+    </div>
+
+    <div class="section">
+      <h3>Users</h3>
+      <table id="usersTable">
+        <thead><tr><th>Name</th><th>Email</th><th>Blocked</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h3>Books</h3>
+      <table id="booksTable">
+        <thead><tr><th>Title</th><th>Seller</th><th>Category</th><th>Price</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h3>Recharts Example</h3>
+      <div id="rechartsRoot"></div>
+    </div>
+
+  </div>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- React + ReactDOM (UMD) -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Recharts UMD (from unpkg) -->
+  <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script>
+    const apiBase = 'http://localhost:5000';
+
+    function tokenHeader() {
+      const token = localStorage.getItem('adminToken') || '';
+      return token ? { Authorization: 'Bearer ' + token } : {};
+    }
+
+    async function loadData() {
+      try {
+        const headers = Object.assign({}, tokenHeader());
+        const statsRes = await fetch(apiBase + '/admin/stats', { headers });
+        if (!statsRes.ok) throw new Error('Unauthorized');
+        const stats = await statsRes.json();
+        document.getElementById('totalUsers').textContent = stats.users;
+        document.getElementById('totalBooks').textContent = stats.books;
+        document.getElementById('totalDeals').textContent = stats.deals;
+
+        // Chart
+        const ctx = document.getElementById('overviewChart').getContext('2d');
+        if (window.overviewChart) window.overviewChart.destroy();
+        window.overviewChart = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Users','Books','Deals'],
+            datasets: [{ data: [stats.users, stats.books, stats.deals], backgroundColor:['#4caf50','#2196f3','#ffb300'] }]
+          }
+        });
+
+        // Users
+        const usersRes = await fetch(apiBase + '/admin/users', { headers });
+        const usersData = await usersRes.json();
+        renderUsers(usersData.users || []);
+
+        // Books
+        const booksRes = await fetch(apiBase + '/admin/books', { headers });
+        const booksData = await booksRes.json();
+        renderBooks(booksData.books || []);
+
+        renderRecharts([{name:'Users',value:stats.users},{name:'Books',value:stats.books},{name:'Deals',value:stats.deals}]);
+
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: 'Load failed', text: 'Could not load admin data. Check login and server.' });
+        console.error(err);
+      }
+    }
+
+    function renderUsers(users){
+      const tbody = document.querySelector('#usersTable tbody'); tbody.innerHTML = '';
+      users.forEach(u => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${u.name||''}</td><td>${u.email||''}</td><td>${u.blocked? 'Yes':'No'}</td><td>
+          <button class='btn btn-muted' onclick="toggleBlock('${u._id}', ${u.blocked})">${u.blocked? 'Unblock':'Block'}</button>
+        </td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function toggleBlock(id, currently) {
+      try {
+        const headers = Object.assign({'Content-Type':'application/json'}, tokenHeader());
+        const res = await fetch(apiBase + '/admin/users/' + id + '/block', { method:'PUT', headers, body: JSON.stringify({ block: !currently }) });
+        if (!res.ok) throw new Error('Failed');
+        Swal.fire({ icon: 'success', title: 'Success' });
+        await loadData();
+      } catch (err) { console.error(err); Swal.fire({ icon:'error', title:'Action failed' }) }
+    }
+
+    function renderBooks(books){
+      const tbody = document.querySelector('#booksTable tbody'); tbody.innerHTML = '';
+      books.forEach(b => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${b.title||''}</td><td>${b.seller||''}</td><td>${b.category||''}</td><td>₹${b.price||0}</td><td>
+          <button class='btn btn-danger' onclick="deleteBook('${b._id}')">Delete</button>
+        </td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function deleteBook(id){
+      const confirmed = await Swal.fire({ icon:'warning', title:'Delete?', showCancelButton:true });
+      if (!confirmed.isConfirmed) return;
+      try{
+        const headers = tokenHeader();
+        const res = await fetch(apiBase + '/admin/books/' + id, { method:'DELETE', headers });
+        if(!res.ok) throw new Error('Failed');
+        Swal.fire({ icon:'success', title:'Deleted' });
+        await loadData();
+      }catch(e){console.error(e);Swal.fire({ icon:'error', title:'Delete failed' })}
+    }
+
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      const email = document.getElementById('adminEmail').value;
+      const password = document.getElementById('adminPassword').value;
+      try {
+        const res = await fetch(apiBase + '/api/auth/login', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ email, password }) });
+        const data = await res.json();
+        if (!res.ok || !data.token) { Swal.fire({ icon:'error', title:'Login failed', text: data.message || 'Invalid' }); return; }
+        localStorage.setItem('adminToken', data.token);
+        document.getElementById('logoutBtn').style.display = 'inline-block';
+        document.getElementById('loginBtn').style.display = 'none';
+        Swal.fire({ icon:'success', title:'Logged in' });
+        await loadData();
+      } catch (err) { console.error(err); Swal.fire({ icon:'error', title:'Login error' }); }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('adminToken');
+      document.getElementById('logoutBtn').style.display = 'none';
+      document.getElementById('loginBtn').style.display = 'inline-block';
+      Swal.fire({ icon:'success', title:'Logged out' });
+    });
+
+    // Auto-check token on load
+    (function(){ if (localStorage.getItem('adminToken')) { document.getElementById('logoutBtn').style.display = 'inline-block'; document.getElementById('loginBtn').style.display = 'none'; loadData(); } })();
+
+    // RECHARTS render using UMD Recharts
+    function renderRecharts(data){
+      try{
+        const { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } = Recharts;
+        const root = document.getElementById('rechartsRoot'); root.innerHTML = '';
+        const e = React.createElement;
+        const ChartComp = () => e(ResponsiveContainer, { width:'100%', height:200 },
+          e(BarChart, { data }, e(Bar, { dataKey:'value', fill:'#8884d8' }), e(XAxis, { dataKey:'name' }), e(YAxis), e(Tooltip))
+        );
+        ReactDOM.render(e(ChartComp), root);
+      }catch(err){ console.warn('Recharts failed', err); }
+    }
+
+  </script>
+</body>
+</html>

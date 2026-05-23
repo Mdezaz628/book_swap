@@ -30,7 +30,8 @@ const userSchema = new mongoose.Schema({
   name: String,
   email: { type: String, unique: true },
   college: String,
-  password: String
+  password: String,
+  blocked: { type: Boolean, default: false }
 });
 const User = mongoose.model("User", userSchema);
 
@@ -80,17 +81,12 @@ app.post("/api/auth/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.json({ message: "Wrong password ❌" });
 
-    const token = jwt.sign(
-  { userId: user._id },
-  "secretkey123", // baad me env me dalenge
-  { expiresIn: "1d" }
-);
+    if (user.blocked) return res.json({ message: "Account blocked" });
 
-res.json({
-  message: "Login successful",
-  token,
-  name: user.name
-});
+    const secret = process.env.JWT_SECRET || 'secretkey123';
+    const token = jwt.sign({ userId: user._id, role: user.role }, secret, { expiresIn: '7d' });
+
+    res.json({ message: 'Login successful', token, name: user.name, role: user.role });
 
   } catch (err) {
     res.status(500).json({ message: "Server error ❌" });
@@ -210,11 +206,110 @@ app.get("/stats", async (req, res) => {
   const usersCount = await User.countDocuments();
   const booksCount = await Book.countDocuments();
 
-  res.json({
-    users: usersCount,
-    books: booksCount,
-    saved: booksCount * 200
-  });
+  res.json({ users: usersCount, books: booksCount, saved: booksCount * 200 });
+});
+
+// --- JWT ADMIN MIDDLEWARE ---
+function adminMiddleware(req, res, next) {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : auth;
+  if (!token) return res.status(401).json({ message: 'No token' });
+
+  try {
+    const secret = process.env.JWT_SECRET || 'secretkey123';
+    const decoded = jwt.verify(token, secret);
+    if (decoded.role !== 'admin') return res.status(403).json({ message: 'Access denied' });
+    req.admin = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ message: 'Invalid token' });
+  }
+}
+
+// ADMIN: list all books
+app.get('/admin/books', adminMiddleware, async (req, res) => {
+  try {
+    const books = await Book.find().sort({ createdAt: -1 });
+    res.json({ books });
+  } catch (err) {
+    console.error('Admin list books error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ADMIN: delete any book
+app.delete('/admin/books/:id', adminMiddleware, async (req, res) => {
+  try {
+    const book = await Book.findById(req.params.id);
+    if (!book) return res.status(404).json({ message: 'Book not found' });
+    await Book.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Book deleted by admin' });
+  } catch (err) {
+    console.error('Admin delete book error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ADMIN: list users
+app.get('/admin/users', adminMiddleware, async (req, res) => {
+  try {
+    const users = await User.find().sort({ createdAt: -1 });
+    res.json({ users });
+  } catch (err) {
+    console.error('Admin list users error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ADMIN: block/unblock user
+app.put('/admin/users/:id/block', adminMiddleware, async (req, res) => {
+  try {
+    const { block } = req.body; // true/false
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    user.blocked = !!block;
+    await user.save();
+    res.json({ message: `User ${block ? 'blocked' : 'unblocked'}` });
+  } catch (err) {
+    console.error('Admin block user error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ADMIN: enhanced stats (users, books, deals)
+app.get('/admin/stats', adminMiddleware, async (req, res) => {
+  try {
+    const usersCount = await User.countDocuments();
+    const booksCount = await Book.countDocuments();
+    const dealsCount = await DealVerification.countDocuments();
+    res.json({ users: usersCount, books: booksCount, deals: dealsCount });
+  } catch (err) {
+    console.error('Admin stats error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Create admin user (one-time) - protected by ADMIN_SECRET env
+app.post('/api/auth/create-admin', async (req, res) => {
+  try {
+    const secret = req.headers['x-admin-secret'] || req.query.admin_secret;
+    const ADMIN_SECRET = process.env.ADMIN_SECRET || 'adminsecret';
+    if (!secret || secret !== ADMIN_SECRET) return res.status(401).json({ message: 'Admin secret required' });
+
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) return res.status(400).json({ message: 'Missing fields' });
+
+    const existing = await User.findOne({ email });
+    if (existing) return res.status(400).json({ message: 'User exists' });
+
+    const hashed = await bcrypt.hash(password, 10);
+    const admin = new User({ name, email, password: hashed, role: 'admin' });
+    await admin.save();
+    res.json({ message: 'Admin created' });
+  } catch (err) {
+    console.error('Create admin error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 // MongoDB
