@@ -339,9 +339,9 @@ function getApiBaseUrl() {
   const explicitBase = window.__API_BASE_URL__ || localStorage.getItem('apiBaseUrl') || '';
   if (explicitBase) return explicitBase.replace(/\/$/, '');
 
-  const protocol = window.location.protocol || 'http:';
-  const hostname = window.location.hostname || 'swaptome-api.onrender.com';
-  return `${protocol}//${hostname}:5000`;
+  // Default to production API URL. If you need to override for local dev,
+  // set window.__API_BASE_URL__ or localStorage 'apiBaseUrl'.
+  return 'https://swaptome-api.onrender.com';
 }
 
 function apiUrl(path) {
