@@ -2960,6 +2960,25 @@ body.all-books-page .all-books-card-body {
   overflow: visible;
 }
 
+body.all-books-page .book-badges {
+  position: relative;
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 10px;
+}
+
+body.all-books-page .book-badge.featured {
+  position: static;
+  top: auto;
+  right: auto;
+  transform: none;
+  display: inline-flex;
+  margin-bottom: 0;
+  animation: float 3.2s ease-in-out infinite;
+  will-change: transform;
+  box-shadow: 0 6px 16px rgba(29,78,216,.22);
+}
+
 body.all-books-page .all-books-card-title {
   margin: 0;
   font-size: 1.15rem;
@@ -3360,6 +3379,13 @@ nav {
   justify-content: center;
   font-size: 1.1rem;
   flex-shrink: 0;
+}
+
+.logo-image {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  display: block;
 }
 
 .nav-links {
@@ -3801,7 +3827,9 @@ body.light-theme .hero-stats p{ color: #475569; }
   font-weight: 700;
   box-shadow: 0 4px 12px rgba(0,0,0,.15);
   white-space: nowrap;
-  animation: float 3s ease-in-out infinite;
+  animation: none;
+  z-index: 5;
+  pointer-events: none;
 }
 
 .book-badge-2 {
@@ -3815,7 +3843,13 @@ body.light-theme .hero-stats p{ color: #475569; }
   font-weight: 700;
   box-shadow: 0 4px 12px rgba(0,0,0,.15);
   white-space: nowrap;
-  animation: float 3s ease-in-out infinite .8s;
+  animation: none;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.book-stack .book {
+  z-index: 1;
 }
 
 @keyframes float {

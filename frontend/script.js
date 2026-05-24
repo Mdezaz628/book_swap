@@ -835,6 +835,7 @@ window.addEventListener('DOMContentLoaded', loadStats);
 
 /* HERO SLIDER */
 let currentSlide = 0;
+let featuredSliderTimer = null;
 
 function showSlide(index) {
   const slides = document.querySelectorAll('.slide');
@@ -861,9 +862,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const slides = document.querySelectorAll('.slide');
   if (slides && slides.length) {
     showSlide(0);
-    setInterval(nextSlide, 3000);
+    if (featuredSliderTimer) clearInterval(featuredSliderTimer);
+    featuredSliderTimer = setInterval(nextSlide, 3000);
     document.querySelectorAll('.slide-btn.next').forEach(b => b.addEventListener('click', nextSlide));
     document.querySelectorAll('.slide-btn.prev').forEach(b => b.addEventListener('click', prevSlide));
+
+    const sliderWrap = document.querySelector('.netflix-slider');
+    if (sliderWrap) {
+      sliderWrap.addEventListener('mouseenter', () => {
+        if (featuredSliderTimer) {
+          clearInterval(featuredSliderTimer);
+          featuredSliderTimer = null;
+        }
+      });
+
+      sliderWrap.addEventListener('mouseleave', () => {
+        if (!featuredSliderTimer && document.querySelectorAll('.slide').length > 1) {
+          featuredSliderTimer = setInterval(nextSlide, 3000);
+        }
+      });
+    }
   }
 });
 // 🔹 MODAL FUNCTIONS
@@ -2036,6 +2054,25 @@ function renderStickyAnnouncement(announcement) {
   if (existing) existing.remove();
   if (!announcement || !announcement.active) return;
 
+  const announcementKey = [
+    String(announcement.title || '').trim(),
+    String(announcement.message || '').trim(),
+    String(announcement.updatedAt || announcement.createdAt || '').trim(),
+    String(Boolean(announcement.active))
+  ].join('|');
+
+  const seenAnnouncementKey = localStorage.getItem('lastSeenAnnouncementKey') || '';
+  if (seenAnnouncementKey === announcementKey) return;
+
+  // Save announcement text to admin chat history source as latest broadcast-style notice
+  persistBroadcast({
+    title: announcement.title || 'Announcement',
+    message: announcement.message || '',
+    important: false,
+    createdAt: announcement.updatedAt || announcement.createdAt || new Date().toISOString(),
+    source: 'announcement'
+  });
+
   const bar = document.createElement("div");
   bar.id = "stickyAnnouncementBar";
   bar.style.position = "sticky";
@@ -2055,8 +2092,16 @@ function renderStickyAnnouncement(announcement) {
     </div>
     <button type="button" aria-label="Dismiss announcement" style="background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:6px 10px;cursor:pointer">×</button>
   `;
-  bar.querySelector('button').addEventListener('click', () => bar.remove());
+  const markSeenAndRemove = () => {
+    localStorage.setItem('lastSeenAnnouncementKey', announcementKey);
+    bar.remove();
+  };
+
+  bar.querySelector('button').addEventListener('click', markSeenAndRemove);
   document.body.prepend(bar);
+
+  // One-time visibility: auto-hide after user has had a chance to see it
+  setTimeout(markSeenAndRemove, 6000);
 }
 
 async function loadStickyAnnouncement() {

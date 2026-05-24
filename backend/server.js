@@ -1431,11 +1431,20 @@ io.on("connection", (socket) => {
 
   // JOIN ROOM
   socket.on("joinRoom", (roomId) => {
+    if (!roomId || typeof roomId !== "string") return;
 
     socket.join(roomId);
     activeRooms.add(roomId);
 
-    console.log("Joined Room:", roomId);
+    const roomSize = io.sockets.adapter.rooms.get(roomId)?.size || 0;
+    const currentUsername = socketUsers.get(socket.id) || "";
+    const participants = roomId.split("_").map((name) => String(name || "").trim()).filter(Boolean);
+    const otherParticipant = participants.find((name) => name !== currentUsername) || "";
+    const otherParticipantOnline = otherParticipant ? onlineUsers.has(otherParticipant) : false;
+
+    console.log(
+      `Joined Room Channel: ${roomId} | socketsInRoom=${roomSize} | otherParticipantOnline=${otherParticipantOnline ? "yes" : "no"}`
+    );
     emitLiveStats();
 
   });
