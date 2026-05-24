@@ -798,8 +798,8 @@ async function addBook() {
   const seller =
     localStorage.getItem("userName") || "User";
 
-  const files =
-    document.getElementById("bookImages").files;
+  const imageInput = document.getElementById("bookImages");
+  const files = imageInput.files;
 
   const submitButton = document.querySelector('#sellModal .form-submit');
   const originalButtonHtml = submitButton ? submitButton.innerHTML : '';
@@ -833,7 +833,7 @@ async function addBook() {
   formData.append("location", location || savedLocation || "Location not shared");
 
   // ✅ IMAGE
-  files.forEach(file => {
+  Array.from(files).forEach((file) => {
     formData.append("images", file);
   });
 
