@@ -582,43 +582,42 @@
         background: linear-gradient(135deg, #0b1f43 0%, #163fa8 100%);
       }
 
+      /* Make Google button high-contrast and consistent with primary CTA */
       #googleLogin.form-submit {
         margin-top: 12px;
-        background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
-        color: #3c4043;
-        border: 1px solid #dfe3eb;
-        box-shadow: 0 10px 24px rgba(60, 64, 67, 0.12);
+        background: linear-gradient(90deg,#0f2b5b 0%,#2563eb 100%);
+        color: #ffffff;
+        border: none;
+        box-shadow: 0 10px 28px rgba(37,99,235,0.18);
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 12px;
-        font-weight: 700;
+        font-weight: 800;
+        padding: 10px 14px;
+        border-radius: 10px;
       }
 
       #googleLogin.form-submit:hover {
-        background: linear-gradient(180deg, #ffffff 0%, #eef4ff 100%);
-        color: #1f1f1f;
-        border-color: #cfd7e6;
-        box-shadow: 0 14px 28px rgba(60, 64, 67, 0.16);
         transform: translateY(-1px);
+        box-shadow: 0 16px 36px rgba(37,99,235,0.22);
       }
 
       #googleLogin .google-mark {
-        width: 18px;
-        height: 18px;
+        width: 26px;
+        height: 26px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        background: #fff;
+        border-radius: 6px;
+        padding: 2px;
       }
 
-      #googleLogin .google-mark svg {
-        display: block;
-      }
+      #googleLogin .google-mark svg { display:block; width:18px; height:18px }
 
-      #googleLogin .google-text {
-        letter-spacing: 0.01em;
-      }
+      #googleLogin .google-text { letter-spacing: 0.01em; }
     </style>
     <!-- Login Form -->
     <form id="loginForm" autocomplete="off" onsubmit="event.preventDefault(); loginUser();">
@@ -672,6 +671,10 @@
       <div class="form-group">
         <label>Re-enter Password</label>
         <input type="password" id="signupConfirmPassword" autocomplete="new-password" placeholder="Re-enter your password"/>
+      </div>
+      <div class="terms-group">
+        <input type="checkbox" id="signupTerms" />
+        <label for="signupTerms">I agree to the <a href="#" onclick="alert('Please review the Terms & Conditions before signing up.'); return false;">Terms & Conditions</a> and understand my account may be suspended for fake listings, abuse, or fraud.</label>
       </div>
       <button class="form-submit" onclick="signupUser()">Create Free Account</button>
     </div>
@@ -784,12 +787,51 @@ document.getElementById("googleLogin")
 
     const user = result.user;
 
+      const response = await fetch("http://localhost:5000/api/auth/google", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: user.displayName || "",
+          email: user.email || ""
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Google login failed");
+      }
+
     localStorage.setItem("user", JSON.stringify(user));
     localStorage.setItem("userName", user.displayName || user.email || "User");
+      localStorage.setItem("token", data.token || "");
+      localStorage.setItem("role", data.role || "user");
+      localStorage.setItem("email", data.email || user.email || "");
 
-    alert("Google Login Successful");
+    // Show a transient toast (non-blocking) and redirect after 1 second
+    (function showTransientToastAndRedirect() {
+      const toast = document.createElement('div');
+      toast.textContent = 'Google Login Successful';
+      toast.style.cssText = 'position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#0b1220;color:#fff;padding:10px 14px;border-radius:8px;box-shadow:0 10px 30px rgba(2,6,23,0.6);z-index:10000002;opacity:0;transition:opacity .15s ease';
+      document.body.appendChild(toast);
+      // trigger fade-in
+      requestAnimationFrame(() => { toast.style.opacity = '1'; });
 
-    window.location.href = "dashboard.html";
+      // remove after 1s, then redirect
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 180);
+
+        const role = data.role || (data.user && data.user.role) || localStorage.getItem('role') || 'user';
+        if (role === 'admin') {
+          window.location.href = 'admin.html';
+        } else {
+          window.location.href = 'dashboard.html';
+        }
+      }, 1000);
+    })();
 
   } catch (error) {
 

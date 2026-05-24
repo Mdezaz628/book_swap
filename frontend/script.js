@@ -11,6 +11,213 @@ function clearFields() {
   clearPersistedFields();
 }
 
+let supportUiReady = false;
+let supportMode = 'report';
+
+function fillSupportIdentity() {
+  const nameInput = document.getElementById('supportName');
+  const emailInput = document.getElementById('supportEmail');
+  const storedName = localStorage.getItem('userName') || '';
+  const storedEmail = localStorage.getItem('email') || '';
+  if (nameInput && !nameInput.value) nameInput.value = storedName;
+  if (emailInput && !emailInput.value) emailInput.value = storedEmail;
+}
+
+function ensureSupportUi() {
+  if (supportUiReady || document.getElementById('supportModal') || !document.body) return;
+
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `
+    <button id="supportFab" type="button" onclick="openSupportModal('report')" style="position:fixed;right:18px;bottom:18px;z-index:99998;border:none;border-radius:999px;padding:14px 18px;background:linear-gradient(135deg,#0f2b5b 0%,#1d4ed8 100%);color:#fff;font-weight:800;box-shadow:0 18px 34px rgba(15,43,91,.28);cursor:pointer;">Report / Feedback</button>
+    <div class="modal-overlay" id="supportModal">
+      <div class="modal" style="max-width:640px;width:min(640px,calc(100vw - 24px));">
+        <button class="modal-close" type="button" onclick="closeSupportModal()">✕</button>
+        <h3>Report / Feedback</h3>
+        <p class="modal-sub">Use this to report fake books, abusive chats, scam users, bugs, or suggestions.</p>
+        <div class="tabs" style="margin-bottom:14px;">
+          <button type="button" class="tab-btn active" id="supportReportTabBtn" onclick="switchSupportTab('report')">Report</button>
+          <button type="button" class="tab-btn" id="supportFeedbackTabBtn" onclick="switchSupportTab('feedback')">Feedback</button>
+        </div>
+        <div id="supportReportPane">
+          <div class="form-group">
+            <label>Your Name</label>
+            <input type="text" id="supportName" placeholder="Your name">
+          </div>
+          <div class="form-group">
+            <label>Your Email</label>
+            <input type="email" id="supportEmail" placeholder="your@email.com">
+          </div>
+          <div class="form-group">
+            <label>Report Type</label>
+            <select id="reportType">
+              <option value="book">Fake book</option>
+              <option value="chat">Abusive chat</option>
+              <option value="user">Scam user</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Target label</label>
+            <input type="text" id="reportTargetLabel" placeholder="Book title, user name, or chat context">
+          </div>
+          <div class="form-group">
+            <label>Reason</label>
+            <select id="reportReason">
+              <option value="Fake listing">Fake listing</option>
+              <option value="Scam / fraud">Scam / fraud</option>
+              <option value="Abusive behavior">Abusive behavior</option>
+              <option value="Harassment">Harassment</option>
+              <option value="Spam">Spam</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Details</label>
+            <textarea id="reportDetails" rows="4" placeholder="Share what happened..."></textarea>
+          </div>
+        </div>
+        <div id="supportFeedbackPane" style="display:none;">
+          <div class="form-group">
+            <label>Your Name</label>
+            <input type="text" id="feedbackName" placeholder="Your name">
+          </div>
+          <div class="form-group">
+            <label>Your Email</label>
+            <input type="email" id="feedbackEmail" placeholder="your@email.com">
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <select id="feedbackCategory">
+              <option value="Suggestion">Suggestion</option>
+              <option value="Bug report">Bug report</option>
+              <option value="Rating">Rating</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Rating</label>
+            <select id="feedbackRating">
+              <option value="5">5 - Excellent</option>
+              <option value="4">4 - Good</option>
+              <option value="3">3 - Okay</option>
+              <option value="2">2 - Needs work</option>
+              <option value="1">1 - Poor</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Feedback</label>
+            <textarea id="feedbackMessage" rows="4" placeholder="Tell us what to improve..."></textarea>
+          </div>
+        </div>
+        <button type="button" class="form-submit" id="supportSubmitBtn" onclick="submitSupportEntry()">Submit</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(wrapper);
+  supportUiReady = true;
+  fillSupportIdentity();
+  switchSupportTab('report');
+}
+
+function openSupportModal(tab = 'report') {
+  ensureSupportUi();
+  const modal = document.getElementById('supportModal');
+  if (!modal) return;
+  modal.classList.add('open');
+  switchSupportTab(tab);
+  fillSupportIdentity();
+}
+
+function closeSupportModal() {
+  const modal = document.getElementById('supportModal');
+  if (modal) modal.classList.remove('open');
+}
+
+function switchSupportTab(tab) {
+  supportMode = tab === 'feedback' ? 'feedback' : 'report';
+  const reportPane = document.getElementById('supportReportPane');
+  const feedbackPane = document.getElementById('supportFeedbackPane');
+  const reportBtn = document.getElementById('supportReportTabBtn');
+  const feedbackBtn = document.getElementById('supportFeedbackTabBtn');
+
+  if (reportPane) reportPane.style.display = supportMode === 'report' ? 'block' : 'none';
+  if (feedbackPane) feedbackPane.style.display = supportMode === 'feedback' ? 'block' : 'none';
+  if (reportBtn) reportBtn.classList.toggle('active', supportMode === 'report');
+  if (feedbackBtn) feedbackBtn.classList.toggle('active', supportMode === 'feedback');
+}
+
+async function submitSupportEntry() {
+  try {
+    ensureSupportUi();
+    const submitBtn = document.getElementById('supportSubmitBtn');
+    if (submitBtn) submitBtn.disabled = true;
+
+    if (supportMode === 'report') {
+      const payload = {
+        type: document.getElementById('reportType')?.value || 'book',
+        targetId: '',
+        targetLabel: document.getElementById('reportTargetLabel')?.value.trim() || '',
+        reason: document.getElementById('reportReason')?.value || 'Other',
+        details: document.getElementById('reportDetails')?.value.trim() || '',
+        reporterName: document.getElementById('supportName')?.value.trim() || localStorage.getItem('userName') || 'Anonymous',
+        reporterEmail: document.getElementById('supportEmail')?.value.trim() || localStorage.getItem('email') || ''
+      };
+
+      if (!payload.reason || !payload.details) {
+        alert('Please add reason and details.');
+        return;
+      }
+
+      const res = await fetch(apiUrl('/reports'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Report failed');
+      alert('Report submitted ✅');
+    } else {
+      const payload = {
+        type: 'feedback',
+        category: document.getElementById('feedbackCategory')?.value || 'Suggestion',
+        rating: Number(document.getElementById('feedbackRating')?.value || 0),
+        name: document.getElementById('feedbackName')?.value.trim() || localStorage.getItem('userName') || 'Anonymous',
+        email: document.getElementById('feedbackEmail')?.value.trim() || localStorage.getItem('email') || '',
+        pageUrl: window.location.pathname,
+        message: document.getElementById('feedbackMessage')?.value.trim() || ''
+      };
+
+      if (!payload.message) {
+        alert('Please write your feedback.');
+        return;
+      }
+
+      const res = await fetch(apiUrl('/feedback'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Feedback failed');
+      alert('Feedback submitted ✅');
+    }
+
+    ['reportTargetLabel', 'reportDetails', 'feedbackMessage'].forEach((id) => {
+      const input = document.getElementById(id);
+      if (input) input.value = '';
+    });
+
+    closeSupportModal();
+  } catch (err) {
+    alert(err.message || 'Submission failed');
+  } finally {
+    const submitBtn = document.getElementById('supportSubmitBtn');
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  ensureSupportUi();
+});
+
 function getFirstExistingInputValue(ids) {
   for (const id of ids) {
     const input = document.getElementById(id);
@@ -151,6 +358,10 @@ function persistBroadcast(notification) {
   }
 }
 
+function isDashboardPage() {
+  return window.location.pathname.endsWith('dashboard.html');
+}
+
 function getBroadcastKey(notification) {
   if (!notification) return '';
   const title = String(notification.title || '').trim();
@@ -184,14 +395,75 @@ function formatBroadcastTime(value) {
   }
 }
 
+function getBroadcastVisibilityKey(notification) {
+  return `hiddenBroadcast:${getBroadcastKey(notification)}`;
+}
+
+function isBroadcastHidden(notification) {
+  if (!notification) return false;
+  try {
+    return localStorage.getItem(getBroadcastVisibilityKey(notification)) === '1';
+  } catch (err) {
+    return false;
+  }
+}
+
+function setBroadcastHidden(notification, hidden) {
+  if (!notification) return;
+  try {
+    const key = getBroadcastVisibilityKey(notification);
+    if (hidden) {
+      localStorage.setItem(key, '1');
+    } else {
+      localStorage.removeItem(key);
+    }
+  } catch (err) {
+    console.warn('Could not store broadcast visibility state', err);
+  }
+}
+
 function removeBroadcastBanner() {
   const existing = document.getElementById('broadcastBanner');
   if (existing) existing.remove();
+
+  const toggle = document.getElementById('broadcastBannerToggle');
+  if (toggle) toggle.remove();
 }
 
 function renderBroadcastBanner(notification) {
+  if (!isDashboardPage()) return;
   removeBroadcastBanner();
   if (!notification || !notification.important) return;
+
+  if (isBroadcastHidden(notification)) {
+    const toggle = document.createElement('button');
+    toggle.id = 'broadcastBannerToggle';
+    toggle.type = 'button';
+    toggle.textContent = 'Show';
+    toggle.setAttribute('aria-label', 'Show broadcast banner again');
+    toggle.style.cssText = [
+      'position:sticky',
+      'top:0',
+      'margin-left:auto',
+      'display:block',
+      'margin-right:16px',
+      'padding:8px 14px',
+      'border-radius:999px',
+      'border:1px solid rgba(212,205,184,.9)',
+      'background:#fffaf0',
+      'color:#334155',
+      'font-weight:800',
+      'cursor:pointer',
+      'box-shadow:0 8px 20px rgba(0,0,0,.12)',
+      'z-index:9999'
+    ].join(';') + ';';
+    toggle.addEventListener('click', () => {
+      setBroadcastHidden(notification, false);
+      renderBroadcastBanner(notification);
+    });
+    document.body.prepend(toggle);
+    return;
+  }
 
   const bar = document.createElement('div');
   bar.id = 'broadcastBanner';
@@ -210,7 +482,13 @@ function renderBroadcastBanner(notification) {
         ${when ? `<span class="broadcast-banner__time">${when}</span>` : ''}
       </div>
     </div>
+    <button type="button" aria-label="Hide broadcast banner" style="background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:6px 10px;cursor:pointer">Hide</button>
   `;
+  const hideButton = bar.querySelector('button');
+  hideButton.addEventListener('click', () => {
+    setBroadcastHidden(notification, true);
+    renderBroadcastBanner(notification);
+  });
   document.body.prepend(bar);
 }
 
@@ -1650,6 +1928,7 @@ function initSocket() {
 }
 
 function renderStickyAnnouncement(announcement) {
+  if (!isDashboardPage()) return;
   const existing = document.getElementById("stickyAnnouncementBar");
   if (existing) existing.remove();
   if (!announcement || !announcement.active) return;
@@ -1679,6 +1958,7 @@ function renderStickyAnnouncement(announcement) {
 
 async function loadStickyAnnouncement() {
   try {
+    if (!isDashboardPage()) return;
     const res = await fetch('http://localhost:5000/announcements/active');
     if (!res.ok) return;
     const data = await res.json();
@@ -1693,14 +1973,14 @@ async function loadLatestBroadcast() {
     const res = await fetch('http://localhost:5000/notifications/latest');
     if (!res.ok) {
       const cached = JSON.parse(localStorage.getItem('latestBroadcast') || 'null');
-      if (cached?.important) renderBroadcastBanner(cached);
+      if (cached?.important && isDashboardPage()) renderBroadcastBanner(cached);
       return;
     }
     const data = await res.json();
     const notification = data.notification;
     if (!notification?.message) {
       const cached = JSON.parse(localStorage.getItem('latestBroadcast') || 'null');
-      if (cached?.important) renderBroadcastBanner(cached);
+      if (cached?.important && isDashboardPage()) renderBroadcastBanner(cached);
       return;
     }
 
@@ -1711,17 +1991,17 @@ async function loadLatestBroadcast() {
       localStorage.setItem('lastBroadcastSeen', String(notification.createdAt || ''));
     }
 
-    if (notification.important) {
+    if (notification.important && isDashboardPage()) {
       renderBroadcastBanner(notification);
     } else {
-      if (!shouldShowBroadcast(notification)) return;
+      if (!isDashboardPage() || !shouldShowBroadcast(notification)) return;
       showAutoPopup(notification.title || 'Broadcast', 2500, notification.message || '');
     }
   } catch (err) {
     console.warn('Broadcast load failed', err);
     try {
       const cached = JSON.parse(localStorage.getItem('latestBroadcast') || 'null');
-      if (cached?.important) renderBroadcastBanner(cached);
+      if (cached?.important && isDashboardPage()) renderBroadcastBanner(cached);
     } catch (cacheErr) {
       console.warn('Cached broadcast load failed', cacheErr);
     }

@@ -13,6 +13,7 @@ import User from "./models/User.js";
 import Message from "./models/Message.js";
 import DealVerification from "./models/DealVerification.js";
 import Report from "./models/Report.js";
+import Feedback from "./models/Feedback.js";
 import Announcement from "./models/Announcement.js";
 import AdminLog from "./models/AdminLog.js";
 import http from "http";
@@ -31,6 +32,11 @@ const onlineUsers = new Map();
 const socketUsers = new Map();
 const activeRooms = new Set();
 const ADMIN_INBOX_USER = process.env.ADMIN_INBOX_USER || 'admin';
+
+// Admin emails list for assigning admin role on Google sign-in
+const adminEmails = [
+  "ezazmdrk3929@gmail.com"
+];
 
 function getJwtSecret() {
   return process.env.JWT_SECRET || 'secretkey123';
@@ -184,11 +190,21 @@ function getRiskScore(text) {
 }
 
 function getUserRiskScore(userDoc) {
-  return Math.min(100,
+  let score =
     (userDoc?.reportCount || 0) * 20 +
     (userDoc?.blocked ? 40 : 0) +
-    (userDoc?.shadowBanned ? 25 : 0)
-  );
+    (userDoc?.shadowBanned ? 25 : 0);
+
+  const createdAt = userDoc?.createdAt ? new Date(userDoc.createdAt) : null;
+  if (createdAt && Number.isFinite(createdAt.getTime())) {
+    const accountAgeHours = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+    if (accountAgeHours < 24) score += 10;
+    if (accountAgeHours < 6) score += 10;
+  }
+
+  if (userDoc?.authProvider === 'google') score += 2;
+
+  return Math.min(100, score);
 }
 
 async function logAdminAction(adminEmail, action, targetType, targetId, meta = {}, ip = '') {
@@ -228,7 +244,7 @@ app.get("/", (req, res) => {
 // 🔥 SIGNUP
 app.post("/api/auth/signup", async (req, res) => {
   try {
-    let { name, email, college, password } = req.body;
+    let { name, email, college, location, password } = req.body;
 
     email = String(email || '').toLowerCase().trim();
     const verifyToken = crypto.randomBytes(32).toString('hex');
@@ -239,6 +255,10 @@ app.post("/api/auth/signup", async (req, res) => {
       if (existingUser.isVerified === false) {
         existingUser.name = name;
         existingUser.college = college;
+        existingUser.location = location;
+        existingUser.authProvider = 'manual';
+        existingUser.signupProvider = 'manual';
+        existingUser.lastLoginProvider = 'manual';
         existingUser.verifyToken = verifyToken;
         existingUser.verifyTokenExpiresAt = verifyTokenExpiresAt;
         await existingUser.save();
@@ -255,7 +275,11 @@ app.post("/api/auth/signup", async (req, res) => {
       name,
       email,
       college,
+      location,
       password: hashedPassword,
+      authProvider: 'manual',
+      signupProvider: 'manual',
+      lastLoginProvider: 'manual',
       isVerified: false,
       verifyToken,
       verifyTokenExpiresAt
@@ -269,6 +293,55 @@ app.post("/api/auth/signup", async (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: err?.message || "Server error ❌" });
+  }
+});
+
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const name = String(req.body.name || '').trim();
+    const email = String(req.body.email || '').toLowerCase().trim();
+
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    const now = new Date().toISOString();
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = new User({
+        name: name || email.split('@')[0],
+        email,
+        password: '',
+        role: adminEmails.includes(email) ? 'admin' : 'user',
+        isVerified: true,
+        verificationStatus: 'approved',
+        collegeVerified: false,
+        authProvider: 'google',
+        signupProvider: 'google',
+        lastLoginProvider: 'google',
+        lastLoginAt: now
+      });
+    } else {
+      // Ensure existing admin users keep role; otherwise default remains
+      if (!user.role) user.role = adminEmails.includes(email) ? 'admin' : 'user';
+      user.name = name || user.name;
+      user.isVerified = true;
+      user.verificationStatus = 'approved';
+      user.authProvider = 'google';
+      if (!user.signupProvider) user.signupProvider = 'google';
+      user.lastLoginProvider = 'google';
+      user.lastLoginAt = now;
+    }
+
+    await user.save();
+
+    const token = jwt.sign({ userId: user._id, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
+
+    res.json({ message: 'Google login successful', token, name: user.name, role: user.role, email: user.email });
+  } catch (err) {
+    console.error('Google auth error', err);
+    res.status(500).json({ message: 'Server error ❌' });
   }
 });
 
@@ -292,6 +365,7 @@ app.post("/api/auth/login", async (req, res) => {
 
     user.lastLoginAt = new Date().toISOString();
     user.lastLoginIp = req.ip;
+    user.lastLoginProvider = 'manual';
     await user.save();
 
     const token = jwt.sign({ userId: user._id, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
@@ -657,6 +731,33 @@ app.post('/reports', async (req, res) => {
   }
 });
 
+app.post('/feedback', async (req, res) => {
+  try {
+    const { type = 'feedback', category = '', rating = 0, name = '', email = '', pageUrl = '', targetType = '', targetLabel = '', message = '' } = req.body;
+    const trimmedMessage = String(message || '').trim();
+    if (!trimmedMessage) {
+      return res.status(400).json({ message: 'Message is required' });
+    }
+
+    const entry = await Feedback.create({
+      type: String(type || 'feedback').trim().toLowerCase(),
+      category: String(category || '').trim(),
+      rating: Number(rating) || 0,
+      name: String(name || '').trim(),
+      email: String(email || '').trim(),
+      pageUrl: String(pageUrl || '').trim(),
+      targetType: String(targetType || '').trim(),
+      targetLabel: String(targetLabel || '').trim(),
+      message: trimmedMessage
+    });
+
+    res.json({ message: 'Feedback submitted', feedback: entry });
+  } catch (err) {
+    console.error('Feedback submit error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // --- JWT ADMIN MIDDLEWARE ---
 function adminMiddleware(req, res, next) {
   const auth = req.headers.authorization || '';
@@ -717,6 +818,37 @@ app.get('/admin/users', adminMiddleware, async (req, res) => {
     res.json({ users });
   } catch (err) {
     console.error('Admin list users error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.get('/admin/users/:id/profile', adminMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password -verifyToken -verifyTokenExpiresAt -resetPasswordToken -resetPasswordExpiresAt');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const [books, reports, deals, messages] = await Promise.all([
+      Book.find({ seller: new RegExp(`^${String(user.name || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }).sort({ createdAt: -1 }).limit(20),
+      Report.find({ $or: [{ reporterEmail: user.email }, { createdBy: user.email }, { targetLabel: new RegExp(String(user.name || ''), 'i') }] }).sort({ createdAt: -1 }).limit(20),
+      DealVerification.find({ $or: [{ buyer: user.name }, { seller: user.name }] }).sort({ createdAt: -1 }).limit(20),
+      Message.find({ $or: [{ sender: user.name }, { receiver: user.name }] }).sort({ createdAt: -1 }).limit(20)
+    ]);
+
+    res.json({
+      user,
+      books,
+      reports,
+      deals,
+      messages,
+      summary: {
+        books: books.length,
+        reports: reports.length,
+        deals: deals.length,
+        messages: messages.length
+      }
+    });
+  } catch (err) {
+    console.error('Admin user profile error', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -832,8 +964,8 @@ app.get('/admin/search', adminMiddleware, async (req, res) => {
     const q = String(req.query.q || '').trim();
     const regex = new RegExp(q, 'i');
     const results = {};
-    if (type === 'all' || type === 'user') results.users = q ? await User.find({ $or: [{ email: regex }, { name: regex }] }).limit(20) : [];
-    if (type === 'all' || type === 'book') results.books = q ? await Book.find({ title: regex }).limit(20) : [];
+    if (type === 'all' || type === 'user') results.users = q ? await User.find({ $or: [{ email: regex }, { name: regex }, { college: regex }, { location: regex }] }).limit(20) : [];
+    if (type === 'all' || type === 'book') results.books = q ? await Book.find({ $or: [{ title: regex }, { writer: regex }, { seller: regex }, { category: regex }, { location: regex }] }).limit(20) : [];
     if (type === 'all' || type === 'deal') {
       const dealQuery = q && mongoose.Types.ObjectId.isValid(q)
         ? { $or: [{ _id: q }, { roomId: regex }, { code: regex }] }
@@ -841,6 +973,7 @@ app.get('/admin/search', adminMiddleware, async (req, res) => {
       results.deals = q ? await DealVerification.find(dealQuery).limit(20) : [];
     }
     if (type === 'all' || type === 'report') results.reports = q ? await Report.find({ $or: [{ reason: regex }, { targetLabel: regex }] }).limit(20) : [];
+    if (type === 'all' || type === 'feedback') results.feedback = q ? await Feedback.find({ $or: [{ category: regex }, { message: regex }, { name: regex }, { email: regex }] }).limit(20) : [];
     res.json(results);
   } catch (err) {
     console.error('Admin search error', err);
@@ -930,7 +1063,12 @@ app.get('/admin/fraud-scores', adminMiddleware, async (req, res) => {
       email: user.email,
       riskScore: getUserRiskScore(user),
       blocked: user.blocked,
-      shadowBanned: user.shadowBanned
+      shadowBanned: user.shadowBanned,
+      authProvider: user.authProvider || 'manual',
+      signupProvider: user.signupProvider || 'manual',
+      signupAt: user.createdAt,
+      lastLoginProvider: user.lastLoginProvider || 'manual',
+      lastLoginAt: user.lastLoginAt
     })).sort((a, b) => b.riskScore - a.riskScore).slice(0, 20);
     const flaggedBooks = books.map((book) => ({
       _id: book._id,
@@ -942,6 +1080,46 @@ app.get('/admin/fraud-scores', adminMiddleware, async (req, res) => {
     res.json({ flaggedUsers, flaggedBooks });
   } catch (err) {
     console.error('Fraud score error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.get('/admin/feedback', adminMiddleware, async (req, res) => {
+  try {
+    const status = String(req.query.status || 'all');
+    const items = await Feedback.find(status === 'all' ? {} : { status }).sort({ createdAt: -1 });
+    res.json({ feedback: items });
+  } catch (err) {
+    console.error('Admin feedback error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.patch('/admin/feedback/:id/resolve', adminMiddleware, async (req, res) => {
+  try {
+    const { status = 'resolved', adminNote = '' } = req.body;
+    const entry = await Feedback.findById(req.params.id);
+    if (!entry) return res.status(404).json({ message: 'Feedback not found' });
+    entry.status = status;
+    entry.adminNote = adminNote;
+    await entry.save();
+    await adminAction(req, 'resolve_feedback', 'feedback', req.params.id, { status, adminNote });
+    res.json({ message: 'Feedback updated', feedback: entry });
+  } catch (err) {
+    console.error('Resolve feedback error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.delete('/admin/feedback/:id', adminMiddleware, async (req, res) => {
+  try {
+    const entry = await Feedback.findById(req.params.id);
+    if (!entry) return res.status(404).json({ message: 'Feedback not found' });
+    await Feedback.findByIdAndDelete(req.params.id);
+    await adminAction(req, 'delete_feedback', 'feedback', req.params.id, { category: entry.category, type: entry.type });
+    res.json({ message: 'Feedback deleted' });
+  } catch (err) {
+    console.error('Delete feedback error', err);
     res.status(500).json({ message: 'Server error' });
   }
 });

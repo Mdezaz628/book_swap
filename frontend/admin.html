@@ -578,6 +578,7 @@
             <option value="book">Book by title</option>
             <option value="deal">Deal by ID</option>
             <option value="report">Report</option>
+            <option value="feedback">Feedback</option>
           </select>
           <button class="btn btn-primary" id="searchBtn">Search</button>
           <button class="btn btn-ghost" id="clearSearchBtn">Clear</button>
@@ -686,10 +687,14 @@
       <div class="card panel">
         <h2>Users</h2>
         <div class="toolbar" style="margin-bottom:10px">
-          <input id="usersSearch" class="filter-input" placeholder="Search users by name or email">
+          <input id="usersSearch" class="filter-input" placeholder="Search users by name, email, college or city">
           <button class="btn btn-ghost" id="usersClearBtn" type="button">Clear</button>
         </div>
         <div class="table-wrap"><table id="usersTable"><thead><tr><th>Name</th><th>Email</th><th>Flags</th><th>Risk</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
+        <div id="userInspector" class="mini-item mt-12">
+          <strong>User Inspector</strong>
+          <div class="muted mt-12">Select Inspect on a user to view uploaded books, swaps, reports, and activity.</div>
+        </div>
       </div>
       <div class="card panel">
         <h2>Books</h2>
@@ -698,6 +703,25 @@
           <button class="btn btn-ghost" id="booksClearBtn" type="button">Clear</button>
         </div>
         <div class="table-wrap"><table id="booksTable"><thead><tr><th>Title</th><th>Seller</th><th>Category</th><th>Flags</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+
+    <div class="section two-col">
+      <div class="card panel">
+        <h2>Feedback Queue</h2>
+        <div class="toolbar" style="align-items:center;gap:8px;margin-bottom:8px">
+          <input id="feedbackSearch" class="filter-input" placeholder="Search feedback by category, message or email">
+          <button class="btn btn-ghost" id="feedbackClearBtn" type="button">Clear</button>
+        </div>
+        <div class="table-wrap"><table id="feedbackTable"><thead><tr><th>Type</th><th>User</th><th>Category</th><th>Rating</th><th>Status</th><th>Action</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card panel">
+        <h2>Profile Insights</h2>
+        <div class="mini-list" id="profileInsightsBox">
+          <div class="mini-item"><strong>Signup date</strong><div class="muted mt-12">Shown in the Users table and profile inspector.</div></div>
+          <div class="mini-item"><strong>Login provider</strong><div class="muted mt-12">Manual and Google sign-ins are stored for moderation signals.</div></div>
+          <div class="mini-item"><strong>Fraud scoring</strong><div class="muted mt-12">Recent accounts, report count, and bans feed into risk scoring.</div></div>
+        </div>
       </div>
     </div>
 
@@ -771,6 +795,7 @@
     let usersData = [];
     let booksData = [];
     let reportsData = [];
+    let feedbackData = [];
     let dealsData = [];
     let verificationData = [];
     let fraudData = { flaggedUsers: [], flaggedBooks: [] };
@@ -897,9 +922,10 @@
 
     function updateLoginState() {
       const token = localStorage.getItem('adminToken');
-      const email = localStorage.getItem('adminEmail') || 'admin';
+      const email = localStorage.getItem('adminEmail') || '';
       document.body.classList.toggle('admin-authenticated', !!token);
-      document.getElementById('adminStatusEmail').textContent = email;
+      // When an admin session is active show a generic 'admin' label instead of the email
+      document.getElementById('adminStatusEmail').textContent = token ? 'admin' : (email || 'admin');
       document.getElementById('logoutBtn').classList.toggle('hidden', !token);
       document.getElementById('loginBtn').classList.toggle('hidden', !!token);
     }
@@ -970,6 +996,7 @@
           api('/admin/analytics'),
           api('/admin/live'),
           api(`/admin/reports?status=${encodeURIComponent(currentReportStatus)}`),
+          api('/admin/feedback'),
           api(`/admin/deals?status=${encodeURIComponent(currentDealStatus)}`),
           api('/admin/users'),
           api('/admin/books'),
@@ -978,11 +1005,12 @@
           api('/admin/ai-insights')
         ]);
 
-        const [statsRes, analyticsRes, liveRes, reportsRes, dealsRes, usersRes, booksRes, fraudRes, leaderboardRes, aiRes] = results;
+        const [statsRes, analyticsRes, liveRes, reportsRes, feedbackRes, dealsRes, usersRes, booksRes, fraudRes, leaderboardRes, aiRes] = results;
         const stats = statsRes.status === 'fulfilled' ? statsRes.value : {};
         const analytics = analyticsRes.status === 'fulfilled' ? analyticsRes.value : {};
         const live = liveRes.status === 'fulfilled' ? liveRes.value : {};
         const reports = reportsRes.status === 'fulfilled' ? reportsRes.value : { reports: [] };
+        const feedback = feedbackRes.status === 'fulfilled' ? feedbackRes.value : { feedback: [] };
         const deals = dealsRes.status === 'fulfilled' ? dealsRes.value : { deals: [] };
         const users = usersRes.status === 'fulfilled' ? usersRes.value : { users: [] };
         const books = booksRes.status === 'fulfilled' ? booksRes.value : { books: [] };
@@ -991,6 +1019,7 @@
         usersData = users.users || [];
         booksData = books.books || [];
         reportsData = reports.reports || [];
+        feedbackData = feedback.feedback || [];
         dealsData = deals.deals || [];
         verificationData = users.users || [];
         fraudData = fraud || { flaggedUsers: [], flaggedBooks: [] };
@@ -1011,6 +1040,7 @@
           }
         }
         renderReports(reports.reports || []);
+        renderFeedback(feedback.feedback || []);
         renderDeals(deals.deals || []);
         renderUsers(users.users || []);
         renderBooks(books.books || []);
@@ -1132,6 +1162,7 @@
       tbody.innerHTML = '';
       items.forEach((item) => {
         const row = document.createElement('tr');
+        const joined = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '—';
         row.innerHTML = `
           <td>${item.name || ''}</td>
           <td>${item.email || ''}</td>
@@ -1139,10 +1170,15 @@
             ${item.blocked ? '<span class="tag bad">Blocked</span>' : ''}
             ${item.shadowBanned ? '<span class="tag warn">Shadow banned</span>' : ''}
             ${item.collegeVerified ? '<span class="tag good">Verified</span>' : '<span class="tag">Pending verification</span>'}
+            ${item.college ? `<span class="tag">College: ${item.college}</span>` : ''}
+            ${item.location ? `<span class="tag">City: ${item.location}</span>` : ''}
+            ${item.authProvider ? `<span class="tag good">Provider: ${item.authProvider}</span>` : ''}
+            <span class="tag">Joined: ${joined}</span>
           </td>
           <td>${item.riskScore || 0}</td>
-          <td class="action-cell"><div class="toolbar compact"><button class="btn btn-ghost" type="button" data-user-action="toggleBlock">${item.blocked ? 'Unblock' : 'Block'}</button><button class="btn btn-ghost" type="button" data-user-action="toggleShadow">${item.shadowBanned ? 'Unshadow' : 'Shadow Ban'}</button><button class="btn btn-danger" type="button" data-user-action="logout">Logout</button></div></td>
+          <td class="action-cell"><div class="toolbar compact"><button class="btn btn-ghost" type="button" data-user-action="inspect">Inspect</button><button class="btn btn-ghost" type="button" data-user-action="toggleBlock">${item.blocked ? 'Unblock' : 'Block'}</button><button class="btn btn-ghost" type="button" data-user-action="toggleShadow">${item.shadowBanned ? 'Unshadow' : 'Shadow Ban'}</button><button class="btn btn-danger" type="button" data-user-action="logout">Logout</button></div></td>
         `;
+        row.querySelector('[data-user-action="inspect"]').addEventListener('click', () => openUserInspector(item._id));
         row.querySelector('[data-user-action="toggleBlock"]').addEventListener('click', () => toggleBlock(item._id, !item.blocked));
         row.querySelector('[data-user-action="toggleShadow"]').addEventListener('click', () => toggleShadowBan(item._id, !item.shadowBanned));
         row.querySelector('[data-user-action="logout"]').addEventListener('click', () => forceLogout(item._id));
@@ -1152,7 +1188,7 @@
     function filterUsers() {
       const q = (document.getElementById('usersSearch')?.value || '').trim().toLowerCase();
       if (!q) return renderUsers(usersData);
-      const filtered = usersData.filter(u => ((u.name||'') + ' ' + (u.email||'')).toLowerCase().includes(q));
+      const filtered = usersData.filter(u => ((u.name||'') + ' ' + (u.email||'') + ' ' + (u.college||'') + ' ' + (u.location||'')).toLowerCase().includes(q));
       renderUsers(filtered);
     }
 
@@ -1161,6 +1197,95 @@
       if (!q) return renderReports(reportsData);
       const filtered = reportsData.filter(r => ((r.type||'') + ' ' + (r.targetLabel||'') + ' ' + (r.reason||'') + ' ' + (r.targetId||'')).toLowerCase().includes(q));
       renderReports(filtered);
+    }
+
+    function filterFeedback() {
+      const q = (document.getElementById('feedbackSearch')?.value || '').trim().toLowerCase();
+      if (!q) return renderFeedback(feedbackData);
+      const filtered = feedbackData.filter(item => ((item.type||'') + ' ' + (item.category||'') + ' ' + (item.message||'') + ' ' + (item.email||'')).toLowerCase().includes(q));
+      renderFeedback(filtered);
+    }
+
+    async function openUserInspector(id) {
+      try {
+        const data = await api(`/admin/users/${id}/profile`);
+        renderUserInspector(data);
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: err.message || 'Unable to load profile' });
+      }
+    }
+
+    function renderUserInspector(data) {
+      const box = document.getElementById('userInspector');
+      if (!box) return;
+
+      const user = data?.user || {};
+      const summary = data?.summary || {};
+      const books = (data?.books || []).slice(0, 5);
+      const reports = (data?.reports || []).slice(0, 5);
+      const deals = (data?.deals || []).slice(0, 5);
+      const messages = (data?.messages || []).slice(0, 5);
+
+      box.innerHTML = `
+        <strong>${user.name || 'Unknown user'}</strong>
+        <div class="muted mt-12">${user.email || ''}</div>
+        <div class="mt-12" style="display:flex;gap:8px;flex-wrap:wrap;">
+          <span class="tag">Joined: ${user.createdAt ? new Date(user.createdAt).toLocaleString() : '—'}</span>
+          <span class="tag">Provider: ${user.authProvider || user.signupProvider || 'manual'}</span>
+          <span class="tag">Last login: ${user.lastLoginProvider || 'manual'}</span>
+          <span class="tag ${user.blocked ? 'bad' : ''}">${user.blocked ? 'Blocked' : 'Active'}</span>
+        </div>
+        <div class="mt-12" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+          <span class="tag">Books: ${summary.books || 0}</span>
+          <span class="tag">Swaps: ${summary.deals || 0}</span>
+          <span class="tag">Reports: ${summary.reports || 0}</span>
+          <span class="tag">Messages: ${summary.messages || 0}</span>
+        </div>
+        <div class="mt-12"><strong>Uploaded Books</strong><div class="muted mt-12">${books.length ? books.map((book) => `${book.title || 'Untitled'} (${book.category || 'Uncategorized'})`).join('<br>') : 'None'}</div></div>
+        <div class="mt-12"><strong>Swaps</strong><div class="muted mt-12">${deals.length ? deals.map((deal) => `${deal.roomId || deal._id} - ${deal.status || 'completed'}`).join('<br>') : 'None'}</div></div>
+        <div class="mt-12"><strong>Reports</strong><div class="muted mt-12">${reports.length ? reports.map((report) => `${report.type || ''}: ${report.reason || ''}`).join('<br>') : 'None'}</div></div>
+        <div class="mt-12"><strong>Activity</strong><div class="muted mt-12">${messages.length ? messages.map((message) => `${message.sender || ''} → ${message.receiver || ''}: ${message.message || ''}`).join('<br>') : 'No recent messages'}</div></div>
+      `;
+    }
+
+    function renderFeedback(items) {
+      const tbody = document.querySelector('#feedbackTable tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      items.forEach((item) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${item.type || 'feedback'}</td>
+          <td>${item.name || ''}<br><small>${item.email || ''}</small></td>
+          <td>${item.category || ''}</td>
+          <td>${item.rating || '—'}</td>
+          <td><span class="tag ${item.status === 'resolved' ? 'good' : item.status === 'new' ? 'warn' : 'bad'}">${item.status || 'new'}</span></td>
+          <td><div class="toolbar compact"><button class="btn btn-good" type="button" data-feedback-action="resolve">Resolve</button><button class="btn btn-danger" type="button" data-feedback-action="delete">Delete</button></div></td>
+        `;
+        row.querySelector('[data-feedback-action="resolve"]').addEventListener('click', () => resolveFeedback(item._id));
+        row.querySelector('[data-feedback-action="delete"]').addEventListener('click', () => deleteFeedback(item._id));
+        tbody.appendChild(row);
+      });
+    }
+
+    async function resolveFeedback(id) {
+      try {
+        await api(`/admin/feedback/${id}/resolve`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'resolved', adminNote: 'Resolved by admin' }) });
+        await loadDashboard();
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: err.message || 'Unable to update feedback' });
+      }
+    }
+
+    async function deleteFeedback(id) {
+      const result = await Swal.fire({ icon: 'warning', title: 'Delete feedback?', showCancelButton: true, confirmButtonText: 'Delete' });
+      if (!result.isConfirmed) return;
+      try {
+        await api(`/admin/feedback/${id}`, { method: 'DELETE' });
+        await loadDashboard();
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: err.message || 'Unable to delete feedback' });
+      }
     }
 
     function renderVerificationQueue(items) {
@@ -1387,7 +1512,7 @@
       if (!q) return document.getElementById('searchResults').innerHTML = '';
       const data = await api(`/admin/search?type=${encodeURIComponent(type)}&q=${encodeURIComponent(q)}`);
       const box = document.getElementById('searchResults'); box.innerHTML = '';
-      [['Users', data.users || []], ['Books', data.books || []], ['Deals', data.deals || []], ['Reports', data.reports || []]].forEach(([label, items]) => { if (!items.length) return; const item = document.createElement('div'); item.className = 'mini-item'; item.innerHTML = `<strong>${label}</strong><div class="muted">${items.map((row) => row.email || row.name || row.title || row.code || row.reason || row._id).slice(0, 5).join('<br>')}</div>`; box.appendChild(item); });
+      [['Users', data.users || []], ['Books', data.books || []], ['Deals', data.deals || []], ['Reports', data.reports || []], ['Feedback', data.feedback || []]].forEach(([label, items]) => { if (!items.length) return; const item = document.createElement('div'); item.className = 'mini-item'; item.innerHTML = `<strong>${label}</strong><div class="muted">${items.map((row) => row.email || row.name || row.title || row.code || row.reason || row.category || row.message || row._id).slice(0, 5).join('<br>')}</div>`; box.appendChild(item); });
     }
 
     async function exportCsv(resource) { const res = await fetch(`${apiBase}/admin/export/${resource}`, { headers: tokenHeader() }); if (!res.ok) throw new Error('Export failed'); const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${resource}.csv`; a.click(); URL.revokeObjectURL(url); }
@@ -1499,6 +1624,8 @@
     document.getElementById('booksClearBtn')?.addEventListener('click', () => { document.getElementById('booksSearch').value = ''; renderBooks(booksData); });
     document.getElementById('reportsSearch')?.addEventListener('input', debounce(filterReports, 200));
     document.getElementById('reportsClearBtn')?.addEventListener('click', () => { document.getElementById('reportsSearch').value = ''; renderReports(reportsData); });
+    document.getElementById('feedbackSearch')?.addEventListener('input', debounce(filterFeedback, 200));
+    document.getElementById('feedbackClearBtn')?.addEventListener('click', () => { document.getElementById('feedbackSearch').value = ''; renderFeedback(feedbackData); });
     document.getElementById('dealsSearch')?.addEventListener('input', debounce(filterDeals, 200));
     document.getElementById('dealsClearBtn')?.addEventListener('click', () => { document.getElementById('dealsSearch').value = ''; renderDeals(dealsData); });
     document.getElementById('verificationSearch')?.addEventListener('input', debounce(filterVerification, 200));

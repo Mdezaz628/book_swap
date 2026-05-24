@@ -171,12 +171,21 @@ onclick="openImageGallery('${encodeURIComponent(JSON.stringify(book.images || [b
           </div>
 
           ${!canManageBook(book) ? `
-            <button
-              onclick="chatWithSeller('${book.seller}')"
-              class="all-books-chat-btn"
-            >
-              💬 Chat with Seller
-            </button>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button
+                onclick="chatWithSeller('${book.seller}')"
+                class="all-books-chat-btn"
+              >
+                💬 Chat with Seller
+              </button>
+              <button
+                onclick='openReportModal("book", ${JSON.stringify(book.title)}, ${JSON.stringify(book.seller)})'
+                class="all-books-chat-btn"
+                style="background:#fff;color:#0f2b5b;border:1px solid #9fb8f3;"
+              >
+                Report Book
+              </button>
+            </div>
           ` : ''}
 
         </div>
@@ -376,12 +385,86 @@ function chatWithSeller(name) {
     window.location.href = `chat.html?seller=${encodeURIComponent(name)}`;
 }
 
+function openReportModal(type, targetLabel, targetUser) {
+  const modal = document.getElementById('reportModal');
+  if (!modal) return;
+  document.getElementById('reportType').value = type || 'book';
+  document.getElementById('reportTargetLabel').value = targetLabel || '';
+  document.getElementById('reportTargetUser').value = targetUser || '';
+  document.getElementById('reporterName').value = localStorage.getItem('userName') || '';
+  document.getElementById('reporterEmail').value = localStorage.getItem('email') || '';
+  modal.style.display = 'flex';
+}
+
+function closeReportModal() {
+  const modal = document.getElementById('reportModal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function submitReport() {
+  const type = document.getElementById('reportType').value;
+  const targetLabel = document.getElementById('reportTargetLabel').value.trim();
+  const targetUser = document.getElementById('reportTargetUser').value.trim();
+  const reason = document.getElementById('reportReason').value;
+  const details = document.getElementById('reportDetails').value.trim();
+  const reporterName = document.getElementById('reporterName').value.trim() || 'Anonymous';
+  const reporterEmail = document.getElementById('reporterEmail').value.trim();
+
+  if (!reason || !details) {
+    alert('Please add reason and details');
+    return;
+  }
+
+  const res = await fetch('http://localhost:5000/reports', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      type,
+      targetId: '',
+      targetLabel: targetLabel || targetUser,
+      reporterName,
+      reporterEmail,
+      reason,
+      details,
+      createdBy: reporterEmail || reporterName
+    })
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    alert(data.message || 'Could not submit report');
+    return;
+  }
+
+  alert('Report submitted ✅');
+  closeReportModal();
+}
+
 window.onload = loadBooks;
 window.addEventListener("DOMContentLoaded", setSellerFilterFromQuery);
 document.addEventListener('click', () => {
   document.querySelectorAll('.all-books-menu.show').forEach((menu) => menu.classList.remove('show'));
 });
 </script>
+
+<div id="reportModal" style="display:none;position:fixed;inset:0;background:rgba(10,14,22,0.65);backdrop-filter:blur(8px);z-index:10000;align-items:center;justify-content:center;padding:16px;">
+  <div style="width:min(100%,520px);background:#fff;border-radius:20px;padding:20px;box-shadow:0 30px 70px rgba(0,0,0,.3);">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;">
+      <strong style="font-size:1.1rem;">Report Book</strong>
+      <button onclick="closeReportModal()" style="background:transparent;border:none;font-size:24px;cursor:pointer;">✕</button>
+    </div>
+    <div style="display:grid;gap:12px;">
+      <input id="reporterName" placeholder="Your name" style="padding:12px 14px;border:1px solid #d6dbe5;border-radius:12px;">
+      <input id="reporterEmail" placeholder="Your email" style="padding:12px 14px;border:1px solid #d6dbe5;border-radius:12px;">
+      <input id="reportTargetLabel" placeholder="Book title" style="padding:12px 14px;border:1px solid #d6dbe5;border-radius:12px;">
+      <input id="reportTargetUser" placeholder="Seller name" style="padding:12px 14px;border:1px solid #d6dbe5;border-radius:12px;">
+      <select id="reportType" style="padding:12px 14px;border:1px solid #d6dbe5;border-radius:12px;"><option value="book">Fake book</option><option value="user">Scam user</option></select>
+      <select id="reportReason" style="padding:12px 14px;border:1px solid #d6dbe5;border-radius:12px;"><option>Fake listing</option><option>Scam / fraud</option><option>Spam</option><option>Other</option></select>
+      <textarea id="reportDetails" rows="4" placeholder="Describe what happened" style="padding:12px 14px;border:1px solid #d6dbe5;border-radius:12px;resize:vertical;"></textarea>
+      <button onclick="submitReport()" style="padding:12px 14px;border:none;border-radius:12px;background:linear-gradient(135deg,#0f2b5b 0%,#1d4ed8 100%);color:#fff;font-weight:800;cursor:pointer;">Submit Report</button>
+    </div>
+  </div>
+</div>
 
 <div
   id="imageModal"

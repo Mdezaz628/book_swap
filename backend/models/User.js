@@ -8,7 +8,21 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
+  college: String,
+  location: String,
   password: String,
+  authProvider: {
+    type: String,
+    default: 'manual'
+  },
+  signupProvider: {
+    type: String,
+    default: 'manual'
+  },
+  lastLoginProvider: {
+    type: String,
+    default: 'manual'
+  },
   isVerified: {
     type: Boolean,
     default: false
@@ -47,6 +61,6 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0
   }
-});
+}, { timestamps: true });
 
 export default mongoose.model("User", userSchema);
