@@ -9,8 +9,8 @@ import cloudinary from "../config/cloudinary.js";
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {
-  folder: "books",
-  allowed_formats: ["jpg", "png", "jpeg", "webp"]
+    folder: "books",
+    allowed_formats: ["jpg", "png", "jpeg", "webp"]
   }
 });
 

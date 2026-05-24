@@ -4,6 +4,8 @@ const bookSchema = new mongoose.Schema({
 
   title: String,
 
+  author: String,
+
   writer: String,
 
   price: Number,

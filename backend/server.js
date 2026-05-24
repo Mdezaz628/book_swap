@@ -573,42 +573,32 @@ function authMiddleware(req, res, next) {
 // 📚 ADD BOOK
 async function createBook(req, res) {
   try {
-    console.log(req.files);
+    console.log("FILES:", req.files);
 
-    const { title, writer, price, seller, category, location } = req.body;
-    if (!title || !writer || !price || !seller || !category) {
-      return res.status(400).json({ message: "Writer name is required ❗" });
-    }
-
-    const suspiciousScore = getRiskScore([title, writer, category, seller, location, price].join(' '));
-
-    const sellerUser = await User.findOne({ name: seller });
-    const shadowHidden = !!sellerUser?.shadowBanned;
     const imageUrls = req.files.map((file) => file.path);
-
-    const newBook = new Book({
-      title,
-      writer,
-      price,
-      seller,
-      category,
-      location,
-      suspiciousScore,
-      reviewStatus: shadowHidden || suspiciousScore >= 60 ? 'pending' : 'approved',
+    const book = new Book({
+      title: req.body.title,
+      author: req.body.author || req.body.writer,
+      writer: req.body.writer || req.body.author,
+      price: req.body.price,
+      seller: req.body.seller,
+      category: req.body.category,
+      location: req.body.location,
       images: imageUrls
     });
 
-    await newBook.save();
+    await book.save();
 
     res.json({
-      message: "Book added ✅"
+      success: true,
+      book
     });
   } catch (err) {
-    console.error("UPLOAD ERROR ❌");
+    console.error(err);
 
     res.status(500).json({
       success: false,
-      message: err.message || "Upload failed"
+      error: err.message
     });
   }
 }

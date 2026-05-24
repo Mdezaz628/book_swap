@@ -1388,6 +1388,7 @@ const formData = new FormData();
   }
 
 formData.append("title", title);
+formData.append("author", writer);
 formData.append("writer", writer);
 formData.append("price", price);
 formData.append("seller", seller);
