@@ -43,7 +43,7 @@ function getJwtSecret() {
 }
 
 function getAppBaseUrl() {
-  return process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
+  return process.env.APP_BASE_URL || 'https://swaptome-api.onrender.com';
 }
 
 let mailTransportPromise;
@@ -229,7 +229,7 @@ function emitLiveStats() {
 
 app.use(express.json());
 app.use(cors({
-  origin: "https://swaptome.vercel.app",
+  origin: "*",
   credentials: true
 }));
 app.use("/uploads", express.static("uploads"));

@@ -340,7 +340,7 @@ function getApiBaseUrl() {
   if (explicitBase) return explicitBase.replace(/\/$/, '');
 
   const protocol = window.location.protocol || 'http:';
-  const hostname = window.location.hostname || 'localhost';
+  const hostname = window.location.hostname || 'swaptome-api.onrender.com';
   return `${protocol}//${hostname}:5000`;
 }
 
