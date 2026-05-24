@@ -1361,8 +1361,8 @@ async function addBook() {
   const seller =
     localStorage.getItem("userName") || "User";
 
-const files =
-  document.getElementById("bookImages").files;
+const imageInput = document.getElementById("bookImages");
+const files = imageInput.files;
 
 const formData = new FormData();
 
@@ -1394,8 +1394,8 @@ formData.append("seller", seller);
 formData.append("category", category);
 formData.append("location", location || savedLocation || "Location not shared");
 
-Array.from(files).forEach(file => {
-  formData.append("images", file);
+Array.from(files).forEach((file) => {
+   formData.append("images", file);
 });
 
   try {

@@ -571,10 +571,6 @@ function authMiddleware(req, res, next) {
 // 📚 ADD BOOK
 async function createBook(req, res) {
   try {
-    console.log("UPLOAD ROUTE HIT ✅");
-    console.log(req.files);
-    console.log(req.body);
-
     const { title, writer, price, seller, category, location } = req.body;
     if (!title || !writer || !price || !seller || !category) {
       return res.status(400).json({ message: "Writer name is required ❗" });
@@ -604,11 +600,6 @@ async function createBook(req, res) {
     });
   } catch (err) {
     console.error("UPLOAD ERROR ❌");
-    console.error(JSON.stringify(err, null, 2));
-
-    if (err.stack) {
-      console.error(err.stack);
-    }
 
     res.status(500).json({
       success: false,
