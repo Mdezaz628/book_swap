@@ -609,10 +609,12 @@ app.post("/add-book", upload.array("images", 5), async (req, res) => {
 
   } catch (err) {
 
-    console.log(err.message);
+    console.error("UPLOAD ERROR ❌", err);
+    console.error(err.stack);
 
     res.status(500).json({
-      message: "Server error ❌"
+      success: false,
+      error: err.message,
     });
 
   }
