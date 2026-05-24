@@ -113,10 +113,10 @@
     window.location.href = "dashboard.html";
   }
 </script>
-<script src="http://localhost:5000/socket.io/socket.io.js"></script>
+<script src="https://swaptome-api.onrender.com/socket.io/socket.io.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
-  const socket = io("http://localhost:5000");
+  const socket = io("https://swaptome-api.onrender.com");
   const currentUser = localStorage.getItem("userName") || "User";
   const urlParams = new URLSearchParams(window.location.search);
   // Only open a live chat when the seller is explicitly passed in the URL.
@@ -174,7 +174,7 @@
       return;
     }
 
-    const res = await fetch('http://localhost:5000/reports', {
+    const res = await fetch('https://swaptome-api.onrender.com/reports', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -217,7 +217,7 @@
   async function loadOldMessages(rId) {
     try {
       console.log('Fetching messages for room:', rId);
-      const res = await fetch(`http://localhost:5000/messages/${rId}`);
+      const res = await fetch(`https://swaptome-api.onrender.com/messages/${rId}`);
       if (!res.ok) {
         console.warn('Messages API returned', res.status);
         hideChatLoading();
@@ -252,7 +252,7 @@
   async function markMessagesRead() {
     try {
       await fetch(
-        "http://localhost:5000/mark-read",
+        "https://swaptome-api.onrender.com/mark-read",
         {
           method: "PUT",
           headers: {
@@ -473,7 +473,7 @@
     chatBox.innerHTML = '';
     try {
       const cached = JSON.parse(localStorage.getItem('latestBroadcast') || 'null');
-      const res = await fetch('http://localhost:5000/notifications/history?limit=25');
+      const res = await fetch('https://swaptome-api.onrender.com/notifications/history?limit=25');
       const data = res.ok ? await res.json() : { notifications: [] };
       const notifications = (data.notifications || []).length ? data.notifications : (cached ? [cached] : []);
 
@@ -704,7 +704,7 @@
     if (!roomId) return;
 
     try {
-      const res = await fetch(`http://localhost:5000/deals/${roomId}/latest`);
+      const res = await fetch(`https://swaptome-api.onrender.com/deals/${roomId}/latest`);
       if (!res.ok) return;
 
       const data = await res.json();

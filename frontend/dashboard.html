@@ -606,7 +606,7 @@
 
   </div>
 
-<script src="http://localhost:5000/socket.io/socket.io.js"></script>
+<script src="https://swaptome-api.onrender.com/socket.io/socket.io.js"></script>
 <script src="script.js"></script>
 
 <script>
@@ -632,7 +632,7 @@
 
   async function loadStats() {
     try {
-      const res = await fetch("http://localhost:5000/stats");
+      const res = await fetch("https://swaptome-api.onrender.com/stats");
       const data = await res.json();
 
       const booksCount = document.getElementById("booksCount");
@@ -662,7 +662,7 @@ async function loadBooksHome() {
   try {
     console.log("🔥 Homepage loading books...");
 
-    const res = await fetch("http://localhost:5000/books");
+    const res = await fetch("https://swaptome-api.onrender.com/books");
     const books = await res.json();
 
     console.log("Books:", books);
@@ -714,7 +714,7 @@ async function loadBooksHome() {
         return;
       }
 
-      const res = await fetch("http://localhost:5000/books");
+      const res = await fetch("https://swaptome-api.onrender.com/books");
       if (!res.ok) return;
 
       const books = await res.json();
@@ -841,7 +841,7 @@ async function addBook() {
     setUploadingState(true);
 
     const res = await fetch(
-      "http://localhost:5000/add-book",
+      "https://swaptome-api.onrender.com/add-book",
       {
         method: "POST",
         body: formData

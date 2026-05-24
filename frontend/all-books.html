@@ -92,13 +92,13 @@ function resolveBookImageSrc(imagePath) {
     return normalizedPath;
   }
   if (normalizedPath.startsWith('/') || normalizedPath.startsWith('uploads/')) {
-    return `http://localhost:5000${normalizedPath.startsWith('/') ? '' : '/'}${normalizedPath}`;
+    return `https://swaptome-api.onrender.com${normalizedPath.startsWith('/') ? '' : '/'}${normalizedPath}`;
   }
-  return `http://localhost:5000/uploads/${normalizedPath}`;
+  return `https://swaptome-api.onrender.com/uploads/${normalizedPath}`;
 }
 
 async function loadBooks() {
-  const res = await fetch("http://localhost:5000/books") ;
+  const res = await fetch("https://swaptome-api.onrender.com/books") ;
   allBooks = (await res.json()).slice().sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)));
 
   if (selectedSeller) {
@@ -283,7 +283,7 @@ async function deleteBook(bookId) {
 
   const ownerName = (currentUser || selectedSeller || "").trim();
 
-  const res = await fetch(`http://localhost:5000/books/${bookId}?seller=${encodeURIComponent(ownerName)}`, {
+  const res = await fetch(`https://swaptome-api.onrender.com/books/${bookId}?seller=${encodeURIComponent(ownerName)}`, {
     method: "DELETE"
   });
 
@@ -310,7 +310,7 @@ async function changeBookPrice(bookId, currentPrice) {
     return;
   }
 
-  const res = await fetch(`http://localhost:5000/books/${bookId}/price`, {
+  const res = await fetch(`https://swaptome-api.onrender.com/books/${bookId}/price`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ price: parsedPrice, seller: ownerName })
@@ -415,7 +415,7 @@ async function submitReport() {
     return;
   }
 
-  const res = await fetch('http://localhost:5000/reports', {
+  const res = await fetch('https://swaptome-api.onrender.com/reports', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

@@ -756,7 +756,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
     // notify server to mark messages as read for this convo
     if (currentUser && selectedSeller) {
-      fetch("http://localhost:5000/mark-read", {
+      fetch("https://swaptome-api.onrender.com/mark-read", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sender: selectedSeller, receiver: currentUser })
@@ -811,7 +811,7 @@ function showChatLoginPrompt() {
 
 async function loadStats() {
   try {
-    const res = await fetch("http://localhost:5000/stats");
+    const res = await fetch("https://swaptome-api.onrender.com/stats");
     const data = await res.json();
 
     const booksCount = document.getElementById("booksCount");
@@ -1117,7 +1117,7 @@ async function loadInbox() {
     return;
   }
 
-  const res = await fetch(`http://localhost:5000/inbox/${currentUser}`);
+  const res = await fetch(`https://swaptome-api.onrender.com/inbox/${currentUser}`);
   if (!res.ok) {
     console.warn('Inbox API returned', res.status);
     // show server error in main chat area
@@ -1285,7 +1285,7 @@ async function openChat(name){
         });
       }
 
-      await fetch("http://localhost:5000/mark-read", {
+      await fetch("https://swaptome-api.onrender.com/mark-read", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sender: name, receiver: currentUser })
@@ -1403,7 +1403,7 @@ Array.from(files).forEach(file => {
     setUploadingState(true);
 
     const response = await fetch(
-      "http://localhost:5000/add-book",
+      "https://swaptome-api.onrender.com/add-book",
       {
         method: "POST",
         body: formData
@@ -1676,10 +1676,10 @@ function resolveBookImageSrc(imagePath) {
   }
 
   if (normalizedPath.startsWith("/") || normalizedPath.startsWith("uploads/")) {
-    return `http://localhost:5000${normalizedPath.startsWith("/") ? "" : "/"}${normalizedPath}`;
+    return `https://swaptome-api.onrender.com${normalizedPath.startsWith("/") ? "" : "/"}${normalizedPath}`;
   }
 
-  return `http://localhost:5000/uploads/${normalizedPath}`;
+  return `https://swaptome-api.onrender.com/uploads/${normalizedPath}`;
 }
 
 function getBookLocation(book) {
@@ -1704,7 +1704,7 @@ window.addEventListener("DOMContentLoaded", syncBookLocationFromSignup);
 
 async function loadBooksHome() {
   try {
-    const res = await fetch("http://localhost:5000/books");
+    const res = await fetch("https://swaptome-api.onrender.com/books");
     if (!res.ok) {
       console.warn('Books API returned', res.status);
       const container = document.getElementById("booksContainer");
@@ -1792,7 +1792,7 @@ async function loadMyUploadsHome() {
       return;
     }
 
-    const res = await fetch("http://localhost:5000/books");
+    const res = await fetch("https://swaptome-api.onrender.com/books");
     if (!res.ok) {
       console.warn('Books API returned', res.status);
       container.innerHTML = `
@@ -1852,7 +1852,7 @@ async function loadFeaturedBooksSlider() {
   if (!slider) return;
 
   try {
-    const res = await fetch("http://localhost:5000/books");
+    const res = await fetch("https://swaptome-api.onrender.com/books");
     if (!res.ok) {
       console.warn('Featured books API returned', res.status);
       slider.innerHTML = `
@@ -1961,7 +1961,7 @@ async function loadProfile() {
   const token = localStorage.getItem("token");
 
   try {
-    const res = await fetch("http://localhost:5000/profile", {
+    const res = await fetch("https://swaptome-api.onrender.com/profile", {
       headers: {
         Authorization: token
       }
@@ -2001,7 +2001,7 @@ function initSocket() {
 
   const currentUser = localStorage.getItem("userName");
   const otherUser = localStorage.getItem("chatSeller");
-  const socket = io("http://localhost:5000");
+  const socket = io("https://swaptome-api.onrender.com");
 
   if (currentUser) {
     socket.emit("joinUser", currentUser);
@@ -2107,7 +2107,7 @@ function renderStickyAnnouncement(announcement) {
 async function loadStickyAnnouncement() {
   try {
     if (!isDashboardPage()) return;
-    const res = await fetch('http://localhost:5000/announcements/active');
+    const res = await fetch('https://swaptome-api.onrender.com/announcements/active');
     if (!res.ok) return;
     const data = await res.json();
     renderStickyAnnouncement(data.announcement);
@@ -2118,7 +2118,7 @@ async function loadStickyAnnouncement() {
 
 async function loadLatestBroadcast() {
   try {
-    const res = await fetch('http://localhost:5000/notifications/latest');
+    const res = await fetch('https://swaptome-api.onrender.com/notifications/latest');
     if (!res.ok) {
       const cached = JSON.parse(localStorage.getItem('latestBroadcast') || 'null');
       if (cached?.important && isDashboardPage()) renderBroadcastBanner(cached);
