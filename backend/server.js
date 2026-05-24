@@ -609,12 +609,16 @@ app.post("/add-book", upload.array("images", 5), async (req, res) => {
 
   } catch (err) {
 
-    console.error("UPLOAD ERROR ❌", err);
-    console.error(err.stack);
+    console.error("UPLOAD ERROR ❌");
+    console.error(JSON.stringify(err, null, 2));
+
+    if (err.stack) {
+      console.error(err.stack);
+    }
 
     res.status(500).json({
       success: false,
-      error: err.message,
+      message: err.message || "Upload failed"
     });
 
   }
@@ -1584,7 +1588,8 @@ io.on("connection", (socket) => {
             confirmations: sortedParticipants
           });
         } catch (saveErr) {
-          console.error('Error saving deal verification', saveErr);
+
+          console.error("Deal verification save error", saveErr);
         }
 
         pendingDeals.delete(dealKey);
