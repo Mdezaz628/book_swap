@@ -620,7 +620,7 @@ app.post("/add-book", upload.array("images", 5), async (req, res) => {
 });
 
 // 📚 GET BOOKS
-app.get("/books", async (req, res) => {
+async function listBooks(req, res) {
   const shadowUsers = await User.find({ shadowBanned: true }).select('name');
   const shadowNames = new Set(shadowUsers.map((user) => String(user.name || '').trim()));
   const books = await Book.find();
@@ -632,9 +632,12 @@ app.get("/books", async (req, res) => {
       return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
     });
   res.json(visibleBooks);
-});
+  }
 
-app.delete("/books/:id", async (req, res) => {
+  app.get("/books", listBooks);
+  app.get("/api/books", listBooks);
+
+  async function deleteBook(req, res) {
   try {
     const { seller } = req.query;
     const book = await Book.findById(req.params.id);
@@ -653,9 +656,12 @@ app.delete("/books/:id", async (req, res) => {
     console.error("Delete book error", err);
     res.status(500).json({ message: "Server error ❌" });
   }
-});
+}
 
-app.put("/books/:id/price", async (req, res) => {
+app.delete("/books/:id", deleteBook);
+app.delete("/api/books/:id", deleteBook);
+
+async function updateBookPrice(req, res) {
   try {
     const { price, seller } = req.body;
     const book = await Book.findById(req.params.id);
@@ -680,7 +686,10 @@ app.put("/books/:id/price", async (req, res) => {
     console.error("Update price error", err);
     res.status(500).json({ message: "Server error ❌" });
   }
-});
+}
+
+app.put("/books/:id/price", updateBookPrice);
+app.put("/api/books/:id/price", updateBookPrice);
 
 // 📊 STATS
 app.get("/stats", async (req, res) => {

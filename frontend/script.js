@@ -1704,7 +1704,7 @@ window.addEventListener("DOMContentLoaded", syncBookLocationFromSignup);
 
 async function loadBooksHome() {
   try {
-    const res = await fetch("https://swaptome-api.onrender.com/books");
+    const res = await fetch("https://swaptome-api.onrender.com/api/books");
     if (!res.ok) {
       console.warn('Books API returned', res.status);
       const container = document.getElementById("booksContainer");
@@ -1792,7 +1792,7 @@ async function loadMyUploadsHome() {
       return;
     }
 
-    const res = await fetch("https://swaptome-api.onrender.com/books");
+    const res = await fetch("https://swaptome-api.onrender.com/api/books");
     if (!res.ok) {
       console.warn('Books API returned', res.status);
       container.innerHTML = `
@@ -1852,7 +1852,7 @@ async function loadFeaturedBooksSlider() {
   if (!slider) return;
 
   try {
-    const res = await fetch("https://swaptome-api.onrender.com/books");
+    const res = await fetch("https://swaptome-api.onrender.com/api/books");
     if (!res.ok) {
       console.warn('Featured books API returned', res.status);
       slider.innerHTML = `
