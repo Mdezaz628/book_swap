@@ -575,7 +575,8 @@ async function createBook(req, res) {
   try {
     console.log("FILES:", req.files);
 
-    const imageUrls = req.files.map((file) => file.path);
+    const files = Array.isArray(req.files) ? req.files : [];
+    const imageUrls = files.map((file) => file.path);
     const book = new Book({
       title: req.body.title,
       author: req.body.author || req.body.writer,
