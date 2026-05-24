@@ -841,7 +841,7 @@ async function addBook() {
     setUploadingState(true);
 
     const res = await fetch(
-      "https://swaptome-api.onrender.com/add-book",
+      "https://swaptome-api.onrender.com/api/add-book",
       {
         method: "POST",
         body: formData

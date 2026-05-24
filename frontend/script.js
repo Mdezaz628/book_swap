@@ -1403,7 +1403,7 @@ Array.from(files).forEach(file => {
     setUploadingState(true);
 
     const response = await fetch(
-      "https://swaptome-api.onrender.com/add-book",
+      "https://swaptome-api.onrender.com/api/add-book",
       {
         method: "POST",
         body: formData

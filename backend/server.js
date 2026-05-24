@@ -569,12 +569,11 @@ function authMiddleware(req, res, next) {
 }
 
 // 📚 ADD BOOK
-app.post("/add-book", upload.array("images", 5), async (req, res) => {
-
+async function createBook(req, res) {
   try {
-
-    console.log("BODY 👉", req.body);
-    console.log("FILES 👉", req.files);
+    console.log("UPLOAD ROUTE HIT ✅");
+    console.log(req.files);
+    console.log(req.body);
 
     const { title, writer, price, seller, category, location } = req.body;
     if (!title || !writer || !price || !seller || !category) {
@@ -592,13 +591,10 @@ app.post("/add-book", upload.array("images", 5), async (req, res) => {
       price,
       seller,
       category,
-        location,
-
+      location,
       suspiciousScore,
       reviewStatus: shadowHidden || suspiciousScore >= 60 ? 'pending' : 'approved',
-      images: req.files
-  ? req.files.map(file => file.path)
-  : []
+      images: req.files ? req.files.map((file) => file.path) : []
     });
 
     await newBook.save();
@@ -606,9 +602,7 @@ app.post("/add-book", upload.array("images", 5), async (req, res) => {
     res.json({
       message: "Book added ✅"
     });
-
   } catch (err) {
-
     console.error("UPLOAD ERROR ❌");
     console.error(JSON.stringify(err, null, 2));
 
@@ -620,10 +614,11 @@ app.post("/add-book", upload.array("images", 5), async (req, res) => {
       success: false,
       message: err.message || "Upload failed"
     });
-
   }
+}
 
-});
+app.post("/add-book", upload.array("images", 5), createBook);
+app.post("/api/add-book", upload.array("images", 5), createBook);
 
 // 📚 GET BOOKS
 async function listBooks(req, res) {
