@@ -674,11 +674,11 @@
       </div>
       <div class="terms-group">
         <input type="checkbox" id="signupTerms" />
-        <label for="signupTerms">I agree to the <a href="#" onclick="alert('Please review the Terms & Conditions before signing up.'); return false;">Terms & Conditions</a> and understand my account may be suspended for fake listings, abuse, or fraud.</label>
+        <label for="signupTerms">I agree to the <a href="#" onclick="openTermsModal(); return false;">Terms & Conditions</a> and understand my account may be suspended for fake listings, abuse, or fraud.</label>
       </div>
       <button class="form-submit" onclick="signupUser()">Create Free Account</button>
     </div>
-    <p class="form-footer">By signing up you agree to our <a href="#">Terms</a></p>
+    <p class="form-footer">By signing up you agree to our <a href="#" onclick="openTermsModal(); return false;">Terms</a></p>
   </div>
 </div>
 

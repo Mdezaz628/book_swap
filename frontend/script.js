@@ -13,6 +13,7 @@ function clearFields() {
 
 let supportUiReady = false;
 let supportMode = 'report';
+let termsUiReady = false;
 
 function fillSupportIdentity() {
   const nameInput = document.getElementById('supportName');
@@ -117,6 +118,98 @@ function ensureSupportUi() {
   switchSupportTab('report');
 }
 
+function ensureTermsUi() {
+  if (termsUiReady || document.getElementById('termsModal') || !document.body) return;
+
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `
+    <div class="modal-overlay" id="termsModal">
+      <div class="modal" style="max-width:760px;width:min(760px,calc(100vw - 24px));max-height:calc(100vh - 28px);overflow:auto;">
+        <button class="modal-close" type="button" onclick="closeTermsModal()">✕</button>
+        <h3>Terms & Conditions</h3>
+        <p class="modal-sub">Please read these before creating an account on SwapTome.</p>
+        <div style="display:grid;gap:14px;line-height:1.65;color:var(--ink);font-size:0.96rem;">
+          <section>
+            <h4 style="margin:0 0 6px;font-size:1rem;">1. Eligibility</h4>
+            <p style="margin:0;">You must be at least 13 years old to use SwapTome.</p>
+          </section>
+          <section>
+            <h4 style="margin:0 0 6px;font-size:1rem;">2. User Accounts</h4>
+            <ul style="margin:0;padding-left:20px;">
+              <li>Users are responsible for maintaining account security.</li>
+              <li>You agree to provide accurate information.</li>
+              <li>Fake accounts may be suspended or removed.</li>
+            </ul>
+          </section>
+          <section>
+            <h4 style="margin:0 0 6px;font-size:1rem;">3. Book Listings</h4>
+            <ul style="margin:0;padding-left:20px;">
+              <li>Users may only upload books they legally own or are allowed to share/sell/exchange.</li>
+              <li>Spam, fake, or misleading listings are prohibited.</li>
+              <li>SwapTome may remove inappropriate content without notice.</li>
+            </ul>
+          </section>
+          <section>
+            <h4 style="margin:0 0 6px;font-size:1rem;">4. Prohibited Activities</h4>
+            <ul style="margin:0;padding-left:20px;">
+              <li>Harass or abuse others</li>
+              <li>Upload illegal or copyrighted material</li>
+              <li>Attempt scams or fraud</li>
+              <li>Exploit system vulnerabilities</li>
+              <li>Use bots or automated abuse tools</li>
+            </ul>
+          </section>
+          <section>
+            <h4 style="margin:0 0 6px;font-size:1rem;">5. Messaging & Communication</h4>
+            <p style="margin:0;">Users are responsible for their own conversations and interactions.</p>
+          </section>
+          <section>
+            <h4 style="margin:0 0 6px;font-size:1rem;">6. Account Suspension</h4>
+            <p style="margin:0;">SwapTome reserves the right to suspend or permanently ban accounts violating these rules.</p>
+          </section>
+          <section>
+            <h4 style="margin:0 0 6px;font-size:1rem;">7. Privacy</h4>
+            <p style="margin:0;">We collect limited account information such as email addresses and profile information to operate the platform securely.</p>
+          </section>
+          <section>
+            <h4 style="margin:0 0 6px;font-size:1rem;">8. Disclaimer</h4>
+            <p style="margin:0;">SwapTome is a student platform and is provided “as is” without warranties of uninterrupted availability.</p>
+          </section>
+          <section>
+            <h4 style="margin:0 0 6px;font-size:1rem;">9. Limitation of Liability</h4>
+            <p style="margin:0;">SwapTome is not responsible for disputes, losses, scams, or damages caused by users.</p>
+          </section>
+          <section>
+            <h4 style="margin:0 0 6px;font-size:1rem;">10. Changes to Terms</h4>
+            <p style="margin:0;">These Terms may be updated at any time without prior notice.</p>
+          </section>
+          <section>
+            <h4 style="margin:0 0 6px;font-size:1rem;">11. Contact</h4>
+            <p style="margin:0;">For support or legal concerns, contact <a href="mailto:support@swaptome.com">support@swaptome.com</a>.</p>
+          </section>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:18px;gap:10px;flex-wrap:wrap;">
+          <button type="button" class="form-submit" style="width:auto;padding:12px 18px;" onclick="closeTermsModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(wrapper);
+  termsUiReady = true;
+}
+
+function openTermsModal() {
+  ensureTermsUi();
+  const modal = document.getElementById('termsModal');
+  if (!modal) return;
+  modal.classList.add('open');
+}
+
+function closeTermsModal() {
+  const modal = document.getElementById('termsModal');
+  if (modal) modal.classList.remove('open');
+}
+
 function openSupportModal(tab = 'report') {
   ensureSupportUi();
   const modal = document.getElementById('supportModal');
@@ -216,6 +309,7 @@ async function submitSupportEntry() {
 
 document.addEventListener('DOMContentLoaded', () => {
   ensureSupportUi();
+  ensureTermsUi();
 });
 
 function getFirstExistingInputValue(ids) {
@@ -1381,9 +1475,18 @@ async function signupUser() {
   const location = getFirstExistingInputValue(["signupLocation", "location"]);
   const password = getFirstExistingInputValue(["signupPassword", "password"]);
   const confirmPassword = getFirstExistingInputValue(["signupConfirmPassword", "confirmPassword"]);
+  const termsAccepted = Boolean(
+    document.getElementById("signupTerms")?.checked ||
+    document.getElementById("termsAccept")?.checked
+  );
 
   if (password !== confirmPassword) {
     alert("Password and re-enter password must be the same ❗");
+    return;
+  }
+
+  if (!termsAccepted) {
+    alert("You must accept the Terms & Conditions before signing up.");
     return;
   }
 
