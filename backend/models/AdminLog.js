@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from "mongoose";
 
 const adminLogSchema = new mongoose.Schema({
   adminEmail: String,
@@ -9,4 +9,4 @@ const adminLogSchema = new mongoose.Schema({
   ip: String
 }, { timestamps: true });
 
-module.exports = mongoose.model('AdminLog', adminLogSchema);
+export default mongoose.model("AdminLog", adminLogSchema);

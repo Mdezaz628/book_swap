@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from "mongoose";
 
 const reportSchema = new mongoose.Schema({
   type: {
@@ -23,4 +23,4 @@ const reportSchema = new mongoose.Schema({
   createdBy: String
 }, { timestamps: true });
 
-module.exports = mongoose.model('Report', reportSchema);
+export default mongoose.model("Report", reportSchema);

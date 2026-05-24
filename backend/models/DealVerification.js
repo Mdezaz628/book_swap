@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from "mongoose";
 
 const dealVerificationSchema = new mongoose.Schema({
   roomId: String,
@@ -24,4 +24,4 @@ const dealVerificationSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-module.exports = mongoose.model('DealVerification', dealVerificationSchema);
+export default mongoose.model("DealVerification", dealVerificationSchema);

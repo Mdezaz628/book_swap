@@ -123,7 +123,8 @@
     .searchbar input,
     .searchbar select,
     .form-grid input,
-    .form-grid select {
+    .form-grid select,
+    .filter-input {
       background: #fff;
       color: var(--ink);
       border: 1px solid var(--border);
@@ -135,7 +136,8 @@
 
     .login input::placeholder,
     .searchbar input::placeholder,
-    .form-grid input::placeholder { color: var(--muted); }
+    .form-grid input::placeholder,
+    .filter-input::placeholder { color: var(--muted); }
 
     .btn {
       border: none;
@@ -655,7 +657,10 @@
     <div class="section two-col">
       <div class="card panel">
         <h2>Pending Reports</h2>
-        <div class="toolbar">
+        <div class="toolbar" style="align-items:center;gap:8px">
+          <input id="reportsSearch" class="filter-input" placeholder="Search reports by type, target or reason">
+          <button class="btn btn-ghost" id="reportsClearBtn" type="button">Clear</button>
+          <div style="flex:1"></div>
           <button class="btn btn-ghost report-filter" data-status="pending">Pending</button>
           <button class="btn btn-ghost report-filter" data-status="resolved">Resolved</button>
           <button class="btn btn-ghost report-filter" data-status="all">All</button>
@@ -664,7 +669,10 @@
       </div>
       <div class="card panel">
         <h2>Deal Monitoring</h2>
-        <div class="toolbar">
+        <div class="toolbar" style="align-items:center;gap:8px">
+          <input id="dealsSearch" class="filter-input" placeholder="Search deals by room, buyer or seller">
+          <button class="btn btn-ghost" id="dealsClearBtn" type="button">Clear</button>
+          <div style="flex:1"></div>
           <button class="btn btn-ghost deal-filter" data-status="all">All</button>
           <button class="btn btn-ghost deal-filter" data-status="completed">Completed</button>
           <button class="btn btn-ghost deal-filter" data-status="pending">Pending</button>
@@ -677,10 +685,18 @@
     <div class="section two-col">
       <div class="card panel">
         <h2>Users</h2>
+        <div class="toolbar" style="margin-bottom:10px">
+          <input id="usersSearch" class="filter-input" placeholder="Search users by name or email">
+          <button class="btn btn-ghost" id="usersClearBtn" type="button">Clear</button>
+        </div>
         <div class="table-wrap"><table id="usersTable"><thead><tr><th>Name</th><th>Email</th><th>Flags</th><th>Risk</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
       </div>
       <div class="card panel">
         <h2>Books</h2>
+        <div class="toolbar" style="margin-bottom:10px">
+          <input id="booksSearch" class="filter-input" placeholder="Search books by title, seller or category">
+          <button class="btn btn-ghost" id="booksClearBtn" type="button">Clear</button>
+        </div>
         <div class="table-wrap"><table id="booksTable"><thead><tr><th>Title</th><th>Seller</th><th>Category</th><th>Flags</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
       </div>
     </div>
@@ -688,10 +704,18 @@
     <div class="section two-col">
       <div class="card panel">
         <h2>Verification Queue</h2>
+        <div class="toolbar" style="align-items:center;gap:8px;margin-bottom:8px">
+          <input id="verificationSearch" class="filter-input" placeholder="Search verification by name or email">
+          <button class="btn btn-ghost" id="verificationClearBtn" type="button">Clear</button>
+        </div>
         <div class="table-wrap"><table id="verificationTable"><thead><tr><th>User</th><th>Email</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
       </div>
       <div class="card panel">
         <h2>Fraud Detection Score</h2>
+        <div class="toolbar" style="align-items:center;gap:8px;margin-bottom:8px">
+          <input id="fraudSearch" class="filter-input" placeholder="Search fraud by user or book title">
+          <button class="btn btn-ghost" id="fraudClearBtn" type="button">Clear</button>
+        </div>
         <div class="table-wrap"><table id="fraudTable"><thead><tr><th>Type</th><th>Item</th><th>Score</th><th>Flag</th></tr></thead><tbody></tbody></table></div>
       </div>
     </div>
@@ -699,6 +723,10 @@
     <div class="section two-col">
       <div class="card panel">
         <h2>Leaderboard</h2>
+        <div class="toolbar" style="align-items:center;gap:8px;margin-bottom:8px">
+          <input id="leaderboardSearch" class="filter-input" placeholder="Search leaderboard by name or email">
+          <button class="btn btn-ghost" id="leaderboardClearBtn" type="button">Clear</button>
+        </div>
         <div class="table-wrap"><table id="leaderboardTable"><thead><tr><th>User</th><th>Email</th><th>Score</th></tr></thead><tbody></tbody></table></div>
       </div>
       <div class="card panel">
@@ -740,6 +768,13 @@
     const apiBase = 'http://localhost:5000';
     let overviewChart;
     let socket;
+    let usersData = [];
+    let booksData = [];
+    let reportsData = [];
+    let dealsData = [];
+    let verificationData = [];
+    let fraudData = { flaggedUsers: [], flaggedBooks: [] };
+    let leaderboardData = [];
     let currentReportStatus = 'pending';
     let currentDealStatus = 'all';
     const adminMailboxUser = 'admin';
@@ -953,6 +988,13 @@
         const books = booksRes.status === 'fulfilled' ? booksRes.value : { books: [] };
         const fraud = fraudRes.status === 'fulfilled' ? fraudRes.value : { flaggedUsers: [], flaggedBooks: [] };
         const leaderboard = leaderboardRes.status === 'fulfilled' ? leaderboardRes.value : { leaderboard: [] };
+        usersData = users.users || [];
+        booksData = books.books || [];
+        reportsData = reports.reports || [];
+        dealsData = deals.deals || [];
+        verificationData = users.users || [];
+        fraudData = fraud || { flaggedUsers: [], flaggedBooks: [] };
+        leaderboardData = leaderboard.leaderboard || [];
         const aiInsights = aiRes.status === 'fulfilled' ? aiRes.value : {};
 
         const failed = results.filter((result) => result.status === 'rejected');
@@ -1107,6 +1149,19 @@
         tbody.appendChild(row);
       });
     }
+    function filterUsers() {
+      const q = (document.getElementById('usersSearch')?.value || '').trim().toLowerCase();
+      if (!q) return renderUsers(usersData);
+      const filtered = usersData.filter(u => ((u.name||'') + ' ' + (u.email||'')).toLowerCase().includes(q));
+      renderUsers(filtered);
+    }
+
+    function filterReports() {
+      const q = (document.getElementById('reportsSearch')?.value || '').trim().toLowerCase();
+      if (!q) return renderReports(reportsData);
+      const filtered = reportsData.filter(r => ((r.type||'') + ' ' + (r.targetLabel||'') + ' ' + (r.reason||'') + ' ' + (r.targetId||'')).toLowerCase().includes(q));
+      renderReports(filtered);
+    }
 
     function renderVerificationQueue(items) {
       const tbody = document.querySelector('#verificationTable tbody');
@@ -1151,6 +1206,49 @@
         row.querySelector('[data-book-action="delete"]').addEventListener('click', () => deleteBook(item._id));
         tbody.appendChild(row);
       });
+    }
+    function filterBooks() {
+      const q = (document.getElementById('booksSearch')?.value || '').trim().toLowerCase();
+      if (!q) return renderBooks(booksData);
+      const filtered = booksData.filter(b => ((b.title||'') + ' ' + (b.seller||'') + ' ' + (b.category||'')).toLowerCase().includes(q));
+      renderBooks(filtered);
+    }
+
+    function filterDeals() {
+      const q = (document.getElementById('dealsSearch')?.value || '').trim().toLowerCase();
+      if (!q) return renderDeals(dealsData);
+      const filtered = dealsData.filter(d => ((d.roomId||'') + ' ' + (d.buyer||'') + ' ' + (d.seller||'')).toLowerCase().includes(q));
+      renderDeals(filtered);
+    }
+
+    function filterVerification() {
+      const q = (document.getElementById('verificationSearch')?.value || '').trim().toLowerCase();
+      if (!q) return renderVerificationQueue(verificationData);
+      const filtered = verificationData.filter(u => ((u.name||'') + ' ' + (u.email||'')).toLowerCase().includes(q));
+      renderVerificationQueue(filtered);
+    }
+
+    function filterFraud() {
+      const q = (document.getElementById('fraudSearch')?.value || '').trim().toLowerCase();
+      if (!q) return renderFraud(fraudData);
+      const fu = (fraudData.flaggedUsers || []).filter(u => ((u.name||'') + ' ' + (u.email||'')).toLowerCase().includes(q));
+      const fb = (fraudData.flaggedBooks || []).filter(b => ((b.title||'') + ' ' + (b.seller||'')).toLowerCase().includes(q));
+      renderFraud({ flaggedUsers: fu, flaggedBooks: fb });
+    }
+
+    function filterLeaderboard() {
+      const q = (document.getElementById('leaderboardSearch')?.value || '').trim().toLowerCase();
+      if (!q) return renderLeaderboard(leaderboardData);
+      const filtered = leaderboardData.filter(l => ((l.name||'') + ' ' + (l.email||'')).toLowerCase().includes(q));
+      renderLeaderboard(filtered);
+    }
+
+    function debounce(fn, wait = 200) {
+      let t;
+      return function(...args) {
+        clearTimeout(t);
+        t = setTimeout(() => fn.apply(this, args), wait);
+      };
     }
 
     function renderLive(live, stats) { document.getElementById('liveSummary').innerHTML = `<div class="mini-item"><strong>${live.onlineUsers?.length || 0}</strong> online users</div><div class="mini-item"><strong>${live.activeChats?.length || 0}</strong> active chats</div><div class="mini-item"><strong>${live.ongoingDeals?.length || 0}</strong> ongoing deals</div><div class="mini-item"><strong>${stats.messages || 0}</strong> messages tracked</div>`; }
@@ -1395,6 +1493,20 @@
     document.getElementById('broadcastBtn').addEventListener('click', saveNotification);
     document.getElementById('clearBroadcastBtn').addEventListener('click', () => { document.getElementById('broadcastTitle').value = ''; document.getElementById('broadcastMessage').value = ''; });
     document.getElementById('announcementBtn').addEventListener('click', saveAnnouncement);
+    document.getElementById('usersSearch')?.addEventListener('input', debounce(filterUsers, 200));
+    document.getElementById('booksSearch')?.addEventListener('input', debounce(filterBooks, 200));
+    document.getElementById('usersClearBtn')?.addEventListener('click', () => { document.getElementById('usersSearch').value = ''; renderUsers(usersData); });
+    document.getElementById('booksClearBtn')?.addEventListener('click', () => { document.getElementById('booksSearch').value = ''; renderBooks(booksData); });
+    document.getElementById('reportsSearch')?.addEventListener('input', debounce(filterReports, 200));
+    document.getElementById('reportsClearBtn')?.addEventListener('click', () => { document.getElementById('reportsSearch').value = ''; renderReports(reportsData); });
+    document.getElementById('dealsSearch')?.addEventListener('input', debounce(filterDeals, 200));
+    document.getElementById('dealsClearBtn')?.addEventListener('click', () => { document.getElementById('dealsSearch').value = ''; renderDeals(dealsData); });
+    document.getElementById('verificationSearch')?.addEventListener('input', debounce(filterVerification, 200));
+    document.getElementById('verificationClearBtn')?.addEventListener('click', () => { document.getElementById('verificationSearch').value = ''; renderVerificationQueue(verificationData); });
+    document.getElementById('fraudSearch')?.addEventListener('input', debounce(filterFraud, 200));
+    document.getElementById('fraudClearBtn')?.addEventListener('click', () => { document.getElementById('fraudSearch').value = ''; renderFraud(fraudData); });
+    document.getElementById('leaderboardSearch')?.addEventListener('input', debounce(filterLeaderboard, 200));
+    document.getElementById('leaderboardClearBtn')?.addEventListener('click', () => { document.getElementById('leaderboardSearch').value = ''; renderLeaderboard(leaderboardData); });
     // Export buttons now use a contextual menu (View / Download). Legacy direct-export handler removed to avoid double actions.
     document.querySelectorAll('.report-filter').forEach((btn) => btn.addEventListener('click', () => loadReports(btn.dataset.status)));
     document.querySelectorAll('.deal-filter').forEach((btn) => btn.addEventListener('click', () => loadDeals(btn.dataset.status)));

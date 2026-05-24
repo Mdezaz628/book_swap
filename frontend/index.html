@@ -569,6 +569,7 @@
       <button class="tab-btn active" onclick="switchTab('login')">Log In</button>
       <button class="tab-btn" onclick="switchTab('signup')">Sign Up</button>
     </div>
+    <div data-verification-reminder style="display:none;margin:12px 0 14px;padding:12px 14px;border-radius:14px;background:#fff4e8;color:#a15c00;font-size:.95rem;font-weight:700;line-height:1.4;">Verification email sent. Check your inbox and spam folder.</div>
     <!-- Login Form -->
     <form id="loginForm" autocomplete="off" onsubmit="event.preventDefault(); loginUser();">
       <div class="form-group">
@@ -580,6 +581,10 @@
         <input type="password" id="loginPassword" autocomplete="new-password" placeholder="Enter password" required>
       </div>
       <button type="submit" class="form-submit">Log In</button>
+      <div style="display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap;margin-top:12px;font-size:.92rem;">
+        <button type="button" class="btn-link" onclick="resendVerificationEmail()" style="background:none;border:none;padding:0;color:#e8820c;cursor:pointer;font-weight:700;">Resend verification</button>
+        <button type="button" class="btn-link" onclick="forgotPassword()" style="background:none;border:none;padding:0;color:#e8820c;cursor:pointer;font-weight:700;">Forgot password?</button>
+      </div>
     </form>
     <!-- Signup Form -->
     <div id="signupForm" style="display:none">
@@ -623,6 +628,10 @@
       <label>ISBN or Book Title</label>
       <input type="text" id="sellTitle" placeholder="e.g. 978-0262033848 or 'CLRS'"/>
       <div class="ai-suggest">🤖 AI will auto-suggest title, author, and MRP using Google Books API</div>
+    </div>
+    <div class="form-group">
+      <label>Writer Name</label>
+      <input type="text" id="bookWriter" placeholder="Enter writer name" required />
     </div>
     <div class="form-group">
       <label>Category</label>

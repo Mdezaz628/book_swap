@@ -34,9 +34,53 @@ function getProfileStorageIdentity() {
   return email || userName || "guest";
 }
 
+function getApiBaseUrl() {
+  const explicitBase = window.__API_BASE_URL__ || localStorage.getItem('apiBaseUrl') || '';
+  if (explicitBase) return explicitBase.replace(/\/$/, '');
+
+  const protocol = window.location.protocol || 'http:';
+  const hostname = window.location.hostname || 'localhost';
+  return `${protocol}//${hostname}:5000`;
+}
+
+function apiUrl(path) {
+  const normalizedPath = String(path || '').startsWith('/') ? path : `/${path}`;
+  return `${getApiBaseUrl()}${normalizedPath}`;
+}
+
 function getProfileImageStorageKey(identity) {
   return `profileImage:${String(identity || getProfileStorageIdentity()).replace(/[^a-z0-9_-]+/gi, "_")}`;
 }
+
+function setVerificationPending(email) {
+  localStorage.setItem('verificationPending', '1');
+  if (email) {
+    localStorage.setItem('verificationPendingEmail', String(email).trim().toLowerCase());
+  }
+  renderVerificationReminder();
+}
+
+function clearVerificationPending() {
+  localStorage.removeItem('verificationPending');
+  localStorage.removeItem('verificationPendingEmail');
+  renderVerificationReminder();
+}
+
+function renderVerificationReminder() {
+  const pending = localStorage.getItem('verificationPending') === '1';
+  const pendingEmail = localStorage.getItem('verificationPendingEmail') || '';
+  const reminderText = pendingEmail
+    ? `Verification email sent to ${pendingEmail}. Check your inbox and spam folder.`
+    : 'Verification email sent. Check your inbox and spam folder.';
+
+  document.querySelectorAll('[data-verification-reminder]').forEach((banner) => {
+    if (!banner) return;
+    banner.style.display = pending ? 'block' : 'none';
+    banner.textContent = reminderText;
+  });
+}
+
+document.addEventListener('DOMContentLoaded', renderVerificationReminder);
 
 function applyProfilePhotoToElement(element, fallbackInitial) {
   if (!element) return;
@@ -905,6 +949,9 @@ async function addBook() {
   const titleInput = document.getElementById("isbnInput") || document.getElementById("sellTitle");
   const title = titleInput ? titleInput.value.trim() : "";
 
+  const writerInput = document.getElementById("bookWriter");
+  const writer = writerInput ? writerInput.value.trim() : "";
+
   const price = Number(
     document.getElementById("bookPrice").value
   );
@@ -940,7 +987,7 @@ const formData = new FormData();
       : originalButtonHtml;
   }
 
-  if (!title || !price || !category) {
+  if (!title || !writer || !price || !category) {
     alert("All fields required ❗");
     return;
   }
@@ -951,6 +998,7 @@ const formData = new FormData();
   }
 
 formData.append("title", title);
+formData.append("writer", writer);
 formData.append("price", price);
 formData.append("seller", seller);
 formData.append("category", category);
@@ -1062,7 +1110,7 @@ async function signupUser() {
   }
 
   try {
-    const res = await fetch("http://localhost:5000/api/auth/signup", {
+    const res = await fetch(apiUrl("/api/auth/signup"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -1079,14 +1127,9 @@ async function signupUser() {
     const data = await res.json();
 
     // 🔥 SUCCESS CONDITION
-    if (data.message === "Signup successful ✅") {
-      // SAVE to localStorage so profile/autofill works
-      localStorage.setItem('userName', name);
-      localStorage.setItem('email', email);
-      localStorage.setItem('college', college);
-      localStorage.setItem('location', location);
-
-      alert("Signup successful 🎉");
+    if (data.message && data.message.toLowerCase().includes("verification email")) {
+      alert(data.message + " Check your inbox and click the link to activate your account.");
+      setVerificationPending(email);
 
       // 👉 Form clear
       clearFirstExistingInputs(["signupName", "name"]);
@@ -1103,12 +1146,62 @@ async function signupUser() {
       document.getElementById("loginForm").style.display = "block";
     } 
     else {
-      alert(data.message); // user exists etc.
+      alert(data.message || "Signup failed ❌"); // user exists etc.
     }
 
   } catch (err) {
     console.error(err);
     alert("Signup failed ❌");
+  }
+}
+
+async function resendVerificationEmail() {
+  const email = getFirstExistingInputValue(["loginEmail", "email"]).trim();
+  if (!email) {
+    alert("Enter your email first ❗");
+    return;
+  }
+
+  try {
+    const res = await fetch(apiUrl("/api/auth/resend-verification"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    const message = String(data.message || '');
+    if (message.toLowerCase().includes('smtp') || message.toLowerCase().includes('not configured') || message.toLowerCase().includes('smtp_service')) {
+      alert('Email service is not configured on the server. The verification email could not be sent. Please contact support or try again later.');
+      console.warn('Resend verification failed (SMTP not configured):', message);
+      return;
+    }
+    if (!res.ok) {
+      alert(message || 'Unable to send verification email ❌');
+      return;
+    }
+
+    alert(message || "Verification email sent ✅");
+  } catch (err) {
+    console.error(err);
+    alert("Unable to resend verification email ❌");
+  }
+}
+
+async function forgotPassword() {
+  const email = getFirstExistingInputValue(["loginEmail", "email"]).trim() || prompt("Enter your email for password reset:");
+  if (!email) return;
+
+  try {
+    const res = await fetch(apiUrl("/api/auth/forgot-password"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    alert(data.message || "Reset link sent ✅");
+  } catch (err) {
+    console.error(err);
+    alert("Unable to send reset link ❌");
   }
 }
 
@@ -1120,7 +1213,7 @@ async function loginUser() {
   const adminEmail = "ansarimdezaz01@gmail.com";
 
   try {
-    const res = await fetch("http://localhost:5000/api/auth/login", {
+    const res = await fetch(apiUrl("/api/auth/login"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -1134,6 +1227,7 @@ async function loginUser() {
       localStorage.setItem("token", data.token);
       localStorage.setItem("userName", data.name); // ⭐ ADD THIS
       localStorage.setItem("role", data.role || "user");
+      clearVerificationPending();
       if (data.role === "admin" || normalizedEmail === adminEmail) {
         localStorage.setItem("adminToken", data.token);
         localStorage.setItem("adminEmail", normalizedEmail);
@@ -1149,6 +1243,9 @@ async function loginUser() {
       setTimeout(() => {
         window.location.href = redirectTarget;
       }, 1000);
+    } else if ((data.message || '').toLowerCase().includes('verify your email first')) {
+      const retry = confirm("Please verify your email first. Resend the verification email now?");
+      if (retry) await resendVerificationEmail();
     } else {
       alert(data.message);
     }

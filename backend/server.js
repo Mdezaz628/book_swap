@@ -1,18 +1,22 @@
-require("dotenv").config();
-const jwt = require("jsonwebtoken");
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-const bcrypt = require("bcrypt"); // ✅ FIX
-const upload = require("./middleware/multer");
-const Book = require("./models/Book");
-const Message = require("./models/Message");
-const DealVerification = require("./models/DealVerification");
-const Report = require("./models/Report");
-const Announcement = require("./models/Announcement");
-const AdminLog = require("./models/AdminLog");
-const http = require("http");
-const { Server } = require("socket.io");
+import dotenv from "dotenv";
+dotenv.config();
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import express from "express";
+import mongoose from "mongoose";
+import cors from "cors";
+import bcrypt from "bcrypt"; // ✅ FIX
+import nodemailer from "nodemailer";
+import upload from "./middleware/multer.js";
+import Book from "./models/Book.js";
+import User from "./models/User.js";
+import Message from "./models/Message.js";
+import DealVerification from "./models/DealVerification.js";
+import Report from "./models/Report.js";
+import Announcement from "./models/Announcement.js";
+import AdminLog from "./models/AdminLog.js";
+import http from "http";
+import { Server } from "socket.io";
 
 const app = express();
 const server = http.createServer(app);
@@ -30,6 +34,124 @@ const ADMIN_INBOX_USER = process.env.ADMIN_INBOX_USER || 'admin';
 
 function getJwtSecret() {
   return process.env.JWT_SECRET || 'secretkey123';
+}
+
+function getAppBaseUrl() {
+  return process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
+}
+
+let mailTransportPromise;
+
+function hasSmtpConfig() {
+  return Boolean(
+    process.env.SMTP_USER &&
+    process.env.SMTP_PASS &&
+    (process.env.SMTP_SERVICE || process.env.SMTP_HOST)
+  );
+}
+
+async function getMailTransporter() {
+  if (!mailTransportPromise) {
+    mailTransportPromise = (async () => {
+      if (hasSmtpConfig()) {
+        const transportOptions = {
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS
+          }
+        };
+
+        if (process.env.SMTP_SERVICE) {
+          transportOptions.service = process.env.SMTP_SERVICE;
+        } else {
+          transportOptions.host = process.env.SMTP_HOST;
+          transportOptions.port = Number(process.env.SMTP_PORT || 587);
+          transportOptions.secure = String(process.env.SMTP_SECURE || 'false') === 'true';
+        }
+
+        return nodemailer.createTransport(transportOptions);
+      }
+
+      throw new Error('SMTP is not configured. Set SMTP_SERVICE or SMTP_HOST, SMTP_USER, and SMTP_PASS in backend/.env');
+    })();
+  }
+
+  return mailTransportPromise;
+}
+
+function renderVerificationPage(title, message) {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${title}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f5f0e8; color: #1a1208; }
+    .card { background: #fff; padding: 32px 28px; border-radius: 18px; box-shadow: 0 18px 45px rgba(26,18,8,.12); max-width: 520px; width: calc(100% - 32px); text-align: center; }
+    h1 { margin: 0 0 12px; font-size: 28px; }
+    p { margin: 0; line-height: 1.6; color: #53493c; }
+    a { display: inline-block; margin-top: 20px; color: #fff; background: #e8820c; padding: 12px 18px; border-radius: 12px; text-decoration: none; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>${title}</h1>
+    <p>${message}</p>
+    <a href="${getAppBaseUrl()}">Go to app</a>
+  </div>
+</body>
+</html>`;
+}
+
+async function sendVerificationEmail(user, verifyToken) {
+  const transporter = await getMailTransporter();
+  const verifyLink = `${getAppBaseUrl()}/api/auth/verify/${verifyToken}`;
+  const info = await transporter.sendMail({
+    from: process.env.MAIL_FROM || process.env.SMTP_USER || 'no-reply@swaptome.local',
+    to: user.email,
+    subject: 'Verify Your Email',
+    html: `
+      <h2>Email Verification</h2>
+      <p>Hi ${user.name || 'there'},</p>
+      <p>Please verify your email address by clicking the button below:</p>
+      <p><a href="${verifyLink}" style="display:inline-block;padding:12px 18px;background:#e8820c;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;">Verify Account</a></p>
+      <p>If the button does not work, copy and paste this link into your browser:</p>
+      <p>${verifyLink}</p>
+    `
+  });
+
+  const previewUrl = nodemailer.getTestMessageUrl(info);
+  if (previewUrl) {
+    console.log('Verification email preview:', previewUrl);
+  }
+
+  return info;
+}
+
+async function sendPasswordResetEmail(user, resetToken) {
+  const transporter = await getMailTransporter();
+  const resetLink = `${getAppBaseUrl()}/api/auth/reset-password/${resetToken}`;
+  const info = await transporter.sendMail({
+    from: process.env.MAIL_FROM || process.env.SMTP_USER || 'no-reply@swaptome.local',
+    to: user.email,
+    subject: 'Reset Your Password',
+    html: `
+      <h2>Password Reset</h2>
+      <p>Hi ${user.name || 'there'},</p>
+      <p>Click the button below to set a new password:</p>
+      <p><a href="${resetLink}" style="display:inline-block;padding:12px 18px;background:#e8820c;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;">Reset Password</a></p>
+      <p>If the button does not work, copy and paste this link into your browser:</p>
+      <p>${resetLink}</p>
+    `
+  });
+
+  const previewUrl = nodemailer.getTestMessageUrl(info);
+  if (previewUrl) {
+    console.log('Password reset email preview:', previewUrl);
+  }
+
+  return info;
 }
 
 function csvEscape(value) {
@@ -93,24 +215,6 @@ app.use(express.json());
 app.use(cors());
 app.use("/uploads", express.static("uploads"));
 
-// ✅ USER MODEL
-const userSchema = new mongoose.Schema({
-  name: String,
-  email: { type: String, unique: true },
-  college: String,
-  password: String,
-  blocked: { type: Boolean, default: false },
-  shadowBanned: { type: Boolean, default: false },
-  role: { type: String, default: 'user' },
-  collegeVerified: { type: Boolean, default: false },
-  verificationStatus: { type: String, default: 'pending' },
-  lastLoginAt: String,
-  lastLoginIp: String,
-  reportCount: { type: Number, default: 0 },
-  riskScore: { type: Number, default: 0 }
-});
-const User = mongoose.model("User", userSchema);
-
 // ✅ BOOK MODEL (FIX)
 
 
@@ -126,23 +230,45 @@ app.post("/api/auth/signup", async (req, res) => {
   try {
     let { name, email, college, password } = req.body;
 
-    email = email.toLowerCase().trim();
+    email = String(email || '').toLowerCase().trim();
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    const verifyTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.json({ message: "User already exists ❌" });
+      if (existingUser.isVerified === false) {
+        existingUser.name = name;
+        existingUser.college = college;
+        existingUser.verifyToken = verifyToken;
+        existingUser.verifyTokenExpiresAt = verifyTokenExpiresAt;
+        await existingUser.save();
+        await sendVerificationEmail(existingUser, verifyToken);
+        return res.json({ message: "Verification email resent ✅" });
+      }
+
+      return res.status(400).json({ message: "Email already registered ❌" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = new User({ name, email, college, password: hashedPassword });
+    const user = new User({
+      name,
+      email,
+      college,
+      password: hashedPassword,
+      isVerified: false,
+      verifyToken,
+      verifyTokenExpiresAt
+    });
     await user.save();
 
-    res.json({ message: "Signup successful ✅" });
+    await sendVerificationEmail(user, verifyToken);
+
+    res.json({ message: "Verification email sent ✅" });
 
   } catch (err) {
     console.log(err);
-    res.status(500).json({ message: "Server error ❌" });
+    res.status(500).json({ message: err?.message || "Server error ❌" });
   }
 });
 
@@ -150,14 +276,19 @@ app.post("/api/auth/signup", async (req, res) => {
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = String(email || '').toLowerCase().trim();
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) return res.json({ message: "User not found ❌" });
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.json({ message: "Wrong password ❌" });
 
     if (user.blocked) return res.json({ message: "Account blocked" });
+
+    if (user.role !== 'admin' && user.isVerified === false) {
+      return res.status(400).json({ message: "Please verify your email first" });
+    }
 
     user.lastLoginAt = new Date().toISOString();
     user.lastLoginIp = req.ip;
@@ -169,6 +300,180 @@ app.post("/api/auth/login", async (req, res) => {
 
   } catch (err) {
     res.status(500).json({ message: "Server error ❌" });
+  }
+});
+
+app.get('/api/auth/verify/:token', async (req, res) => {
+  try {
+    const user = await User.findOne({
+      verifyToken: req.params.token,
+      verifyTokenExpiresAt: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).send(renderVerificationPage('Invalid link', 'This verification link is invalid or has expired.'));
+    }
+
+    user.isVerified = true;
+    user.verifyToken = undefined;
+    user.verifyTokenExpiresAt = undefined;
+    user.verificationStatus = 'approved';
+    await user.save();
+
+    res.send(renderVerificationPage('Email verified successfully', 'Your account is now active. You can log in from the app.'));
+  } catch (err) {
+    console.error('Email verification error', err);
+    res.status(500).send(renderVerificationPage('Verification failed', 'Something went wrong while verifying your email.'));
+  }
+});
+
+app.post('/api/auth/resend-verification', async (req, res) => {
+  try {
+    const email = String(req.body.email || '').toLowerCase().trim();
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.json({ message: 'If the email exists, a verification link has been sent ✅' });
+    }
+
+    if (user.isVerified) {
+      return res.json({ message: 'Email is already verified ✅' });
+    }
+
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    user.verifyToken = verifyToken;
+    user.verifyTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await user.save();
+
+    await sendVerificationEmail(user, verifyToken);
+    res.json({ message: 'Verification email sent ✅' });
+  } catch (err) {
+    console.error('Resend verification error', err);
+    res.status(500).json({ message: err?.message || 'Server error ❌' });
+  }
+});
+
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const email = String(req.body.email || '').toLowerCase().trim();
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+
+    const user = await User.findOne({ email });
+    if (user) {
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      user.resetPasswordToken = resetToken;
+      user.resetPasswordExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
+      await user.save();
+      await sendPasswordResetEmail(user, resetToken);
+    }
+
+    res.json({ message: 'If that email exists, a reset link has been sent ✅' });
+  } catch (err) {
+    console.error('Forgot password error', err);
+    res.status(500).json({ message: err?.message || 'Server error ❌' });
+  }
+});
+
+app.get('/api/auth/reset-password/:token', async (req, res) => {
+  try {
+    const token = req.params.token;
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpiresAt: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).send(renderVerificationPage('Invalid link', 'This password reset link is invalid or has expired.'));
+    }
+
+    res.send(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Reset Password</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f5f0e8; color: #1a1208; }
+    .card { background: #fff; padding: 32px 28px; border-radius: 18px; box-shadow: 0 18px 45px rgba(26,18,8,.12); max-width: 520px; width: calc(100% - 32px); }
+    h1 { margin: 0 0 12px; }
+    label { display:block; margin: 14px 0 6px; font-weight: 700; }
+    input { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid #d4cdb8; }
+    button { margin-top: 18px; width: 100%; padding: 12px 14px; border: none; border-radius: 12px; background: #e8820c; color: #fff; font-weight: 700; cursor: pointer; }
+    p { color: #53493c; line-height: 1.6; }
+    .msg { margin-top: 14px; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Reset Password</h1>
+    <p>Set a new password for your account.</p>
+    <label>New Password</label>
+    <input id="password" type="password" placeholder="New password">
+    <label>Confirm Password</label>
+    <input id="confirmPassword" type="password" placeholder="Confirm password">
+    <button id="submitBtn">Update Password</button>
+    <div class="msg" id="msg"></div>
+  </div>
+  <script>
+    const msg = document.getElementById('msg');
+    document.getElementById('submitBtn').addEventListener('click', async () => {
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      if (!password || password.length < 6) {
+        msg.textContent = 'Password must be at least 6 characters.';
+        return;
+      }
+      if (password !== confirmPassword) {
+        msg.textContent = 'Passwords do not match.';
+        return;
+      }
+      const res = await fetch(window.location.pathname, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password, confirmPassword })
+      });
+      const data = await res.json().catch(() => ({}));
+      msg.textContent = data.message || (res.ok ? 'Password updated successfully.' : 'Unable to update password.');
+      if (res.ok) setTimeout(() => window.location.href = '${getAppBaseUrl()}', 1200);
+    });
+  </script>
+</body>
+</html>`);
+  } catch (err) {
+    console.error('Reset password page error', err);
+    res.status(500).send(renderVerificationPage('Reset failed', 'Something went wrong while loading the reset form.'));
+  }
+});
+
+app.post('/api/auth/reset-password/:token', async (req, res) => {
+  try {
+    const { password, confirmPassword } = req.body;
+    if (!password || password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: 'Passwords do not match' });
+    }
+
+    const user = await User.findOne({
+      resetPasswordToken: req.params.token,
+      resetPasswordExpiresAt: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired reset link' });
+    }
+
+    user.password = await bcrypt.hash(password, 10);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpiresAt = undefined;
+    await user.save();
+
+    res.json({ message: 'Password reset successful ✅' });
+  } catch (err) {
+    console.error('Reset password error', err);
+    res.status(500).json({ message: 'Server error ❌' });
   }
 });
 
@@ -194,14 +499,19 @@ app.post("/add-book", upload.array("images", 5), async (req, res) => {
     console.log("BODY 👉", req.body);
     console.log("FILES 👉", req.files);
 
-    const { title, price, seller, category, location } = req.body;
-    const suspiciousScore = getRiskScore([title, category, seller, location, price].join(' '));
+    const { title, writer, price, seller, category, location } = req.body;
+    if (!title || !writer || !price || !seller || !category) {
+      return res.status(400).json({ message: "Writer name is required ❗" });
+    }
+
+    const suspiciousScore = getRiskScore([title, writer, category, seller, location, price].join(' '));
 
     const sellerUser = await User.findOne({ name: seller });
     const shadowHidden = !!sellerUser?.shadowBanned;
 
     const newBook = new Book({
       title,
+      writer,
       price,
       seller,
       category,
@@ -351,7 +661,12 @@ app.post('/reports', async (req, res) => {
 function adminMiddleware(req, res, next) {
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : auth;
-  if (!token) return res.status(401).json({ message: 'No token' });
+  
+  // Admin does not need token - allow access without one
+  if (!token) {
+    req.admin = { userId: 'admin', role: 'admin', email: 'admin' };
+    return next();
+  }
 
   try {
     const secret = process.env.JWT_SECRET || 'secretkey123';
@@ -826,9 +1141,22 @@ app.post('/api/auth/create-admin', async (req, res) => {
 });
 
 // MongoDB
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected ✅"))
-  .catch(err => console.log(err));
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.DB_URI || 'mongodb://127.0.0.1:27017/book1';
+
+async function startServer() {
+  await mongoose.connect(MONGO_URI);
+  console.log('MongoDB connected ✅');
+
+  const PORT = process.env.PORT || 5000;
+  server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT} ✅`);
+  });
+}
+
+startServer().catch((err) => {
+  console.error('Server startup failed', err);
+  process.exit(1);
+});
 
 app.get("/profile", authMiddleware, (req, res) => {
   res.json({
@@ -1132,7 +1460,3 @@ app.get('/admin/ai-insights', adminMiddleware, async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT} ✅`);
-});

@@ -55,6 +55,8 @@
   </div>
 </nav>
 
+<div data-verification-reminder style="display:none;margin:16px 20px 0;padding:14px 16px;border-radius:16px;background:#fff4e8;color:#a15c00;font-weight:700;line-height:1.45;box-shadow:0 12px 26px rgba(26,18,8,.08);">Verification email sent. Check your inbox and spam folder.</div>
+
 <!-- HERO -->
 <section class="hero">
 
@@ -497,6 +499,11 @@
 
       <button type="submit">Log In</button>
 
+      <div style="display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap;margin-top:12px;font-size:.92rem;">
+        <button type="button" class="btn-link" onclick="resendVerificationEmail()" style="background:none;border:none;padding:0;color:#e8820c;cursor:pointer;font-weight:700;">Resend verification</button>
+        <button type="button" class="btn-link" onclick="forgotPassword()" style="background:none;border:none;padding:0;color:#e8820c;cursor:pointer;font-weight:700;">Forgot password?</button>
+      </div>
+
     </form>
 <!--Signup Form -->
     <div id="signupForm" style="display:none" autocomplete="off">
@@ -542,6 +549,11 @@
     <div class="form-group">
       <label>Book Title</label>
       <input type="text" id="isbnInput" placeholder="Enter book name"/>
+    </div>
+
+    <div class="form-group">
+      <label>Writer Name</label>
+      <input type="text" id="bookWriter" placeholder="Enter writer name" required />
     </div>
 
     <!-- CATEGORY -->
@@ -758,6 +770,9 @@ async function addBook() {
   const title =
     document.getElementById("isbnInput").value.trim();
 
+  const writerInput = document.getElementById("bookWriter");
+  const writer = writerInput ? writerInput.value.trim() : "";
+
   const price =
     Number(document.getElementById("bookPrice").value);
 
@@ -793,7 +808,7 @@ async function addBook() {
       : originalButtonHtml;
   }
 
-  if (!title || !price || !category) {
+  if (!title || !writer || !price || !category) {
     alert("All fields required ❗");
     return;
   }
@@ -807,6 +822,7 @@ async function addBook() {
   const formData = new FormData();
 
   formData.append("title", title);
+  formData.append("writer", writer);
   formData.append("price", price);
   formData.append("seller", seller);
   formData.append("category", category);

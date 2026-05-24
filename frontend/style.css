@@ -13,6 +13,56 @@
 }
 
 *, *::before, *::after {
+/* Ensure core interactive elements and auth UI are above overlays */
+button,
+a,
+input,
+.nav-links,
+.auth-tabs,
+.auth-modal,
+.auth-box {
+  position: relative;
+  z-index: 999999 !important;
+  pointer-events: auto !important;
+}
+
+/* STEP 2: Ensure background overlays do not block interactions */
+.overlay,
+.hero-overlay,
+.blur-bg,
+.background-overlay {
+  pointer-events: none !important;
+}
+
+/* STEP 4: Modal CSS fix - keep auth modal on top and fixed */
+.auth-modal {
+  position: fixed;
+  z-index: 999999;
+}
+
+.auth-container {
+  position: relative;
+  z-index: 999999;
+}
+
+/* STEP 5: Touch support for interactive elements */
+button,
+a {
+  touch-action: manipulation;
+}
+
+/* Ensure existing modal overlay/modal classes used in markup are fixed and sit above everything */
+.modal-overlay,
+#authModal {
+  position: fixed !important;
+  z-index: 999999 !important;
+}
+
+.modal {
+  position: relative !important;
+  z-index: 1000000 !important;
+}
+
   box-sizing: border-box;
   margin: 0;
   padding: 0;
