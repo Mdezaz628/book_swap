@@ -833,9 +833,9 @@ async function addBook() {
   formData.append("location", location || savedLocation || "Location not shared");
 
   // ✅ IMAGE
-  for (let i = 0; i < files.length; i++) {
-    formData.append("images", files[i]);
-  }
+  files.forEach(file => {
+    formData.append("images", file);
+  });
 
   try {
     setUploadingState(true);

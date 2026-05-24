@@ -7,25 +7,13 @@ const {
 import cloudinary from "../config/cloudinary.js";
 
 const storage = new CloudinaryStorage({
-
-  cloudinary: cloudinary,
-
+  cloudinary,
   params: {
-
     folder: "bookswap",
-
-    allowedFormats: [
-  "jpg",
-  "png",
-  "jpeg"
-],
-
-  },
-
+    allowed_formats: ["jpg", "png", "jpeg", "webp"]
+  }
 });
 
-const upload = multer({
-  storage
-});
+const upload = multer({ storage });
 
 export default upload;
