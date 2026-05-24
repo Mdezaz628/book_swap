@@ -274,7 +274,7 @@ app.post("/api/auth/signup", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = new User({
+    const user = await User.create({
       name,
       email,
       college,
@@ -287,11 +287,13 @@ app.post("/api/auth/signup", async (req, res) => {
       verifyToken,
       verifyTokenExpiresAt
     });
-    await user.save();
 
     await sendVerificationEmail(user, verifyToken);
 
-    res.json({ message: "Verification email sent ✅" });
+    res.json({
+      success: true,
+      message: "Signup successful. Verification email sent."
+    });
 
   } catch (err) {
     console.log(err);
