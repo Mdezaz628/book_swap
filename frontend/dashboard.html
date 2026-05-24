@@ -593,7 +593,12 @@
     <div class="form-group">
   <label>Upload Photos</label>
 
-  <input type="file" id="bookImages" multiple>
+  <input
+    type="file"
+    id="imageInput"
+    multiple
+    accept="image/*"
+  />
 
   <!-- preview -->
   <div id="previewContainer" style="display:flex; gap:10px; margin-top:10px;"></div>
@@ -798,7 +803,7 @@ async function addBook() {
   const seller =
     localStorage.getItem("userName") || "User";
 
-  const imageInput = document.getElementById("bookImages");
+  const imageInput = document.getElementById("imageInput");
   const files = imageInput.files;
 
   const submitButton = document.querySelector('#sellModal .form-submit');
@@ -841,7 +846,7 @@ async function addBook() {
     setUploadingState(true);
 
     const res = await fetch(
-      "https://swaptome-api.onrender.com/api/add-book",
+      "https://swaptome-api.onrender.com/add-book",
       {
         method: "POST",
         body: formData

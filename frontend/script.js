@@ -1361,7 +1361,7 @@ async function addBook() {
   const seller =
     localStorage.getItem("userName") || "User";
 
-const imageInput = document.getElementById("bookImages");
+const imageInput = document.getElementById("imageInput");
 const files = imageInput.files;
 
 const formData = new FormData();
@@ -1403,7 +1403,7 @@ Array.from(files).forEach((file) => {
     setUploadingState(true);
 
     const response = await fetch(
-      "https://swaptome-api.onrender.com/api/add-book",
+      "https://swaptome-api.onrender.com/add-book",
       {
         method: "POST",
         body: formData
@@ -1435,7 +1435,7 @@ Array.from(files).forEach((file) => {
 }
 
 // 🔹 IMAGE PREVIEW
-document.getElementById("bookImages")?.addEventListener("change", function() {
+document.getElementById("imageInput")?.addEventListener("change", function() {
   const previewContainer = document.getElementById("previewContainer");
   previewContainer.innerHTML = "";
 

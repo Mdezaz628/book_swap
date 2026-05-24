@@ -573,6 +573,8 @@ function authMiddleware(req, res, next) {
 // 📚 ADD BOOK
 async function createBook(req, res) {
   try {
+    console.log(req.files);
+
     const { title, writer, price, seller, category, location } = req.body;
     if (!title || !writer || !price || !seller || !category) {
       return res.status(400).json({ message: "Writer name is required ❗" });
@@ -582,6 +584,7 @@ async function createBook(req, res) {
 
     const sellerUser = await User.findOne({ name: seller });
     const shadowHidden = !!sellerUser?.shadowBanned;
+    const imageUrls = req.files.map((file) => file.path);
 
     const newBook = new Book({
       title,
@@ -592,7 +595,7 @@ async function createBook(req, res) {
       location,
       suspiciousScore,
       reviewStatus: shadowHidden || suspiciousScore >= 60 ? 'pending' : 'approved',
-      images: req.files ? req.files.map((file) => file.path) : []
+      images: imageUrls
     });
 
     await newBook.save();
@@ -610,8 +613,17 @@ async function createBook(req, res) {
   }
 }
 
-app.post("/add-book", upload.array("images", 5), createBook);
-app.post("/api/add-book", upload.array("images", 5), createBook);
+app.post(
+  "/add-book",
+  upload.array("images", 5),
+  createBook
+);
+
+app.post(
+  "/api/add-book",
+  upload.array("images", 5),
+  createBook
+);
 
 // 📚 GET BOOKS
 async function listBooks(req, res) {
