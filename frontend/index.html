@@ -6,7 +6,82 @@
   <title>SWAPTOME — College Marketplace</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="style.css">
+<style>
+  html.maintenance-mode body > :not(#maintenanceScreen) {
+    display: none !important;
+  }
+
+  html.maintenance-mode body {
+    min-height: 100vh;
+    margin: 0;
+    background: linear-gradient(180deg, #f7f3ec 0%, #efe4d2 100%);
+  }
+
+  #maintenanceScreen {
+    display: none;
+    min-height: 100vh;
+    place-items: center;
+    padding: 24px;
+    background:
+      radial-gradient(circle at top, rgba(232, 130, 12, 0.16), transparent 42%),
+      linear-gradient(180deg, #f7f3ec 0%, #efe4d2 100%);
+    color: #1a1208;
+    text-align: center;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  html.maintenance-mode #maintenanceScreen {
+    display: grid;
+  }
+
+  .maintenance-card {
+    max-width: 540px;
+    width: min(540px, calc(100vw - 32px));
+    padding: 36px 28px;
+    border-radius: 24px;
+    background: rgba(253, 250, 244, 0.94);
+    border: 1px solid rgba(212, 205, 184, 0.9);
+    box-shadow: 0 24px 60px rgba(26, 18, 8, 0.12);
+    backdrop-filter: blur(14px);
+  }
+
+  .maintenance-card h1 {
+    margin: 0 0 14px;
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.1rem, 5vw, 3.5rem);
+    line-height: 1.05;
+  }
+
+  .maintenance-card p {
+    margin: 0;
+    color: #5b4f42;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  .maintenance-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: #fff3e4;
+    color: #a15c00;
+    font-size: 0.85rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+</style>
+<!-- MAINTANANCE MODE , true  faise -->
 <script>
+  const maintenance = true;
+
+  if (maintenance) {
+    document.documentElement.classList.add('maintenance-mode');
+  }
+
   window.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('auth') === '1') {
@@ -19,6 +94,15 @@
 </script>
 </head>
 <body>
+
+<section id="maintenanceScreen" aria-live="polite">
+  <div class="maintenance-card">
+    <div class="maintenance-badge">Maintenance Mode</div>
+    <h1>Website Under Maintenance</h1>
+    <p>We are making a few updates and will be back soon. Please check again later.</p>
+    <p>Thank You Team Ezaz</p>
+  </div>
+</section>
 
 <!-- NAV -->
 <nav>
