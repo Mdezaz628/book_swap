@@ -2953,11 +2953,16 @@ body.all-books-page .all-books-card-image {
   object-fit: cover;
   border-radius: 12px 12px 0 0;
   cursor: pointer;
+  flex: 0 0 auto;
 }
 
 body.all-books-page .all-books-card-body {
   padding: 15px;
   overflow: visible;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 body.all-books-page .book-badges {
@@ -3058,6 +3063,50 @@ body.all-books-page .all-books-menu {
   padding: 8px;
   display: none;
   z-index: 20;
+}
+
+/* Responsive grid layout for All Books: 8 columns on desktop, 6 on mobile */
+@media (min-width: 1100px) {
+  body.all-books-page .books-grid {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(120px, 1fr));
+    gap: 1rem;
+    align-items: start;
+    padding: 1rem 1.25rem 3rem;
+  }
+  body.all-books-page .all-books-card-image { height: 150px; }
+}
+
+@media (min-width: 900px) and (max-width: 1099px) {
+  body.all-books-page .books-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(140px, 1fr));
+    gap: 1rem;
+    padding: 1rem 1.25rem 3rem;
+  }
+  body.all-books-page .all-books-card-image { height: 150px; }
+}
+
+@media (min-width: 600px) and (max-width: 899px) {
+  body.all-books-page .books-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
+    gap: 0.75rem;
+    padding: 0.8rem 1rem 2rem;
+  }
+  body.all-books-page .all-books-card-image { height: 140px; }
+}
+
+/* Mobile: 4 columns for better legibility */
+@media (max-width: 599px) {
+  body.all-books-page .books-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(100px, 1fr));
+    gap: 0.75rem;
+    padding: 0.6rem 0.6rem 1.2rem;
+  }
+  body.all-books-page .all-books-card-image { height: 110px; }
+  body.all-books-page .all-books-card { font-size: 0.95rem; }
 }
 
 body.all-books-page .all-books-menu.show {
@@ -4016,17 +4065,66 @@ h2 {
 
 .books-grid { display: grid; grid-template-columns: repeat(4, minmax(0,220px)); gap: 16px; justify-content: center; }
 
+/* Index dashboard: give the first featured card breathing room so it renders fully */
+.books-grid .first-book-card {
+  margin-left: 0.5rem;
+}
+
+.books-grid .first-book-card .book-info {
+  padding-left: 0.75rem;
+}
+
+/* Dashboard preview rows: single horizontal row with horizontal scroll */
+#listings .books-grid,
+#myUploadsSection .books-grid {
+  display: flex !important;
+  gap: 1rem !important;
+  overflow-x: auto !important;
+  padding-bottom: 0.75rem !important;
+  padding-left: 1rem !important; /* ensure first card fully visible */
+  scroll-padding-left: 1rem !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+#listings .books-grid .book-link,
+#myUploadsSection .books-grid .book-link {
+  display: block;
+  flex: 0 0 220px !important;
+  scroll-snap-align: start;
+}
+
+/* Remove link underlines and inherit colors inside preview links */
+#listings .books-grid .book-link,
+#myUploadsSection .books-grid .book-link,
+#listings .books-grid .book-link *,
+#myUploadsSection .books-grid .book-link * {
+  text-decoration: none !important;
+  color: inherit !important;
+}
+
+/* Highlighted book on all-books page */
+.highlight-book { box-shadow: 0 24px 48px rgba(232,130,12,0.14); border-color: var(--amber); }
+
+/* Ensure grid/flex children start at top and are not stretched or clipped */
+.books-grid > * { align-self: start; }
+
+/* Allow card internals (menus, buttons) to overflow visible if needed */
+.book-card, .all-books-card { overflow: visible !important; }
+
 .book-card {
   background: white;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  transition: 0.25s;
+  transition: box-shadow 0.25s, border-color 0.25s;
   border: 1.5px solid transparent;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
-.book-card:hover { transform: translateY(-5px); box-shadow: 0 16px 40px rgba(0,0,0,.12); border-color: var(--amber); }
+.book-card:hover { box-shadow: 0 16px 40px rgba(0,0,0,.12); border-color: var(--amber); }
 
 .book-thumb { height: 110px; display: flex; align-items: center; justify-content: center; font-size: 3rem; position: relative; overflow: hidden; }
 
@@ -4524,3 +4622,57 @@ body.light-theme .form-submit:hover {
 /* Align first stat left and second stat right for desktop/tablet */
 .hero-stats > div:first-child { justify-self: start; text-align: left; }
 .hero-stats > div:last-child { justify-self: end; text-align: right; }
+
+/* Removed temporary high-specificity overrides to keep stylesheet clean.
+   Main responsive rules above control the All Books layout now. */
+
+  /* Final enforcement: ensure exactly 6 columns on desktop and 4 on mobile for All Books */
+  @media (min-width: 1100px) {
+    /* Desktop: 6 columns, centered container */
+    html body.all-books-page .books-grid {
+      max-width: 1400px !important;
+      margin: 0 auto !important;
+      display: grid !important;
+      grid-template-columns: repeat(6, minmax(140px, 1fr)) !important;
+      gap: 1rem !important;
+      align-items: start !important;
+      grid-auto-rows: 1fr !important;
+      padding: 1rem 1.25rem 3rem !important;
+      justify-content: center !important;
+    }
+  }
+
+  @media (min-width: 700px) and (max-width: 1099px) {
+    /* Tablet: 4 columns */
+    html body.all-books-page .books-grid {
+      max-width: 1100px !important;
+      margin: 0 auto !important;
+      display: grid !important;
+      grid-template-columns: repeat(4, minmax(140px, 1fr)) !important;
+      gap: 0.9rem !important;
+      grid-auto-rows: 1fr !important;
+      padding: 0.8rem 1rem 2rem !important;
+    }
+  }
+
+  @media (min-width: 480px) and (max-width: 699px) {
+    /* Small tablet / large phone: 3 columns */
+    html body.all-books-page .books-grid {
+      display: grid !important;
+      grid-template-columns: repeat(3, minmax(120px, 1fr)) !important;
+      gap: 0.8rem !important;
+      padding: 0.6rem 0.8rem 1.2rem !important;
+    }
+    html body.all-books-page .all-books-card-image { height: 120px !important; }
+  }
+
+  @media (max-width: 479px) {
+    /* Mobile: 2 columns for legibility */
+    html body.all-books-page .books-grid {
+      display: grid !important;
+      grid-template-columns: repeat(2, minmax(140px, 1fr)) !important;
+      gap: 0.9rem !important;
+      padding: 0.6rem 0.6rem 1.2rem !important;
+    }
+    html body.all-books-page .all-books-card-image { height: 130px !important; }
+  }

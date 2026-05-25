@@ -62,6 +62,7 @@
 let allBooks = [];
 let currentCategory = "All";
 let selectedSeller = new URLSearchParams(window.location.search).get("seller") || "";
+let highlightBookId = new URLSearchParams(window.location.search).get("bookId") || "";
 let currentUser = (localStorage.getItem("userName") || selectedSeller || "").trim();
 
 function normalizeText(value) {
@@ -121,7 +122,7 @@ function displayBooks(books) {
 
     container.innerHTML += `
 
-      <div class="book-card all-books-card">
+      <div id="book-${book._id}" class="book-card all-books-card">
 
         <img
   src="${resolveBookImageSrc(book.images?.[0] || book.image)}"
@@ -195,6 +196,18 @@ onclick="openImageGallery('${encodeURIComponent(JSON.stringify(book.images || [b
     `;
 
   });
+
+  // If a specific bookId was requested, scroll to and highlight it
+  if (highlightBookId) {
+    const el = document.getElementById('book-' + highlightBookId);
+    if (el) {
+      setTimeout(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('highlight-book');
+        setTimeout(() => el.classList.remove('highlight-book'), 3500);
+      }, 250);
+    }
+  }
 
 }
 // 🔍 SEARCH

@@ -244,7 +244,7 @@
       <div class="section-eyebrow">Recent Listings</div>
       <h2>Books near you</h2>
     </div>
-    <a href="all-books.html" onclick="window.location.href='all-books.html'">View all books →</a>
+    <a id="viewAllNearby" href="all-books.html">View all books →</a>
   </div>
   <div class="books-grid" id="booksContainer"></div>
 </section>
@@ -673,29 +673,41 @@ async function loadBooksHome() {
     console.log("Books:", books);
 
     const container = document.getElementById("booksContainer");
+    const viewAllNearby = document.getElementById('viewAllNearby');
 
     if (!container) {
       console.log("❌ Container NOT found");
       return;
     }
 
+    if (viewAllNearby) {
+      viewAllNearby.href = 'all-books.html?near=1';
+    }
+
     container.innerHTML = "";
 
-    books.slice(0, 4).forEach(book => {
+    books.slice(0, 8).forEach(book => {
       container.innerHTML += `
-        <div class="book-card">
-          <img src="${book.images?.[0] || book.image || 'https://via.placeholder.com/120'}"
+        <a class="book-link" href="all-books.html?bookId=${book._id}">
+          <div class="book-card">
+            <img src="${book.images?.[0] || book.image || 'https://via.placeholder.com/120'}"
      style="width:100%; height:120px; object-fit:cover; border-radius:8px;" />
 
-          <div class="book-info">
-            <div class="book-title">${book.title}</div>
-            <div class="book-author">${book.seller}</div>
-            <div class="book-location">${book.location || 'Location not shared'}</div>
-            <div class="book-price">₹${book.price}</div>
+            <div class="book-info">
+              <div class="book-title">${book.title}</div>
+              <div class="book-author">${book.seller}</div>
+              <div class="book-location">${book.location || 'Location not shared'}</div>
+              <div class="book-price">₹${book.price}</div>
+            </div>
           </div>
-        </div>
+        </a>
       `;
     });
+
+    // ensure scroller starts at the left so first preview card is fully visible
+    setTimeout(() => {
+      try { container.scrollLeft = 0; } catch (e) {}
+    }, 50);
 
   } catch (err) {
     console.error("❌ ERROR:", err);
@@ -736,19 +748,23 @@ async function loadBooksHome() {
 
       previewBooks.forEach(book => {
         container.innerHTML += `
-          <div class="book-card">
-            <img src="${book.images?.[0] || book.image || 'https://via.placeholder.com/120'}"
-     style="width:100%; height:120px; object-fit:cover; border-radius:8px;" />
+          <a class="book-link" href="all-books.html?bookId=${book._id}">
+            <div class="book-card">
+              <img src="${book.images?.[0] || book.image || 'https://via.placeholder.com/120'}"
+       style="width:100%; height:120px; object-fit:cover; border-radius:8px;" />
 
-            <div class="book-info">
-              <div class="book-title">${book.title || "No title"}</div>
-              <div class="book-author">${book.seller || "Unknown"}</div>
-              <div class="book-location">${book.location || 'Location not shared'}</div>
-              <div class="book-price">₹${book.price || 0}</div>
+              <div class="book-info">
+                <div class="book-title">${book.title || "No title"}</div>
+                <div class="book-author">${book.seller || "Unknown"}</div>
+                <div class="book-location">${book.location || 'Location not shared'}</div>
+                <div class="book-price">₹${book.price || 0}</div>
+              </div>
             </div>
-          </div>
+          </a>
         `;
       });
+      // ensure scroller for uploads starts at left
+      setTimeout(() => { try { container.scrollLeft = 0; } catch (e) {} }, 50);
     } catch (err) {
       console.error("❌ MY UPLOADS ERROR:", err);
     }
