@@ -65,6 +65,17 @@ let selectedSeller = new URLSearchParams(window.location.search).get("seller") |
 let highlightBookId = new URLSearchParams(window.location.search).get("bookId") || "";
 let currentUser = (localStorage.getItem("userName") || selectedSeller || "").trim();
 
+function isLoggedIn() {
+  return !!(localStorage.getItem("userName") || localStorage.getItem("token"));
+}
+
+function promptLoginForAction() {
+  try {
+    sessionStorage.setItem("postLoginRedirect", window.location.pathname.split(/[\\/]/).pop() + window.location.search);
+  } catch (e) {}
+  window.location.href = "index.html?auth=1";
+}
+
 function normalizeText(value) {
   return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -174,13 +185,13 @@ onclick="openImageGallery('${encodeURIComponent(JSON.stringify(book.images || [b
           ${!canManageBook(book) ? `
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
               <button
-                onclick="chatWithSeller('${book.seller}')"
+                onclick="${isLoggedIn() ? `chatWithSeller('${book.seller}')` : 'promptLoginForAction()'}"
                 class="all-books-chat-btn"
               >
                 💬 Chat with Seller
               </button>
               <button
-                onclick='openReportModal("book", ${JSON.stringify(book.title)}, ${JSON.stringify(book.seller)})'
+                onclick='${isLoggedIn() ? `openReportModal("book", ${JSON.stringify(book.title)}, ${JSON.stringify(book.seller)})` : "promptLoginForAction()"}'
                 class="all-books-chat-btn"
                 style="background:#fff;color:#0f2b5b;border:1px solid #9fb8f3;"
               >

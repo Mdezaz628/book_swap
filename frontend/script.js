@@ -966,14 +966,22 @@ function showSection(section){
   }
 
   if(section === "sell"){
-
-    openModal("sellModal");
+    openSellOrAuth();
 
   }
 }
 
 function openSellForm() {
-  openModal('sellModal');
+  openSellOrAuth();
+}
+
+function openSellOrAuth() {
+  const isLoggedIn = !!(localStorage.getItem("userName") || localStorage.getItem("token"));
+  if (isLoggedIn) {
+    openModal('sellModal');
+    return;
+  }
+  openModal('authModal');
 }
 
 function goBack() {
@@ -1778,7 +1786,14 @@ async function loadMyUploadsHome() {
     const currentUser = (localStorage.getItem("userName") || "").trim();
 
     if (viewAllLink) {
-      viewAllLink.href = currentUser ? `all-books.html?seller=${encodeURIComponent(currentUser)}` : "all-books.html";
+      viewAllLink.href = "javascript:void(0)";
+      viewAllLink.onclick = () => {
+        if (!currentUser) {
+          openModal('authModal');
+          return;
+        }
+        window.location.href = `all-books.html?seller=${encodeURIComponent(currentUser)}`;
+      };
     }
 
     if (!currentUser) {

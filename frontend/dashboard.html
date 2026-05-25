@@ -14,7 +14,7 @@
 
   <div class="nav-links">
     <a href="#listings">Browse Books</a>
-    <button class="nav-link-btn" onclick="openModal('sellModal')">Sell Books</button>
+    <button class="nav-link-btn" onclick="openSellOrAuth()">Sell Books</button>
     <a href="#features">Features</a>
     <a href="#how">How it Works</a>
     <a href="#contact-us">Contact Us</a>
@@ -422,7 +422,7 @@
   <h2>Start saving money today</h2>
   <p>Join 3,800+ students who are already buying and selling smarter. It's completely free to sign up.</p>
   <div class="cta-btns">
-    <button class="btn-border-white" onclick="openModal('sellModal')">
+    <button class="btn-border-white" onclick="openSellOrAuth()">
       + List Your First Book
     </button>
   </div>
@@ -663,6 +663,16 @@
 
 
 <script>
+function requireAuthToExplore(targetUrl) {
+  const isLoggedIn = !!(localStorage.getItem('userName') || localStorage.getItem('token'));
+  if (!isLoggedIn) {
+    openModal('authModal');
+    sessionStorage.setItem('postLoginRedirect', targetUrl || 'all-books.html');
+    return;
+  }
+  window.location.href = targetUrl || 'all-books.html';
+}
+
 function resolveBookImageSrc(imagePath) {
   if (!imagePath) return 'https://via.placeholder.com/300';
   const normalizedPath = String(imagePath).replace(/\\/g, '/').trim();
@@ -700,7 +710,7 @@ async function loadBooksHome() {
 
     books.slice(0, 8).forEach(book => {
       container.innerHTML += `
-        <a class="book-link" href="all-books.html?bookId=${book._id}">
+        <a class="book-link" href="javascript:void(0)" onclick="requireAuthToExplore('all-books.html?bookId=${book._id}')">
           <div class="book-card">
             <img src="${resolveBookImageSrc(book.images?.[0] || book.image)}"
      onerror="this.src='https://via.placeholder.com/300'"
@@ -736,7 +746,14 @@ async function loadBooksHome() {
       if (!container) return;
 
       if (viewAllLink) {
-        viewAllLink.href = currentUser ? `all-books.html?seller=${encodeURIComponent(currentUser)}` : "all-books.html";
+        viewAllLink.href = "javascript:void(0)";
+        viewAllLink.onclick = () => {
+          if (!currentUser) {
+            openModal('authModal');
+            return;
+          }
+          requireAuthToExplore(`all-books.html?seller=${encodeURIComponent(currentUser)}`);
+        };
       }
 
       if (!currentUser) {
@@ -761,7 +778,7 @@ async function loadBooksHome() {
 
       previewBooks.forEach(book => {
         container.innerHTML += `
-          <a class="book-link" href="all-books.html?bookId=${book._id}">
+          <a class="book-link" href="javascript:void(0)" onclick="requireAuthToExplore('all-books.html?bookId=${book._id}')">
             <div class="book-card">
               <img src="${resolveBookImageSrc(book.images?.[0] || book.image)}"
        onerror="this.src='https://via.placeholder.com/300'"

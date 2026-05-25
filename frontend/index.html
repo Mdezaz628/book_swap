@@ -6,6 +6,17 @@
   <title>SWAPTOME — College Marketplace</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="style.css">
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('auth') === '1') {
+      const openAuth = () => {
+        if (typeof openModal === 'function') openModal('authModal');
+      };
+      setTimeout(openAuth, 0);
+    }
+  });
+</script>
 </head>
 <body>
 
@@ -20,7 +31,7 @@
       Browse Books
     </a>
 
-    <button class="nav-link-btn" onclick="openModal('sellModal')">Sell Books</button>
+    <button class="nav-link-btn" onclick="openSellOrAuth()">Sell Books</button>
     <a href="#features">Features</a>
     <a href="#how">How it Works</a>
     <a href="#contact-us">Contact Us</a>
@@ -326,7 +337,7 @@
       <div class="section-eyebrow">Recent Listings</div>
       <h2>Books near you</h2>
     </div>
-    <a href="#">View all 12,400+ books →</a>
+    <a href="all-books.html">View all 12,400+ books →</a>
   </div>
   <div class="books-grid" id="booksContainer">
     <div class="book-card first-book-card" onclick="openModal('authModal')">
@@ -505,7 +516,7 @@
   <p>Join 3,800+ students who are already buying and selling smarter. It's completely free to sign up.</p>
   <div class="cta-btns">
     <button class="btn-white" onclick="openModal('authModal')">📚 Create Free Account</button>
-    <button class="btn-border-white" onclick="openModal('sellModal')">+ List Your First Book</button>
+    <button class="btn-border-white" onclick="openSellOrAuth()">+ List Your First Book</button>
   </div>
 </section>
 
