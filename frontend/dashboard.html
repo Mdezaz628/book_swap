@@ -663,6 +663,18 @@
 
 
 <script>
+function resolveBookImageSrc(imagePath) {
+  if (!imagePath) return 'https://via.placeholder.com/300';
+  const normalizedPath = String(imagePath).replace(/\\/g, '/').trim();
+  if (/^https?:\/\//i.test(normalizedPath) || normalizedPath.startsWith('data:') || normalizedPath.includes('cloudinary.com')) {
+    return normalizedPath;
+  }
+  if (normalizedPath.startsWith('/') || normalizedPath.startsWith('uploads/')) {
+    return `https://swaptome-api.onrender.com${normalizedPath.startsWith('/') ? '' : '/'}${normalizedPath}`;
+  }
+  return `https://swaptome-api.onrender.com/uploads/${normalizedPath}`;
+}
+
 async function loadBooksHome() {
   try {
     console.log("🔥 Homepage loading books...");
@@ -690,7 +702,8 @@ async function loadBooksHome() {
       container.innerHTML += `
         <a class="book-link" href="all-books.html?bookId=${book._id}">
           <div class="book-card">
-            <img src="${book.images?.[0] || book.image || 'https://via.placeholder.com/120'}"
+            <img src="${resolveBookImageSrc(book.images?.[0] || book.image)}"
+     onerror="this.src='https://via.placeholder.com/300'"
      style="width:100%; height:120px; object-fit:cover; border-radius:8px;" />
 
             <div class="book-info">
@@ -750,7 +763,8 @@ async function loadBooksHome() {
         container.innerHTML += `
           <a class="book-link" href="all-books.html?bookId=${book._id}">
             <div class="book-card">
-              <img src="${book.images?.[0] || book.image || 'https://via.placeholder.com/120'}"
+              <img src="${resolveBookImageSrc(book.images?.[0] || book.image)}"
+       onerror="this.src='https://via.placeholder.com/300'"
        style="width:100%; height:120px; object-fit:cover; border-radius:8px;" />
 
               <div class="book-info">
