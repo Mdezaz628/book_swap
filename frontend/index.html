@@ -664,7 +664,7 @@
       <button class="tab-btn active" onclick="switchTab('login')">Log In</button>
       <button class="tab-btn" onclick="switchTab('signup')">Sign Up</button>
     </div>
-    <div data-verification-reminder style="display:none;margin:12px 0 14px;padding:12px 14px;border-radius:14px;background:#fff4e8;color:#a15c00;font-size:.95rem;font-weight:700;line-height:1.4;">Verification email sent. Check your inbox and spam folder.</div>
+    <div data-verification-reminder style="display:none;margin:12px 0 14px;padding:12px 14px;border-radius:14px;background:#fff4e8;color:#a15c00;font-size:.95rem;font-weight:700;line-height:1.4;">Verification link sent. Check your inbox.</div>
     <style>
       #loginForm .form-submit[type="submit"] {
         background: linear-gradient(135deg, #0f2b5b 0%, #1d4ed8 100%);
@@ -737,8 +737,8 @@
         <span class="google-text">Continue with Google</span>
       </button>
       <div style="display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap;margin-top:12px;font-size:.92rem;">
-        <button type="button" class="btn-link" onclick="resendVerificationEmail()" style="background:none;border:none;padding:0;color:#e8820c;cursor:pointer;font-weight:700;">Resend verification</button>
-        <button type="button" class="btn-link" onclick="forgotPassword()" style="background:none;border:none;padding:0;color:#e8820c;cursor:pointer;font-weight:700;">Forgot password?</button>
+        <button type="button" id="resendVerificationBtn" class="btn-link" onclick="resendVerificationEmail()" style="background:none;border:none;padding:0;color:#e8820c;cursor:pointer;font-weight:700;">Resend verification link</button>
+        <button type="button" id="forgotPasswordBtn" class="btn-link" onclick="forgotPassword()" style="background:none;border:none;padding:0;color:#e8820c;cursor:pointer;font-weight:700;">Forgot password?</button>
       </div>
     </form>
     <!-- Signup Form -->
@@ -771,7 +771,8 @@
         <input type="checkbox" id="signupTerms" />
         <label for="signupTerms">I agree to the <a href="#" onclick="openTermsModal(); return false;">Terms & Conditions</a> and understand my account may be suspended for fake listings, abuse, or fraud.</label>
       </div>
-      <button class="form-submit" onclick="signupUser()">Create Free Account</button>
+      <button class="form-submit" onclick="signupUser()">Verify Email</button>
+      <p class="form-footer" style="margin-top:12px;">After signup, open the verification link sent to your email.</p>
     </div>
     <p class="form-footer">By signing up you agree to our <a href="#" onclick="openTermsModal(); return false;">Terms</a></p>
   </div>

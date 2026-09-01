@@ -100,17 +100,18 @@ function canManageBook(book) {
 function resolveBookImageSrc(imagePath) {
   if (!imagePath) return 'https://via.placeholder.com/300';
   const normalizedPath = String(imagePath).replace(/\\/g, '/').trim();
+  const apiBase = (window.__API_BASE_URL__ || '').replace(/\/$/, '') || ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0') ? (window.location.port === '5000' ? window.location.origin : 'http://localhost:5000') : 'https://swaptome-api.onrender.com');
   if (/^https?:\/\//i.test(normalizedPath) || normalizedPath.startsWith('data:') || normalizedPath.includes('cloudinary.com')) {
     return normalizedPath;
   }
   if (normalizedPath.startsWith('/') || normalizedPath.startsWith('uploads/')) {
-    return `https://swaptome-api.onrender.com${normalizedPath.startsWith('/') ? '' : '/'}${normalizedPath}`;
+    return `${apiBase}${normalizedPath.startsWith('/') ? '' : '/'}${normalizedPath}`;
   }
-  return `https://swaptome-api.onrender.com/uploads/${normalizedPath}`;
+  return `${apiBase}/uploads/${normalizedPath}`;
 }
 
 async function loadBooks() {
-  const res = await fetch("https://swaptome-api.onrender.com/api/books") ;
+  const res = await fetch(`${(window.__API_BASE_URL__ || '').replace(/\/$/, '') || ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0') ? (window.location.port === '5000' ? window.location.origin : 'http://localhost:5000') : 'https://swaptome-api.onrender.com')}/api/books`) ;
   allBooks = (await res.json()).slice().sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)));
 
   if (selectedSeller) {
@@ -137,6 +138,7 @@ function displayBooks(books) {
 
         <img
   src="${resolveBookImageSrc(book.images?.[0] || book.image)}"
+  onerror="this.onerror=null;this.src='https://via.placeholder.com/800x520?text=Book+Cover'"
 
 onclick="openImageGallery('${encodeURIComponent(JSON.stringify(book.images || [book.image]))}')"
 

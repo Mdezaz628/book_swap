@@ -55,7 +55,7 @@
   </div>
 </nav>
 
-<div data-verification-reminder style="display:none;margin:16px 20px 0;padding:14px 16px;border-radius:16px;background:#fff4e8;color:#a15c00;font-weight:700;line-height:1.45;box-shadow:0 12px 26px rgba(26,18,8,.08);">Verification email sent. Check your inbox and spam folder.</div>
+<div data-verification-reminder style="display:none;margin:16px 20px 0;padding:14px 16px;border-radius:16px;background:#fff4e8;color:#a15c00;font-weight:700;line-height:1.45;box-shadow:0 12px 26px rgba(26,18,8,.08);">Verification link sent. Check your inbox.</div>
 
 <!-- HERO -->
 <section class="hero">
@@ -500,8 +500,8 @@
       <button type="submit">Log In</button>
 
       <div style="display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap;margin-top:12px;font-size:.92rem;">
-        <button type="button" class="btn-link" onclick="resendVerificationEmail()" style="background:none;border:none;padding:0;color:#e8820c;cursor:pointer;font-weight:700;">Resend verification</button>
-        <button type="button" class="btn-link" onclick="forgotPassword()" style="background:none;border:none;padding:0;color:#e8820c;cursor:pointer;font-weight:700;">Forgot password?</button>
+        <button type="button" id="resendVerificationBtn" class="btn-link" onclick="resendVerificationEmail()" style="background:none;border:none;padding:0;color:#e8820c;cursor:pointer;font-weight:700;">Resend verification link</button>
+        <button type="button" id="forgotPasswordBtn" class="btn-link" onclick="forgotPassword()" style="background:none;border:none;padding:0;color:#e8820c;cursor:pointer;font-weight:700;">Forgot password?</button>
       </div>
 
     </form>
@@ -676,20 +676,21 @@ function requireAuthToExplore(targetUrl) {
 function resolveBookImageSrc(imagePath) {
   if (!imagePath) return 'https://via.placeholder.com/300';
   const normalizedPath = String(imagePath).replace(/\\/g, '/').trim();
+  const apiBase = (window.__API_BASE_URL__ || '').replace(/\/$/, '') || ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0') ? (window.location.port === '5000' ? window.location.origin : 'http://localhost:5000') : 'https://swaptome-api.onrender.com');
   if (/^https?:\/\//i.test(normalizedPath) || normalizedPath.startsWith('data:') || normalizedPath.includes('cloudinary.com')) {
     return normalizedPath;
   }
   if (normalizedPath.startsWith('/') || normalizedPath.startsWith('uploads/')) {
-    return `https://swaptome-api.onrender.com${normalizedPath.startsWith('/') ? '' : '/'}${normalizedPath}`;
+    return `${apiBase}${normalizedPath.startsWith('/') ? '' : '/'}${normalizedPath}`;
   }
-  return `https://swaptome-api.onrender.com/uploads/${normalizedPath}`;
+  return `${apiBase}/uploads/${normalizedPath}`;
 }
 
 async function loadBooksHome() {
   try {
     console.log("🔥 Homepage loading books...");
 
-    const res = await fetch("https://swaptome-api.onrender.com/api/books");
+    const res = await fetch(`${(window.__API_BASE_URL__ || '').replace(/\/$/, '') || ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0') ? (window.location.port === '5000' ? window.location.origin : 'http://localhost:5000') : 'https://swaptome-api.onrender.com')}/api/books`);
     const books = await res.json();
 
     console.log("Books:", books);
@@ -761,7 +762,7 @@ async function loadBooksHome() {
         return;
       }
 
-      const res = await fetch("https://swaptome-api.onrender.com/api/books");
+      const res = await fetch(`${(window.__API_BASE_URL__ || '').replace(/\/$/, '') || ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0') ? (window.location.port === '5000' ? window.location.origin : 'http://localhost:5000') : 'https://swaptome-api.onrender.com')}/api/books`);
       if (!res.ok) return;
 
       const books = await res.json();
@@ -849,6 +850,7 @@ async function addBook() {
 
   const seller =
     localStorage.getItem("userName") || "User";
+  const uploaderEmail = localStorage.getItem("email") || localStorage.getItem("userEmail") || "";
 
   const imageInput = document.getElementById("imageInput");
   const files = imageInput.files;
@@ -882,6 +884,7 @@ async function addBook() {
   formData.append("writer", writer);
   formData.append("price", price);
   formData.append("seller", seller);
+  formData.append("uploaderEmail", uploaderEmail);
   formData.append("category", category);
   formData.append("location", location || savedLocation || "Location not shared");
 
@@ -894,9 +897,12 @@ async function addBook() {
     setUploadingState(true);
 
     const res = await fetch(
-      "https://swaptome-api.onrender.com/add-book",
+      `${(window.__API_BASE_URL__ || '').replace(/\/$/, '') || ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0') ? (window.location.port === '5000' ? window.location.origin : 'http://localhost:5000') : 'https://swaptome-api.onrender.com')}/add-book`,
       {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token") || localStorage.getItem("adminToken") || ""}`
+        },
         body: formData
       }
     );

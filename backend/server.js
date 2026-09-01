@@ -1,5 +1,9 @@
 import dotenv from "dotenv";
 dotenv.config();
+import dns from "dns";
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder("ipv4first");
+}
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import express from "express";
@@ -7,6 +11,9 @@ import mongoose from "mongoose";
 import cors from "cors";
 import bcrypt from "bcrypt"; // ✅ FIX
 import nodemailer from "nodemailer";
+import path from "path";
+import fs from "fs/promises";
+import cloudinary from "./config/cloudinary.js";
 import upload from "./middleware/multer.js";
 import Book from "./models/Book.js";
 import User from "./models/User.js";
@@ -32,6 +39,7 @@ const onlineUsers = new Map();
 const socketUsers = new Map();
 const activeRooms = new Set();
 const ADMIN_INBOX_USER = process.env.ADMIN_INBOX_USER || 'admin';
+let legacyImageMigrationPromise = null;
 
 // Admin emails list for assigning admin role on Google sign-in
 const adminEmails = [
@@ -46,40 +54,152 @@ function getAppBaseUrl() {
   return process.env.APP_BASE_URL || 'https://swaptome-api.onrender.com';
 }
 
+function isCloudinaryImage(value) {
+  return /^https?:\/\//i.test(String(value || '')) && String(value || '').includes('cloudinary.com');
+}
+
+function isLegacyUploadPath(value) {
+  const normalized = String(value || '').replace(/\\/g, '/').trim();
+  return Boolean(normalized) && !/^https?:\/\//i.test(normalized) && normalized.startsWith('uploads/');
+}
+
+async function migrateLegacyBookImages() {
+  if (!legacyImageMigrationPromise) {
+    legacyImageMigrationPromise = (async () => {
+      const books = await Book.find({ images: { $exists: true, $ne: [] } });
+
+      for (const book of books) {
+        const images = Array.isArray(book.images) ? book.images : [];
+        let changed = false;
+
+        const migratedImages = [];
+
+        for (const imagePath of images) {
+          if (!isLegacyUploadPath(imagePath) || isCloudinaryImage(imagePath)) {
+            migratedImages.push(imagePath);
+            continue;
+          }
+
+          const normalizedPath = String(imagePath).replace(/\\/g, '/').trim();
+          const absolutePath = path.resolve(normalizedPath);
+
+          try {
+            await fs.access(absolutePath);
+            const result = await cloudinary.uploader.upload(absolutePath, { folder: 'books' });
+            migratedImages.push(result.secure_url || result.url || imagePath);
+            changed = true;
+            await fs.unlink(absolutePath).catch(() => {});
+          } catch {
+            migratedImages.push(imagePath);
+          }
+        }
+
+        if (changed) {
+          book.images = migratedImages;
+          await book.save();
+        }
+      }
+    })().catch((err) => {
+      console.warn('Legacy book image migration skipped:', err?.message || err);
+    });
+  }
+
+  return legacyImageMigrationPromise;
+}
+
 let mailTransportPromise;
 
+function firstDefinedEnv(...names) {
+  for (const name of names) {
+    const value = process.env[name];
+    if (value !== undefined && String(value).trim() !== '') {
+      return String(value).trim();
+    }
+  }
+  return '';
+}
+
 function hasSmtpConfig() {
-  return Boolean(
-    process.env.SMTP_USER &&
-    process.env.SMTP_PASS &&
-    (process.env.SMTP_SERVICE || process.env.SMTP_HOST)
-  );
+  const transportUrl = firstDefinedEnv('SMTP_URL', 'MAIL_URL', 'EMAIL_URL');
+  if (transportUrl) return true;
+
+  const user = firstDefinedEnv('SMTP_USER', 'EMAIL_USER');
+  const pass = firstDefinedEnv('SMTP_PASS', 'EMAIL_PASS');
+  const service = firstDefinedEnv('SMTP_SERVICE', 'EMAIL_SERVICE');
+  const host = firstDefinedEnv('SMTP_HOST', 'EMAIL_HOST');
+
+  return Boolean(user && pass && (service || host));
+}
+
+function withTimeout(promise, ms, message) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+
+  return Promise.race([
+    promise.finally(() => clearTimeout(timer)),
+    timeout
+  ]);
 }
 
 async function getMailTransporter() {
   if (!mailTransportPromise) {
     mailTransportPromise = (async () => {
-      if (hasSmtpConfig()) {
-        const transportOptions = {
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS
-          }
-        };
+      const transportUrl = firstDefinedEnv('SMTP_URL', 'MAIL_URL', 'EMAIL_URL');
 
-        if (process.env.SMTP_SERVICE) {
-          transportOptions.service = process.env.SMTP_SERVICE;
+      if (transportUrl) {
+        return nodemailer.createTransport(transportUrl);
+      }
+
+      if (hasSmtpConfig()) {
+        const user = firstDefinedEnv('SMTP_USER', 'EMAIL_USER');
+        const pass = firstDefinedEnv('SMTP_PASS', 'EMAIL_PASS');
+        const service = firstDefinedEnv('SMTP_SERVICE', 'EMAIL_SERVICE');
+        const host = firstDefinedEnv('SMTP_HOST', 'EMAIL_HOST');
+
+        let transportOptions;
+
+        if (service && service.toLowerCase() === 'gmail') {
+          transportOptions = {
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            auth: { user, pass },
+            tls: { rejectUnauthorized: false },
+            family: 4, // 👈 Force IPv4 to fix ENETUNREACH on Render/Cloud hosts
+            connectionTimeout: 10000,
+            greetingTimeout: 10000,
+            socketTimeout: 15000
+          };
+        } else if (service) {
+          transportOptions = {
+            service,
+            auth: { user, pass },
+            family: 4
+          };
         } else {
-          transportOptions.host = process.env.SMTP_HOST;
-          transportOptions.port = Number(process.env.SMTP_PORT || 587);
-          transportOptions.secure = String(process.env.SMTP_SECURE || 'false') === 'true';
+          transportOptions = {
+            host: host || 'smtp.gmail.com',
+            port: Number(firstDefinedEnv('SMTP_PORT', 'EMAIL_PORT') || 465),
+            secure: String(firstDefinedEnv('SMTP_SECURE', 'EMAIL_SECURE') || 'true') === 'true',
+            auth: { user, pass },
+            tls: { rejectUnauthorized: false },
+            family: 4, // 👈 Force IPv4 to fix ENETUNREACH on Render/Cloud hosts
+            connectionTimeout: 10000,
+            greetingTimeout: 10000,
+            socketTimeout: 15000
+          };
         }
 
         return nodemailer.createTransport(transportOptions);
       }
 
-      throw new Error('SMTP is not configured. Set SMTP_SERVICE or SMTP_HOST, SMTP_USER, and SMTP_PASS in backend/.env');
-    })();
+      throw new Error('Mail is not configured. Set SMTP_URL or SMTP_SERVICE/SMTP_HOST with SMTP_USER and SMTP_PASS (or EMAIL_* aliases) in backend/.env');
+    })().catch((err) => {
+      mailTransportPromise = null;
+      throw err;
+    });
   }
 
   return mailTransportPromise;
@@ -110,54 +230,96 @@ function renderVerificationPage(title, message) {
 </html>`;
 }
 
-async function sendVerificationEmail(user, verifyToken) {
-  const transporter = await getMailTransporter();
+async function sendVerificationEmail(user, verifyToken, otp) {
   const verifyLink = `${getAppBaseUrl()}/api/auth/verify/${verifyToken}`;
-  const info = await transporter.sendMail({
-    from: process.env.MAIL_FROM || process.env.SMTP_USER || 'no-reply@swaptome.local',
-    to: user.email,
-    subject: 'Verify Your Email',
-    html: `
-      <h2>Email Verification</h2>
-      <p>Hi ${user.name || 'there'},</p>
-      <p>Please verify your email address by clicking the button below:</p>
-      <p><a href="${verifyLink}" style="display:inline-block;padding:12px 18px;background:#e8820c;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;">Verify Account</a></p>
-      <p>If the button does not work, copy and paste this link into your browser:</p>
-      <p>${verifyLink}</p>
-    `
-  });
 
-  const previewUrl = nodemailer.getTestMessageUrl(info);
-  if (previewUrl) {
-    console.log('Verification email preview:', previewUrl);
+  if (!hasSmtpConfig()) {
+    console.warn('[SMTP] Configuration missing. Verification email skipped for:', user.email);
+    return { skipped: true, reason: 'SMTP is not configured', verifyLink, otp };
   }
 
-  return info;
+  try {
+    console.log(`[SMTP] Sending verification email to ${user.email}...`);
+    const transporter = await getMailTransporter();
+    const fromAddress = process.env.MAIL_FROM || process.env.SMTP_USER || 'no-reply@swaptome.local';
+
+    const info = await withTimeout(
+      transporter.sendMail({
+        from: `"SwapToMe" <${fromAddress}>`,
+        to: user.email,
+        subject: 'Verify Your Email - SwapToMe',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
+            <h2 style="color: #e8820c; margin-top: 0;">SwapToMe Email Verification</h2>
+            <p>Hi <strong>${user.name || 'there'}</strong>,</p>
+            <p>Thank you for signing up on SwapToMe! Please click the button below to verify your email address:</p>
+            <p style="margin: 24px 0;">
+              <a href="${verifyLink}" style="display:inline-block;padding:14px 24px;background:#e8820c;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;font-size:16px;">Verify My Account</a>
+            </p>
+            <p style="color: #666; font-size: 14px;">If the button doesn't work, copy and paste this link into your browser:</p>
+            <p style="color: #888; font-size: 13px; word-break: break-all;">${verifyLink}</p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+            <p style="color: #999; font-size: 12px;">If you did not request this, you can safely ignore this email.</p>
+          </div>
+        `
+      }),
+      10000,
+      'Verification email timed out while sending'
+    );
+
+    console.log(`[SMTP] ✅ Verification email sent to ${user.email}. MessageId: ${info.messageId}`);
+    return { info, verifyLink };
+  } catch (error) {
+    console.error(`[SMTP] ❌ Verification email send failed for ${user.email}:`, error?.message || error);
+    mailTransportPromise = null; // reset cache on failure
+    return { skipped: true, reason: error?.message || 'Verification email send failed', verifyLink, otp };
+  }
 }
 
 async function sendPasswordResetEmail(user, resetToken) {
-  const transporter = await getMailTransporter();
   const resetLink = `${getAppBaseUrl()}/api/auth/reset-password/${resetToken}`;
-  const info = await transporter.sendMail({
-    from: process.env.MAIL_FROM || process.env.SMTP_USER || 'no-reply@swaptome.local',
-    to: user.email,
-    subject: 'Reset Your Password',
-    html: `
-      <h2>Password Reset</h2>
-      <p>Hi ${user.name || 'there'},</p>
-      <p>Click the button below to set a new password:</p>
-      <p><a href="${resetLink}" style="display:inline-block;padding:12px 18px;background:#e8820c;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;">Reset Password</a></p>
-      <p>If the button does not work, copy and paste this link into your browser:</p>
-      <p>${resetLink}</p>
-    `
-  });
 
-  const previewUrl = nodemailer.getTestMessageUrl(info);
-  if (previewUrl) {
-    console.log('Password reset email preview:', previewUrl);
+  if (!hasSmtpConfig()) {
+    console.warn('[SMTP] Configuration missing. Password reset email skipped for:', user.email);
+    return { skipped: true, reason: 'SMTP is not configured', resetLink };
   }
 
-  return info;
+  try {
+    console.log(`[SMTP] Sending password reset email to ${user.email}...`);
+    const transporter = await getMailTransporter();
+    const fromAddress = process.env.MAIL_FROM || process.env.SMTP_USER || 'no-reply@swaptome.local';
+
+    const info = await withTimeout(
+      transporter.sendMail({
+        from: `"SwapToMe" <${fromAddress}>`,
+        to: user.email,
+        subject: 'Reset Your Password - SwapToMe',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
+            <h2 style="color: #e8820c; margin-top: 0;">Password Reset Request</h2>
+            <p>Hi <strong>${user.name || 'there'}</strong>,</p>
+            <p>We received a request to reset your SwapToMe password. Click the button below to set a new password:</p>
+            <p style="margin: 24px 0;">
+              <a href="${resetLink}" style="display:inline-block;padding:14px 24px;background:#e8820c;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;font-size:16px;">Reset Password</a>
+            </p>
+            <p style="color: #666; font-size: 14px;">This link will expire in 1 hour. If the button doesn't work, copy and paste this link into your browser:</p>
+            <p style="color: #888; font-size: 13px; word-break: break-all;">${resetLink}</p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+            <p style="color: #999; font-size: 12px;">If you did not request a password reset, you can safely ignore this email.</p>
+          </div>
+        `
+      }),
+      10000,
+      'Password reset email timed out while sending'
+    );
+
+    console.log(`[SMTP] ✅ Password reset email sent to ${user.email}. MessageId: ${info.messageId}`);
+    return { info, resetLink };
+  } catch (error) {
+    console.error(`[SMTP] ❌ Password reset email send failed for ${user.email}:`, error?.message || error);
+    mailTransportPromise = null; // reset cache on failure
+    return { skipped: true, reason: error?.message || 'Password reset email send failed', resetLink };
+  }
 }
 
 function csvEscape(value) {
@@ -265,8 +427,13 @@ app.post("/api/auth/signup", async (req, res) => {
         existingUser.verifyToken = verifyToken;
         existingUser.verifyTokenExpiresAt = verifyTokenExpiresAt;
         await existingUser.save();
-        await sendVerificationEmail(existingUser, verifyToken);
-        return res.json({ message: "Verification email resent ✅" });
+        const sendResult = await sendVerificationEmail(existingUser, verifyToken);
+        return res.json({
+          message: sendResult?.skipped
+            ? `Verification link generated but email service is not configured. Open this link to verify: ${sendResult.verifyLink}`
+            : "Verification link sent to your email ✅",
+          verificationLink: sendResult?.verifyLink
+        });
       }
 
       return res.status(400).json({ message: "Email already registered ❌" });
@@ -285,14 +452,17 @@ app.post("/api/auth/signup", async (req, res) => {
       lastLoginProvider: 'manual',
       isVerified: false,
       verifyToken,
-      verifyTokenExpiresAt
+      verifyTokenExpiresAt,
     });
 
-    await sendVerificationEmail(user, verifyToken);
+    const sendResult = await sendVerificationEmail(user, verifyToken);
 
     res.json({
       success: true,
-      message: "Signup successful. Verification email sent."
+      message: sendResult?.skipped
+        ? `Verification link generated but email service is not configured. Open this link to verify: ${sendResult.verifyLink}`
+        : "Verification link sent to your email ✅",
+      verificationLink: sendResult?.verifyLink
     });
 
   } catch (err) {
@@ -362,7 +532,7 @@ app.post("/api/auth/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.json({ message: "Wrong password ❌" });
 
-    if (user.blocked) return res.json({ message: "Account blocked" });
+    if (user.blocked) return res.status(403).json({ message: "Account blocked" });
 
     if (user.role !== 'admin' && user.isVerified === false) {
       return res.status(400).json({ message: "Please verify your email first" });
@@ -375,7 +545,7 @@ app.post("/api/auth/login", async (req, res) => {
 
     const token = jwt.sign({ userId: user._id, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
 
-    res.json({ message: 'Login successful', token, name: user.name, role: user.role });
+    res.json({ message: 'Login successful', token, name: user.name, role: user.role, email: user.email });
 
   } catch (err) {
     res.status(500).json({ message: "Server error ❌" });
@@ -413,7 +583,7 @@ app.post('/api/auth/resend-verification', async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.json({ message: 'If the email exists, a verification link has been sent ✅' });
+      return res.json({ message: 'If that email exists, a verification link has been sent ✅' });
     }
 
     if (user.isVerified) {
@@ -425,8 +595,15 @@ app.post('/api/auth/resend-verification', async (req, res) => {
     user.verifyTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await user.save();
 
-    await sendVerificationEmail(user, verifyToken);
-    res.json({ message: 'Verification email sent ✅' });
+    const sendResult = await sendVerificationEmail(user, verifyToken);
+
+    return res.json({
+      message: sendResult?.skipped
+        ? `Verification link generated but email service is not configured on the server. Open this link to verify: ${sendResult.verifyLink}`
+        : 'Verification link resent ✅',
+      skipped: !!sendResult?.skipped,
+      verificationLink: sendResult?.verifyLink
+    });
   } catch (err) {
     console.error('Resend verification error', err);
     res.status(500).json({ message: err?.message || 'Server error ❌' });
@@ -444,7 +621,15 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       user.resetPasswordToken = resetToken;
       user.resetPasswordExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
       await user.save();
-      await sendPasswordResetEmail(user, resetToken);
+      const sendResult = await sendPasswordResetEmail(user, resetToken);
+
+      return res.json({
+        message: sendResult?.skipped
+          ? 'Password reset link generated. Email service is not configured on the server.'
+          : 'If that email exists, a reset link has been sent ✅',
+        skipped: !!sendResult?.skipped,
+        resetLink: sendResult?.resetLink
+      });
     }
 
     res.json({ message: 'If that email exists, a reset link has been sent ✅' });
@@ -575,14 +760,35 @@ async function createBook(req, res) {
   try {
     console.log("FILES:", req.files);
 
+    const uploader = req.user?.userId ? await User.findById(req.user.userId) : null;
+    if (!uploader) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    if (uploader.blocked) {
+      return res.status(403).json({ success: false, error: 'Account blocked' });
+    }
+
     const files = Array.isArray(req.files) ? req.files : [];
-    const imageUrls = files.map((file) => file.path);
+    const imageUrls = [];
+
+    for (const file of files) {
+      const result = await cloudinary.uploader.upload(file.path, {
+        folder: "books"
+      });
+
+      imageUrls.push(result.secure_url || result.url || file.path);
+
+      await fs.unlink(file.path).catch(() => {});
+    }
+
     const book = new Book({
       title: req.body.title,
-      author: req.body.author || req.body.writer,
-      writer: req.body.writer || req.body.author,
+      author: req.body.author || req.body.writer || uploader.name,
+      writer: req.body.writer || req.body.author || uploader.name,
       price: req.body.price,
-      seller: req.body.seller,
+      seller: uploader.name || req.body.seller,
+      uploaderEmail: uploader.email || req.body.uploaderEmail || req.body.email || '',
       category: req.body.category,
       location: req.body.location,
       images: imageUrls
@@ -606,23 +812,32 @@ async function createBook(req, res) {
 
 app.post(
   "/add-book",
+  authMiddleware,
   upload.array("images", 5),
   createBook
 );
 
 app.post(
   "/api/add-book",
+  authMiddleware,
   upload.array("images", 5),
   createBook
 );
 
 // 📚 GET BOOKS
 async function listBooks(req, res) {
-  const shadowUsers = await User.find({ shadowBanned: true }).select('name');
-  const shadowNames = new Set(shadowUsers.map((user) => String(user.name || '').trim()));
+  await migrateLegacyBookImages();
+
+  const moderatedUsers = await User.find({ $or: [{ shadowBanned: true }, { blocked: true }] }).select('name email');
+  const moderatedNames = new Set(moderatedUsers.map((user) => String(user.name || '').trim().toLowerCase()).filter(Boolean));
+  const moderatedEmails = new Set(moderatedUsers.map((user) => String(user.email || '').trim().toLowerCase()).filter(Boolean));
   const books = await Book.find();
   const visibleBooks = books
-    .filter((book) => !shadowNames.has(String(book.seller || '').trim()))
+    .filter((book) => {
+      const sellerName = String(book.seller || '').trim().toLowerCase();
+      const uploaderEmail = String(book.uploaderEmail || book.email || '').trim().toLowerCase();
+      return !moderatedNames.has(sellerName) && !moderatedEmails.has(uploaderEmail);
+    })
     .sort((a, b) => {
       const featuredDelta = Number(Boolean(b.featured)) - Number(Boolean(a.featured));
       if (featuredDelta !== 0) return featuredDelta;

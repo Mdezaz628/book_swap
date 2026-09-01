@@ -7,6 +7,73 @@ function clearPersistedFields() {
   });
 }
 
+function rememberAuthEmail(email) {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (normalized) {
+    localStorage.setItem('lastAuthEmail', normalized);
+  }
+}
+
+function getRecoveryEmail(promptText) {
+  const currentEmail = getFirstExistingInputValue(["loginEmail", "signupEmail", "email"]).trim().toLowerCase();
+  const rememberedEmail = (localStorage.getItem('lastAuthEmail') || localStorage.getItem('email') || '').trim().toLowerCase();
+  const email = currentEmail || rememberedEmail;
+  if (email) return email;
+  if (typeof showAutoPopup === 'function') {
+    showAutoPopup(promptText || 'Enter your email first', 2200, 'Type your email in the login or signup form, then try again.');
+  } else {
+    alert(promptText || 'Enter your email first');
+  }
+  const fallbackField = document.getElementById('loginEmail') || document.getElementById('signupEmail') || document.getElementById('email');
+  fallbackField?.focus();
+  return '';
+}
+
+function setRecoveryButtonLoading(buttonId, loading, label) {
+  const button = document.getElementById(buttonId);
+  if (!button) return;
+
+  if (!button.dataset.originalLabel) {
+    button.dataset.originalLabel = button.innerHTML;
+  }
+
+  if (!button.dataset.loadingLabel) {
+    button.dataset.loadingLabel = label || button.textContent || 'Loading...';
+  }
+
+  button.disabled = loading;
+  button.style.opacity = loading ? '0.75' : '';
+  button.style.cursor = loading ? 'wait' : '';
+  button.setAttribute('aria-busy', loading ? 'true' : 'false');
+
+  if (loading) {
+    const text = button.dataset.loadingLabel;
+    button.innerHTML = `
+      <span style="display:inline-flex;align-items:center;gap:8px;">
+        <span style="width:14px;height:14px;border:2px solid rgba(232,130,12,.28);border-top-color:#e8820c;border-radius:50%;display:inline-block;animation:swaptome-spin .8s linear infinite;"></span>
+        <span>${text}</span>
+      </span>
+    `;
+  } else {
+    button.innerHTML = button.dataset.originalLabel;
+  }
+}
+
+async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 20000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    return await response.json();
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 function clearFields() {
   clearPersistedFields();
 }
@@ -339,6 +406,11 @@ function getApiBaseUrl() {
   const explicitBase = window.__API_BASE_URL__ || localStorage.getItem('apiBaseUrl') || '';
   if (explicitBase) return explicitBase.replace(/\/$/, '');
 
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0') {
+    return 'http://localhost:5000';
+  }
+
   // Default to production API URL. If you need to override for local dev,
   // set window.__API_BASE_URL__ or localStorage 'apiBaseUrl'.
   return 'https://swaptome-api.onrender.com';
@@ -355,24 +427,17 @@ function getProfileImageStorageKey(identity) {
 
 function setVerificationPending(email) {
   localStorage.setItem('verificationPending', '1');
-  if (email) {
-    localStorage.setItem('verificationPendingEmail', String(email).trim().toLowerCase());
-  }
   renderVerificationReminder();
 }
 
 function clearVerificationPending() {
   localStorage.removeItem('verificationPending');
-  localStorage.removeItem('verificationPendingEmail');
   renderVerificationReminder();
 }
 
 function renderVerificationReminder() {
   const pending = localStorage.getItem('verificationPending') === '1';
-  const pendingEmail = localStorage.getItem('verificationPendingEmail') || '';
-  const reminderText = pendingEmail
-    ? `Verification email sent to ${pendingEmail}. Check your inbox and spam folder.`
-    : 'Verification email sent. Check your inbox and spam folder.';
+  const reminderText = 'Verification link sent. Check your inbox.';
 
   document.querySelectorAll('[data-verification-reminder]').forEach((banner) => {
     if (!banner) return;
@@ -1368,6 +1433,7 @@ async function addBook() {
 
   const seller =
     localStorage.getItem("userName") || "User";
+  const uploaderEmail = localStorage.getItem("email") || localStorage.getItem("userEmail") || "";
 
 const imageInput = document.getElementById("imageInput");
 const files = imageInput.files;
@@ -1400,6 +1466,7 @@ formData.append("author", writer);
 formData.append("writer", writer);
 formData.append("price", price);
 formData.append("seller", seller);
+  formData.append("uploaderEmail", uploaderEmail);
 formData.append("category", category);
 formData.append("location", location || savedLocation || "Location not shared");
 
@@ -1412,9 +1479,12 @@ Array.from(files).forEach((file) => {
     setUploadingState(true);
 
     const response = await fetch(
-      "https://swaptome-api.onrender.com/add-book",
+      apiUrl("/add-book"),
       {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token") || localStorage.getItem("adminToken") || ""}`
+        },
         body: formData
       }
     );
@@ -1517,6 +1587,8 @@ async function signupUser() {
     return;
   }
 
+  rememberAuthEmail(email);
+
   try {
     const res = await fetch(apiUrl("/api/auth/signup"), {
       method: "POST",
@@ -1535,8 +1607,8 @@ async function signupUser() {
     const data = await res.json();
 
     // 🔥 SUCCESS CONDITION
-    if (data.message && data.message.toLowerCase().includes("verification email")) {
-      alert(data.message + " Check your inbox and click the link to activate your account.");
+    if (data.message && data.message.toLowerCase().includes("verification link")) {
+      alert(data.message + " Open the link in your email to verify your account.");
       setVerificationPending(email);
 
       // 👉 Form clear
@@ -1548,10 +1620,12 @@ async function signupUser() {
       clearFirstExistingInputs(["signupConfirmPassword", "confirmPassword"]);
 
       // 👉 Signup form hide
-      document.getElementById("signupForm").style.display = "none";
-
-      // 👉 Login form show
-      document.getElementById("loginForm").style.display = "block";
+      switchTab('login');
+      const loginEmailInput = document.getElementById('loginEmail');
+      if (loginEmailInput) {
+        loginEmailInput.value = String(email || '').trim();
+      }
+      document.getElementById('loginPassword')?.focus();
     } 
     else {
       alert(data.message || "Signup failed ❌"); // user exists etc.
@@ -1563,53 +1637,57 @@ async function signupUser() {
   }
 }
 
-async function resendVerificationEmail() {
-  const email = getFirstExistingInputValue(["loginEmail", "email"]).trim();
-  if (!email) {
-    alert("Enter your email first ❗");
-    return;
-  }
+async function forgotPassword() {
+  const email = getRecoveryEmail("Enter your email for password reset:");
+  if (!email) return;
 
+  setRecoveryButtonLoading('forgotPasswordBtn', true, 'Sending reset link...');
   try {
-    const res = await fetch(apiUrl("/api/auth/resend-verification"), {
+    const data = await fetchJsonWithTimeout(apiUrl("/api/auth/forgot-password"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email })
-    });
-    const data = await res.json();
-    const message = String(data.message || '');
-    if (message.toLowerCase().includes('smtp') || message.toLowerCase().includes('not configured') || message.toLowerCase().includes('smtp_service')) {
-      alert('Email service is not configured on the server. The verification email could not be sent. Please contact support or try again later.');
-      console.warn('Resend verification failed (SMTP not configured):', message);
-      return;
-    }
-    if (!res.ok) {
-      alert(message || 'Unable to send verification email ❌');
+    }, 20000);
+
+    if (data.skipped && data.resetLink) {
+      alert((data.message || "Reset link generated") + "\n\nDirect reset link:\n" + data.resetLink);
+      window.open(data.resetLink, '_blank', 'noopener,noreferrer');
       return;
     }
 
-    alert(message || "Verification email sent ✅");
+    alert(data.message || "If that email exists, a reset link has been sent ✅\nPlease check your Inbox and Spam/Junk folder.");
   } catch (err) {
     console.error(err);
-    alert("Unable to resend verification email ❌");
+    alert(err?.name === 'AbortError' ? 'Request timed out. Please check your network or try again.' : 'Unable to send reset link ❌');
+  } finally {
+    setRecoveryButtonLoading('forgotPasswordBtn', false);
   }
 }
 
-async function forgotPassword() {
-  const email = getFirstExistingInputValue(["loginEmail", "email"]).trim() || prompt("Enter your email for password reset:");
+async function resendVerificationEmail() {
+  const email = getRecoveryEmail("Enter your email for verification link:");
   if (!email) return;
 
+  setRecoveryButtonLoading('resendVerificationBtn', true, 'Sending verification...');
   try {
-    const res = await fetch(apiUrl("/api/auth/forgot-password"), {
+    const data = await fetchJsonWithTimeout(apiUrl("/api/auth/resend-verification"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email })
-    });
-    const data = await res.json();
-    alert(data.message || "Reset link sent ✅");
+    }, 20000);
+
+    if (data.skipped && data.verificationLink) {
+      alert((data.message || "Verification link generated") + "\n\nDirect verification link:\n" + data.verificationLink);
+      window.open(data.verificationLink, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    alert(data.message || "Verification link sent ✅\nPlease check your Inbox and Spam/Junk folder.");
   } catch (err) {
     console.error(err);
-    alert("Unable to send reset link ❌");
+    alert(err?.name === 'AbortError' ? 'Request timed out. Please check your network or try again.' : 'Unable to resend verification link ❌');
+  } finally {
+    setRecoveryButtonLoading('resendVerificationBtn', false);
   }
 }
 
@@ -1634,6 +1712,7 @@ async function loginUser() {
     if (data.message.includes("Login successful"))  {
       localStorage.setItem("token", data.token);
       localStorage.setItem("userName", data.name); // ⭐ ADD THIS
+      localStorage.setItem("email", data.email || normalizedEmail);
       localStorage.setItem("role", data.role || "user");
       clearVerificationPending();
       if (data.role === "admin" || normalizedEmail === adminEmail) {
@@ -1652,7 +1731,7 @@ async function loginUser() {
         window.location.href = redirectTarget;
       }, 1000);
     } else if ((data.message || '').toLowerCase().includes('verify your email first')) {
-      const retry = confirm("Please verify your email first. Resend the verification email now?");
+      const retry = confirm("Please verify your email first. Resend the verification link now?");
       if (retry) await resendVerificationEmail();
     } else {
       alert(data.message);
@@ -1685,10 +1764,10 @@ function resolveBookImageSrc(imagePath) {
   }
 
   if (normalizedPath.startsWith("/") || normalizedPath.startsWith("uploads/")) {
-    return `https://swaptome-api.onrender.com${normalizedPath.startsWith("/") ? "" : "/"}${normalizedPath}`;
+    return `${getApiBaseUrl()}${normalizedPath.startsWith("/") ? "" : "/"}${normalizedPath}`;
   }
 
-  return `https://swaptome-api.onrender.com/uploads/${normalizedPath}`;
+  return `${getApiBaseUrl()}/uploads/${normalizedPath}`;
 }
 
 function getBookLocation(book) {
@@ -1713,7 +1792,7 @@ window.addEventListener("DOMContentLoaded", syncBookLocationFromSignup);
 
 async function loadBooksHome() {
   try {
-    const res = await fetch("https://swaptome-api.onrender.com/api/books");
+    const res = await fetch(apiUrl("/api/books"));
     if (!res.ok) {
       console.warn('Books API returned', res.status);
       const container = document.getElementById("booksContainer");
@@ -1746,6 +1825,7 @@ async function loadBooksHome() {
 
       <img 
           src="${resolveBookImageSrc(book.images && book.images.length > 0 ? book.images[0] : '')}"
+          onerror="this.onerror=null;this.src='https://via.placeholder.com/300x300?text=Book+Cover'"
         style="width:100%; height:120px; object-fit:cover; border-radius:8px;"
       />
 
@@ -1801,6 +1881,7 @@ async function loadMyUploadsHome() {
         <div class="book-card" style="width:100%; cursor:default;">
           <div class="book-info">
             <div class="book-title">Log in to see uploads</div>
+       onerror="this.onerror=null;this.src='https://via.placeholder.com/300x300?text=Book+Cover'"
             <div class="book-author">Your listed books will appear here after sign in.</div>
           </div>
         </div>
@@ -1808,7 +1889,7 @@ async function loadMyUploadsHome() {
       return;
     }
 
-    const res = await fetch("https://swaptome-api.onrender.com/api/books");
+    const res = await fetch(apiUrl("/api/books"));
     if (!res.ok) {
       console.warn('Books API returned', res.status);
       container.innerHTML = `
@@ -1844,6 +1925,7 @@ async function loadMyUploadsHome() {
         <div class="book-card">
           <img
             src="${resolveBookImageSrc(book.images && book.images.length > 0 ? book.images[0] : '')}"
+            onerror="this.onerror=null;this.src='https://via.placeholder.com/300x300?text=Book+Cover'"
             style="width:100%; height:120px; object-fit:cover; border-radius:8px;"
           />
 
@@ -1868,7 +1950,7 @@ async function loadFeaturedBooksSlider() {
   if (!slider) return;
 
   try {
-    const res = await fetch("https://swaptome-api.onrender.com/api/books");
+    const res = await fetch(apiUrl("/api/books"));
     if (!res.ok) {
       console.warn('Featured books API returned', res.status);
       slider.innerHTML = `

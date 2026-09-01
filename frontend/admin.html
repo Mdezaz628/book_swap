@@ -659,7 +659,7 @@
       <div class="card panel">
         <h2>Pending Reports</h2>
         <div class="toolbar" style="align-items:center;gap:8px">
-          <input id="reportsSearch" class="filter-input" placeholder="Search reports by type, target or reason">
+          <input type="search" id="reportsSearch" name="reportsSearch" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="search" class="filter-input" placeholder="Search reports by type, target or reason">
           <button class="btn btn-ghost" id="reportsClearBtn" type="button">Clear</button>
           <div style="flex:1"></div>
           <button class="btn btn-ghost report-filter" data-status="pending">Pending</button>
@@ -687,7 +687,7 @@
       <div class="card panel">
         <h2>Users</h2>
         <div class="toolbar" style="margin-bottom:10px">
-          <input id="usersSearch" class="filter-input" placeholder="Search users by name, email, college or city">
+          <input type="search" id="usersSearch" name="usersSearch" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="search" class="filter-input" placeholder="Search users by name, email, college or city">
           <button class="btn btn-ghost" id="usersClearBtn" type="button">Clear</button>
         </div>
         <div class="table-wrap"><table id="usersTable"><thead><tr><th>Name</th><th>Email</th><th>Flags</th><th>Risk</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
@@ -699,10 +699,10 @@
       <div class="card panel">
         <h2>Books</h2>
         <div class="toolbar" style="margin-bottom:10px">
-          <input id="booksSearch" class="filter-input" placeholder="Search books by title, seller or category">
+          <input type="search" id="booksSearch" name="booksSearch" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="search" class="filter-input" placeholder="Search books by title, seller, category or uploader email">
           <button class="btn btn-ghost" id="booksClearBtn" type="button">Clear</button>
         </div>
-        <div class="table-wrap"><table id="booksTable"><thead><tr><th>Title</th><th>Seller</th><th>Category</th><th>Flags</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
+        <div class="table-wrap"><table id="booksTable"><thead><tr><th>Title</th><th>Seller</th><th>Uploader Email</th><th>Category</th><th>Flags</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
       </div>
     </div>
 
@@ -710,7 +710,7 @@
       <div class="card panel">
         <h2>Feedback Queue</h2>
         <div class="toolbar" style="align-items:center;gap:8px;margin-bottom:8px">
-          <input id="feedbackSearch" class="filter-input" placeholder="Search feedback by category, message or email">
+          <input type="search" id="feedbackSearch" name="feedbackSearch" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="search" class="filter-input" placeholder="Search feedback by category, message or email">
           <button class="btn btn-ghost" id="feedbackClearBtn" type="button">Clear</button>
         </div>
         <div class="table-wrap"><table id="feedbackTable"><thead><tr><th>Type</th><th>User</th><th>Category</th><th>Rating</th><th>Status</th><th>Action</th></tr></thead><tbody></tbody></table></div>
@@ -729,7 +729,7 @@
       <div class="card panel">
         <h2>Verification Queue</h2>
         <div class="toolbar" style="align-items:center;gap:8px;margin-bottom:8px">
-          <input id="verificationSearch" class="filter-input" placeholder="Search verification by name or email">
+          <input type="search" id="verificationSearch" name="verificationSearch" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="search" class="filter-input" placeholder="Search verification by name or email">
           <button class="btn btn-ghost" id="verificationClearBtn" type="button">Clear</button>
         </div>
         <div class="table-wrap"><table id="verificationTable"><thead><tr><th>User</th><th>Email</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
@@ -748,7 +748,7 @@
       <div class="card panel">
         <h2>Leaderboard</h2>
         <div class="toolbar" style="align-items:center;gap:8px;margin-bottom:8px">
-          <input id="leaderboardSearch" class="filter-input" placeholder="Search leaderboard by name or email">
+          <input type="search" id="leaderboardSearch" name="leaderboardSearch" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="search" class="filter-input" placeholder="Search leaderboard by name or email">
           <button class="btn btn-ghost" id="leaderboardClearBtn" type="button">Clear</button>
         </div>
         <div class="table-wrap"><table id="leaderboardTable"><thead><tr><th>User</th><th>Email</th><th>Score</th></tr></thead><tbody></tbody></table></div>
@@ -764,7 +764,7 @@
         <h2>Admin Inbox</h2>
         <p class="panel-copy">All user messages mirrored to the admin account are shown here.</p>
         <div class="toolbar" style="margin-bottom:12px;flex-wrap:wrap;gap:10px">
-          <input id="adminInboxSearch" class="filter-input" placeholder="Search user or message">
+          <input type="search" id="adminInboxSearch" name="adminInboxSearch" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="search" class="filter-input" placeholder="Search user or message">
           <button class="btn btn-ghost" id="adminInboxAllBtn" type="button">All</button>
           <button class="btn btn-ghost" id="adminInboxUnreadBtn" type="button">Unread</button>
           <button class="btn btn-ghost" id="adminInboxImportantBtn" type="button">Important</button>
@@ -1199,6 +1199,26 @@
       renderReports(filtered);
     }
 
+    function normalizeBookOwner(value) {
+      return String(value || '').trim().toLowerCase();
+    }
+
+    function resolveUploaderEmail(book) {
+      const directEmail = String(book?.uploaderEmail || book?.email || '').trim();
+      if (directEmail) return directEmail;
+
+      const ownerKey = normalizeBookOwner(book?.seller);
+      if (!ownerKey) return '';
+
+      const matchedUser = usersData.find((user) => {
+        const userName = normalizeBookOwner(user?.name);
+        const userEmail = normalizeBookOwner(user?.email);
+        return userName === ownerKey || userEmail === ownerKey;
+      });
+
+      return matchedUser?.email || matchedUser?.name || '';
+    }
+
     function filterFeedback() {
       const q = (document.getElementById('feedbackSearch')?.value || '').trim().toLowerCase();
       if (!q) return renderFeedback(feedbackData);
@@ -1323,7 +1343,8 @@
         const isFeatured = item.featured === 'Featured';
         const isTrending = item.featured === 'Trending';
         const isUrgent = item.featured === 'Urgent Sale';
-        row.innerHTML = `<td>${item.title || ''}</td><td>${item.seller || ''}</td><td>${item.category || ''}</td><td>${item.featured ? `<span class="tag good">${item.featured}</span>` : '<span class="tag">Normal</span>'}${item.reviewStatus && item.reviewStatus !== 'approved' ? `<span class="tag warn">${item.reviewStatus}</span>` : ''}${(item.reportCount || 0) > 0 ? `<span class="tag bad">Reports: ${item.reportCount}</span>` : ''}</td><td class="action-cell"><div class="toolbar compact"><button class="btn btn-ghost${isFeatured ? ' btn-active' : ''}" type="button" data-book-action="feature">${isFeatured ? 'Featured' : 'Feature'}</button><button class="btn btn-ghost${isTrending ? ' btn-active' : ''}" type="button" data-book-action="trending">${isTrending ? 'Trending' : 'Trending'}</button><button class="btn btn-ghost${isUrgent ? ' btn-active' : ''}" type="button" data-book-action="urgent">${isUrgent ? 'Urgent' : 'Urgent'}</button><button class="btn btn-ghost${item.reviewStatus === 'approved' ? ' btn-active' : ''}" type="button" data-book-action="review">${item.reviewStatus === 'approved' ? 'Reviewed' : 'Review'}</button><button class="btn btn-danger" type="button" data-book-action="delete">Delete</button></div></td>`;
+        const uploaderEmail = resolveUploaderEmail(item);
+        row.innerHTML = `<td>${item.title || ''}</td><td>${item.seller || ''}</td><td>${uploaderEmail}</td><td>${item.category || ''}</td><td>${item.featured ? `<span class="tag good">${item.featured}</span>` : '<span class="tag">Normal</span>'}${item.reviewStatus && item.reviewStatus !== 'approved' ? `<span class="tag warn">${item.reviewStatus}</span>` : ''}${(item.reportCount || 0) > 0 ? `<span class="tag bad">Reports: ${item.reportCount}</span>` : ''}</td><td class="action-cell"><div class="toolbar compact"><button class="btn btn-ghost${isFeatured ? ' btn-active' : ''}" type="button" data-book-action="feature">${isFeatured ? 'Featured' : 'Feature'}</button><button class="btn btn-ghost${isTrending ? ' btn-active' : ''}" type="button" data-book-action="trending">${isTrending ? 'Trending' : 'Trending'}</button><button class="btn btn-ghost${isUrgent ? ' btn-active' : ''}" type="button" data-book-action="urgent">${isUrgent ? 'Urgent' : 'Urgent'}</button><button class="btn btn-ghost${item.reviewStatus === 'approved' ? ' btn-active' : ''}" type="button" data-book-action="review">${item.reviewStatus === 'approved' ? 'Reviewed' : 'Review'}</button><button class="btn btn-danger" type="button" data-book-action="delete">Delete</button></div></td>`;
         row.querySelector('[data-book-action="feature"]').addEventListener('click', () => setBookFeatured(item._id, isFeatured ? '' : 'Featured'));
         row.querySelector('[data-book-action="trending"]').addEventListener('click', () => setBookFeatured(item._id, isTrending ? '' : 'Trending'));
         row.querySelector('[data-book-action="urgent"]').addEventListener('click', () => setBookFeatured(item._id, isUrgent ? '' : 'Urgent Sale'));
@@ -1335,7 +1356,7 @@
     function filterBooks() {
       const q = (document.getElementById('booksSearch')?.value || '').trim().toLowerCase();
       if (!q) return renderBooks(booksData);
-      const filtered = booksData.filter(b => ((b.title||'') + ' ' + (b.seller||'') + ' ' + (b.category||'')).toLowerCase().includes(q));
+      const filtered = booksData.filter(b => ((b.title||'') + ' ' + (b.seller||'') + ' ' + resolveUploaderEmail(b) + ' ' + (b.uploaderEmail||'') + ' ' + (b.email||'') + ' ' + (b.category||'')).toLowerCase().includes(q));
       renderBooks(filtered);
     }
 

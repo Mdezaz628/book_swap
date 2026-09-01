@@ -1,4 +1,6 @@
 import express from "express";
+import fs from "fs/promises";
+import cloudinary from "../config/cloudinary.js";
 import upload from "../middleware/multer.js";
 import Book from "../models/Book.js";
 
@@ -10,19 +12,30 @@ router.post("/add-book", upload.array("images", 5), async (req, res) => {
     console.log("BODY 👉", req.body);
     console.log("FILES 👉", req.files);
 
-    const { title, writer, price, seller, category, location } = req.body;
+    const { title, writer, price, seller, category, location, uploaderEmail, email } = req.body;
 
     if (!title || !writer || !price || !seller || !category) {
       return res.status(400).json({ message: "Writer name is required ❗" });
     }
 
-    const imageNames = req.files ? req.files.map(file => file.path) : [];
+    const imageNames = [];
+
+    for (const file of req.files || []) {
+      const result = await cloudinary.uploader.upload(file.path, {
+        folder: "books"
+      });
+
+      imageNames.push(result.secure_url || result.url || file.path);
+
+      await fs.unlink(file.path).catch(() => {});
+    }
 
     const newBook = new Book({
       title,
       writer,
       price,
       seller,
+      uploaderEmail: uploaderEmail || email || '',
       category,
       location,
       images: imageNames

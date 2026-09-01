@@ -12,6 +12,8 @@ const bookSchema = new mongoose.Schema({
 
   seller: String,
 
+  uploaderEmail: String,
+
   category: String,
 
   location: String,
