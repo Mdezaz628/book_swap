@@ -119,16 +119,24 @@ function firstDefinedEnv(...names) {
   return '';
 }
 
-function hasSmtpConfig() {
+function getSmtpConfig() {
   const transportUrl = firstDefinedEnv('SMTP_URL', 'MAIL_URL', 'EMAIL_URL');
-  if (transportUrl) return true;
+  if (transportUrl) return { transportUrl };
 
-  const user = firstDefinedEnv('SMTP_USER', 'EMAIL_USER');
-  const pass = firstDefinedEnv('SMTP_PASS', 'EMAIL_PASS');
-  const service = firstDefinedEnv('SMTP_SERVICE', 'EMAIL_SERVICE');
-  const host = firstDefinedEnv('SMTP_HOST', 'EMAIL_HOST');
+  const user = firstDefinedEnv('SMTP_USER', 'EMAIL_USER', 'GMAIL_USER', 'MAIL_USER') || 'ezazmdrk3929@gmail.com';
+  const pass = firstDefinedEnv('SMTP_PASS', 'EMAIL_PASS', 'GMAIL_PASS', 'MAIL_PASS', 'GMAIL_APP_PASSWORD') || 'khvbcrgfphybpxgx';
+  const service = firstDefinedEnv('SMTP_SERVICE', 'EMAIL_SERVICE', 'MAIL_SERVICE') || 'gmail';
+  const host = firstDefinedEnv('SMTP_HOST', 'EMAIL_HOST', 'MAIL_HOST') || 'smtp.gmail.com';
+  const port = Number(firstDefinedEnv('SMTP_PORT', 'EMAIL_PORT', 'MAIL_PORT') || 465);
+  const secure = String(firstDefinedEnv('SMTP_SECURE', 'EMAIL_SECURE') || 'true') === 'true';
 
-  return Boolean(user && pass && (service || host));
+  return { user, pass, service, host, port, secure };
+}
+
+function hasSmtpConfig() {
+  const config = getSmtpConfig();
+  if (config.transportUrl) return true;
+  return Boolean(config.user && config.pass);
 }
 
 function withTimeout(promise, ms, message) {
@@ -146,46 +154,35 @@ function withTimeout(promise, ms, message) {
 async function getMailTransporter() {
   if (!mailTransportPromise) {
     mailTransportPromise = (async () => {
-      const transportUrl = firstDefinedEnv('SMTP_URL', 'MAIL_URL', 'EMAIL_URL');
+      const config = getSmtpConfig();
 
-      if (transportUrl) {
-        return nodemailer.createTransport(transportUrl);
+      if (config.transportUrl) {
+        return nodemailer.createTransport(config.transportUrl);
       }
 
-      if (hasSmtpConfig()) {
-        const user = firstDefinedEnv('SMTP_USER', 'EMAIL_USER');
-        const pass = firstDefinedEnv('SMTP_PASS', 'EMAIL_PASS');
-        const service = firstDefinedEnv('SMTP_SERVICE', 'EMAIL_SERVICE');
-        const host = firstDefinedEnv('SMTP_HOST', 'EMAIL_HOST');
-
+      if (config.user && config.pass) {
         let transportOptions;
 
-        if (service && service.toLowerCase() === 'gmail') {
+        if (config.service && config.service.toLowerCase() === 'gmail') {
           transportOptions = {
             host: 'smtp.gmail.com',
             port: 465,
             secure: true,
-            auth: { user, pass },
+            auth: { user: config.user, pass: config.pass },
             tls: { rejectUnauthorized: false },
             family: 4, // 👈 Force IPv4 to fix ENETUNREACH on Render/Cloud hosts
             connectionTimeout: 10000,
             greetingTimeout: 10000,
             socketTimeout: 15000
           };
-        } else if (service) {
-          transportOptions = {
-            service,
-            auth: { user, pass },
-            family: 4
-          };
         } else {
           transportOptions = {
-            host: host || 'smtp.gmail.com',
-            port: Number(firstDefinedEnv('SMTP_PORT', 'EMAIL_PORT') || 465),
-            secure: String(firstDefinedEnv('SMTP_SECURE', 'EMAIL_SECURE') || 'true') === 'true',
-            auth: { user, pass },
+            host: config.host,
+            port: config.port,
+            secure: config.secure,
+            auth: { user: config.user, pass: config.pass },
             tls: { rejectUnauthorized: false },
-            family: 4, // 👈 Force IPv4 to fix ENETUNREACH on Render/Cloud hosts
+            family: 4,
             connectionTimeout: 10000,
             greetingTimeout: 10000,
             socketTimeout: 15000
@@ -195,7 +192,7 @@ async function getMailTransporter() {
         return nodemailer.createTransport(transportOptions);
       }
 
-      throw new Error('Mail is not configured. Set SMTP_URL or SMTP_SERVICE/SMTP_HOST with SMTP_USER and SMTP_PASS (or EMAIL_* aliases) in backend/.env');
+      throw new Error('Mail is not configured.');
     })().catch((err) => {
       mailTransportPromise = null;
       throw err;
@@ -206,6 +203,7 @@ async function getMailTransporter() {
 }
 
 function renderVerificationPage(title, message) {
+  const clientUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'https://swaptome.vercel.app';
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -224,7 +222,7 @@ function renderVerificationPage(title, message) {
   <div class="card">
     <h1>${title}</h1>
     <p>${message}</p>
-    <a href="${getAppBaseUrl()}">Go to app</a>
+    <a href="${clientUrl}">Go to app</a>
   </div>
 </body>
 </html>`;
@@ -430,7 +428,9 @@ app.post("/api/auth/signup", async (req, res) => {
         const sendResult = await sendVerificationEmail(existingUser, verifyToken);
         return res.json({
           message: sendResult?.skipped
-            ? `Verification link generated but email service is not configured. Open this link to verify: ${sendResult.verifyLink}`
+            ? (sendResult?.reason && sendResult.reason !== 'SMTP is not configured'
+                ? `Email delivery failed (${sendResult.reason}). Open this link to verify: ${sendResult.verifyLink}`
+                : `Verification link generated but email service is not configured. Open this link to verify: ${sendResult.verifyLink}`)
             : "Verification link sent to your email ✅",
           verificationLink: sendResult?.verifyLink
         });
@@ -460,7 +460,9 @@ app.post("/api/auth/signup", async (req, res) => {
     res.json({
       success: true,
       message: sendResult?.skipped
-        ? `Verification link generated but email service is not configured. Open this link to verify: ${sendResult.verifyLink}`
+        ? (sendResult?.reason && sendResult.reason !== 'SMTP is not configured'
+            ? `Email delivery failed (${sendResult.reason}). Open this link to verify: ${sendResult.verifyLink}`
+            : `Verification link generated but email service is not configured. Open this link to verify: ${sendResult.verifyLink}`)
         : "Verification link sent to your email ✅",
       verificationLink: sendResult?.verifyLink
     });
@@ -599,7 +601,9 @@ app.post('/api/auth/resend-verification', async (req, res) => {
 
     return res.json({
       message: sendResult?.skipped
-        ? `Verification link generated but email service is not configured on the server. Open this link to verify: ${sendResult.verifyLink}`
+        ? (sendResult?.reason && sendResult.reason !== 'SMTP is not configured'
+            ? `Email delivery failed (${sendResult.reason}). Open this link to verify: ${sendResult.verifyLink}`
+            : `Verification link generated but email service is not configured on the server. Open this link to verify: ${sendResult.verifyLink}`)
         : 'Verification link resent ✅',
       skipped: !!sendResult?.skipped,
       verificationLink: sendResult?.verifyLink
@@ -625,7 +629,9 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
       return res.json({
         message: sendResult?.skipped
-          ? 'Password reset link generated. Email service is not configured on the server.'
+          ? (sendResult?.reason && sendResult.reason !== 'SMTP is not configured'
+              ? `Email delivery failed (${sendResult.reason}). Open this link to reset password:`
+              : 'Password reset link generated. Email service is not configured on the server.')
           : 'If that email exists, a reset link has been sent ✅',
         skipped: !!sendResult?.skipped,
         resetLink: sendResult?.resetLink
