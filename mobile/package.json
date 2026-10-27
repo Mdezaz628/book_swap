@@ -1,0 +1,8 @@
+{
+  "name": "swaptome-mobile",
+  "version": "1.0.0",
+  "description": "SwapToMe Mobile App",
+  "scripts": {
+    "start": "npx serve . --listen 4000"
+  }
+}

@@ -1,34 +1,43 @@
-# SwapToMe Mobile App (Flutter)
+# SwapToMe Mobile App
 
-A cross-platform mobile app for **SwapToMe** (India's college textbook marketplace), built with Flutter & Dart, sharing the exact same backend and database.
+SwapToMe's dedicated mobile experience, connected directly to the live backend (`https://swaptome-api.onrender.com`) and MongoDB database.
 
-## Features
-- **Marketplace Browsing**: Live book listings with photo cards, prices, and locations.
-- **Search & Filters**: Instant search by book title/author/location and category chips (Engineering, Medical, Exam Prep, etc.).
-- **Book Details**: Full-screen book showcase with image gallery, seller info, and direct chat.
-- **Sell / Add Book**: Post new listings with camera/gallery photos, price, condition, and location.
-- **User Authentication**: Login, Sign Up, Email verification, and session persistence.
-- **Chat & Messaging**: In-app buyer & seller conversation rooms.
-- **Same Backend**: Connects directly to `https://swaptome-api.onrender.com`.
+---
 
-## Requirements
-- Flutter SDK (3.0.0 or later)
-- Android Studio / VS Code with Flutter extension
-- Android Device or Emulator / iOS Simulator
+## ⚡ Option 1: Instant Run (No Flutter SDK needed!)
 
-## Getting Started
+You can run and test this mobile app immediately right now in your browser or phone:
 
-1. Navigate to the mobile folder:
+### Method A — Using NPM:
 ```bash
 cd mobile
+npm start
 ```
+Then open `http://localhost:4000` in your browser. (Press `F12` and toggle the Device/Mobile toolbar in Chrome for the native phone viewport).
 
-2. Install dependencies:
+### Method B — Direct in Browser:
+Simply double-click [`index.html`](index.html) in the `mobile` folder to open it directly in your browser.
+
+---
+
+## 📱 Option 2: Native Flutter App (`lib/`)
+
+The full native Flutter & Dart codebase is ready in `lib/`:
 ```bash
+cd mobile
 flutter pub get
-```
-
-3. Run the app:
-```bash
 flutter run
 ```
+*(Requires Flutter SDK installed on your system).*
+
+---
+
+## 🌟 Mobile Features Included:
+- **Campus Textbook Feed:** Live listings fetched from `https://swaptome-api.onrender.com/api/books`.
+- **Category Filter Pills:** All, Engineering, Medical, Management, Law, Arts, Exam Prep, Novels.
+- **Search:** Real-time search by title, author, or campus location.
+- **Book Details Sheet:** Image preview, verified student seller card, and location.
+- **Sell Book (FAB):** Post new listings with photo upload, title, author, category, and price.
+- **In-App Messaging:** Direct chat with sellers to buy or swap textbooks.
+- **User Authentication:** Login, registration with college/campus, and session persistence.
+- **Bottom Navigation:** Browse, Messages, and Account tabs.
