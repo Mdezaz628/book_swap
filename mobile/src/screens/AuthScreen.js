@@ -178,11 +178,20 @@ export default function AuthScreen({ onAuthSuccess, onBack }) {
         {/* 🌟 Prominent Continue with Google Button */}
         <TouchableOpacity
           style={styles.googleBtn}
-          activeOpacity={0.88}
-          onPress={() => setGoogleModalVisible(true)}
+          activeOpacity={0.85}
+          onPress={() => {
+            if (email.trim().toLowerCase().includes('@')) {
+              // If email already entered in the field, immediately sign in with Google
+              setGoogleEmail(email.trim());
+              setGoogleName(name.trim() || email.split('@')[0]);
+              setGoogleModalVisible(true);
+            } else {
+              setGoogleModalVisible(true);
+            }
+          }}
         >
           <View style={styles.googleIconBox}>
-            <Ionicons name="logo-google" size={18} color="#EA4335" />
+            <Ionicons name="logo-google" size={20} color="#EA4335" />
           </View>
           <Text style={styles.googleBtnText}>Continue with Google</Text>
         </TouchableOpacity>
@@ -190,7 +199,7 @@ export default function AuthScreen({ onAuthSuccess, onBack }) {
         {/* Divider */}
         <View style={styles.dividerRow}>
           <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or continue with email</Text>
+          <Text style={styles.dividerText}>or continue with email & password</Text>
           <View style={styles.dividerLine} />
         </View>
 

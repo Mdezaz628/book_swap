@@ -117,9 +117,11 @@ export default function HomeScreen({ user, onSelectBook, onNavigateSell, onOpenA
               </Text>
             </View>
           ) : (
-            <TouchableOpacity style={styles.signInBtn} onPress={onOpenAuth}>
-              <Ionicons name="log-in-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.signInBtnText}>Sign In</Text>
+            <TouchableOpacity style={styles.googleHomeBtn} onPress={onOpenAuth}>
+              <View style={styles.googleHomeIconBox}>
+                <Ionicons name="logo-google" size={14} color="#EA4335" />
+              </View>
+              <Text style={styles.googleHomeBtnText}>Sign in with Google</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -344,19 +346,26 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#94A3B8',
   },
-  signInBtn: {
+  googleHomeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: Radii.sm,
     gap: 6,
+    elevation: 2,
   },
-  signInBtnText: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '700',
+  googleHomeIconBox: {
+    width: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleHomeBtnText: {
+    color: '#1F2937',
+    fontSize: 11,
+    fontWeight: '800',
   },
   userBadge: {
     flexDirection: 'row',

@@ -93,6 +93,7 @@ export default function App() {
             user={user}
             onOpenAuth={() => setAuthVisible(true)}
             onLogout={() => setUser(null)}
+            onAuthSuccess={handleAuthSuccess}
           />
         );
       default:
