@@ -233,100 +233,56 @@ function renderVerificationPage(title, message) {
 }
 
 async function sendUnifiedEmail({ to, subject, html, text, fromName = 'SwapToMe' }) {
-  const brevoApiKey = firstDefinedEnv('BREVO_API_KEY', 'SENDINBLUE_API_KEY');
   const resendApiKey = firstDefinedEnv('RESEND_API_KEY');
-  const fromEmail = firstDefinedEnv('MAIL_FROM', 'SMTP_USER', 'EMAIL_USER', 'GMAIL_USER') || 'ezazmdrk3929@gmail.com';
 
-  // 1. Try Brevo HTTPS REST API (Port 443 - Never blocked on Render)
-  if (brevoApiKey) {
-    console.log(`[Email] Sending via Brevo REST API (HTTPS) to ${to}...`);
-    const res = await withTimeout(
-      fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'api-key': brevoApiKey,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          sender: { name: fromName, email: fromEmail },
-          to: [{ email: to }],
-          subject,
-          htmlContent: html,
-          textContent: text || undefined
-        })
-      }),
-      8000,
-      'Brevo API request timed out'
-    );
-    if (!res.ok) {
-      const errBody = await res.text();
-      throw new Error(`Brevo API Error (${res.status}): ${errBody}`);
-    }
-    const data = await res.json();
-    console.log(`[Email] ✅ Sent via Brevo API! MessageId: ${data.messageId || 'ok'}`);
-    return { success: true, provider: 'brevo', info: data };
+  // ONLY USE RESEND FOR EMAIL DELIVERY
+  if (!resendApiKey) {
+    throw new Error('RESEND_API_KEY is missing! Please add your Resend API key in Render Dashboard -> Environment or backend/.env.');
   }
 
-  // 2. Try Resend HTTPS REST API (Port 443 - Never blocked on Render)
-  if (resendApiKey) {
-    console.log(`[Email] Sending via Resend REST API (HTTPS) to ${to}...`);
-    const resendFrom = firstDefinedEnv('RESEND_FROM', 'MAIL_FROM_RESEND') || `${fromName} <onboarding@resend.dev>`;
-    const recipients = Array.isArray(to) ? to : [String(to).trim()];
+  console.log(`[Email] Sending via Resend REST API (HTTPS) to ${to}...`);
+  const resendFrom = firstDefinedEnv('RESEND_FROM', 'MAIL_FROM_RESEND') || `${fromName} <onboarding@resend.dev>`;
+  const recipients = Array.isArray(to) ? to : [String(to).trim()];
 
-    const res = await withTimeout(
-      fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          from: resendFrom,
-          to: recipients,
-          subject,
-          html,
-          text: text || undefined
-        })
-      }),
-      8000,
-      'Resend API request timed out'
-    );
-
-    if (!res.ok) {
-      const errBody = await res.text();
-      let errorMsg = errBody;
-      try {
-        const parsed = JSON.parse(errBody);
-        if (parsed.message) errorMsg = parsed.message;
-      } catch (_) {}
-      throw new Error(`Resend API Error (${res.status}): ${errorMsg}`);
-    }
-
-    const data = await res.json();
-    console.log(`[Email] ✅ Sent via Resend API! ID: ${data.id || 'ok'}`);
-    return { success: true, provider: 'resend', info: data };
-  }
-
-  // 3. Fallback to Nodemailer SMTP (e.g. Gmail for local development)
-  if (hasSmtpConfig()) {
-    console.log(`[Email] Sending via SMTP to ${to}...`);
-    const transporter = await getMailTransporter();
-    const info = await withTimeout(
-      transporter.sendMail({
-        from: `"${fromName}" <${fromEmail}>`,
-        to,
+  const res = await withTimeout(
+    fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: resendFrom,
+        to: recipients,
         subject,
         html,
-        text
-      }),
-      8000,
-      'SMTP connection timed out (Render blocks standard SMTP ports 465/587 on free tier; add RESEND_API_KEY or BREVO_API_KEY in Render for instant HTTP email delivery)'
-    );
-    console.log(`[Email] ✅ Sent via SMTP! MessageId: ${info.messageId}`);
-    return { success: true, provider: 'smtp', info };
+        text: text || undefined
+      })
+    }),
+    12000,
+    'Resend API request timed out'
+  );
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    let errorMsg = errBody;
+    try {
+      const parsed = JSON.parse(errBody);
+      if (parsed.message) errorMsg = parsed.message;
+    } catch (_) {}
+    throw new Error(`Resend API Error (${res.status}): ${errorMsg}`);
   }
 
-  throw new Error('Email service is not configured. Set RESEND_API_KEY or BREVO_API_KEY in environment variables.');
+  const data = await res.json();
+  console.log(`[Email] ✅ Sent via Resend API! ID: ${data.id || 'ok'}`);
+  return { success: true, provider: 'resend', info: data };
+
+  /* --- Other providers commented out as requested ---
+  // Brevo API:
+  // if (brevoApiKey) { ... }
+  // Nodemailer SMTP:
+  // if (hasSmtpConfig()) { ... }
+  --------------------------------------------------- */
 }
 
 async function sendVerificationEmail(user, verifyToken, otp) {
