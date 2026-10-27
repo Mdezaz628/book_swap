@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,9 +9,9 @@ import {
   Platform,
   Modal,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from './src/constants/theme';
-import LandingScreen from './src/screens/LandingScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import BrowseScreen from './src/screens/BrowseScreen';
 import SellScreen from './src/screens/SellScreen';
@@ -21,10 +21,26 @@ import AuthScreen from './src/screens/AuthScreen';
 import BookDetailModal from './src/components/BookDetailModal';
 
 export default function App() {
-  const [currentTab, setCurrentTab] = useState('landing'); // 'landing' | 'explore' | 'browse' | 'sell' | 'chat' | 'profile'
+  const [currentTab, setCurrentTab] = useState('home'); // 'home' | 'browse' | 'sell' | 'chat' | 'profile'
+  const [user, setUser] = useState(null);
   const [selectedBook, setSelectedBook] = useState(null);
   const [activeChatBook, setActiveChatBook] = useState(null);
   const [authVisible, setAuthVisible] = useState(false);
+
+  useEffect(() => {
+    checkUserSession();
+  }, []);
+
+  const checkUserSession = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('@swaptome_user');
+      if (stored) {
+        setUser(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.warn('Session check error', e);
+    }
+  };
 
   const handleOpenBook = (book) => {
     setSelectedBook(book);
@@ -39,23 +55,20 @@ export default function App() {
     setCurrentTab('chat');
   };
 
+  const handleAuthSuccess = (authenticatedUser) => {
+    setUser(authenticatedUser);
+    setAuthVisible(false);
+  };
+
   const renderScreen = () => {
     switch (currentTab) {
-      case 'landing':
-        return (
-          <LandingScreen
-            onExplore={() => setCurrentTab('explore')}
-            onSell={() => setCurrentTab('sell')}
-            onAuth={() => setAuthVisible(true)}
-            onSelectBook={handleOpenBook}
-          />
-        );
-      case 'explore':
+      case 'home':
         return (
           <HomeScreen
+            user={user}
             onSelectBook={handleOpenBook}
             onNavigateSell={() => setCurrentTab('sell')}
-            onNavigateLanding={() => setCurrentTab('landing')}
+            onOpenAuth={() => setAuthVisible(true)}
           />
         );
       case 'browse':
@@ -63,25 +76,32 @@ export default function App() {
       case 'sell':
         return (
           <SellScreen
-            onSuccess={() => setCurrentTab('explore')}
+            onSuccess={() => setCurrentTab('home')}
           />
         );
       case 'chat':
         return (
           <ChatScreen
+            user={user}
             activeBook={activeChatBook}
             onClearActiveBook={() => setActiveChatBook(null)}
           />
         );
       case 'profile':
-        return <ProfileScreen onOpenAuth={() => setAuthVisible(true)} />;
+        return (
+          <ProfileScreen
+            user={user}
+            onOpenAuth={() => setAuthVisible(true)}
+            onLogout={() => setUser(null)}
+          />
+        );
       default:
         return (
-          <LandingScreen
-            onExplore={() => setCurrentTab('explore')}
-            onSell={() => setCurrentTab('sell')}
-            onAuth={() => setAuthVisible(true)}
+          <HomeScreen
+            user={user}
             onSelectBook={handleOpenBook}
+            onNavigateSell={() => setCurrentTab('sell')}
+            onOpenAuth={() => setAuthVisible(true)}
           />
         );
     }
@@ -90,8 +110,8 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
-        barStyle={currentTab === 'landing' ? 'light-content' : 'dark-content'}
-        backgroundColor={currentTab === 'landing' ? '#060A14' : Colors.background}
+        barStyle="light-content"
+        backgroundColor="#060A14"
       />
 
       {/* Main Screen Content */}
@@ -105,7 +125,7 @@ export default function App() {
         onOpenChat={handleOpenChat}
       />
 
-      {/* Fullscreen Dedicated Login & Register Screen Modal */}
+      {/* Dedicated Login & Register Screen Modal */}
       <Modal
         visible={authVisible}
         animationType="slide"
@@ -114,49 +134,49 @@ export default function App() {
       >
         <AuthScreen
           onBack={() => setAuthVisible(false)}
-          onAuthSuccess={() => setAuthVisible(false)}
+          onAuthSuccess={handleAuthSuccess}
         />
       </Modal>
 
-      {/* Bottom Navigation Bar */}
+      {/* Clean WhatsApp / Native Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
-        {/* Landing Hub */}
+        {/* Home (with 3D hero attached in background) */}
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => setCurrentTab('landing')}
+          onPress={() => setCurrentTab('home')}
         >
           <Ionicons
-            name={currentTab === 'landing' ? 'sparkles' : 'sparkles-outline'}
+            name={currentTab === 'home' ? 'home' : 'home-outline'}
             size={22}
-            color={currentTab === 'landing' ? Colors.primary : Colors.textLight}
+            color={currentTab === 'home' ? Colors.primary : '#8696A0'}
           />
           <Text
             style={[
               styles.navLabel,
-              currentTab === 'landing' && styles.navLabelActive,
+              currentTab === 'home' && styles.navLabelActive,
             ]}
           >
-            3D Home
+            Home
           </Text>
         </TouchableOpacity>
 
-        {/* Explore Books */}
+        {/* Browse Books */}
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => setCurrentTab('explore')}
+          onPress={() => setCurrentTab('browse')}
         >
           <Ionicons
-            name={currentTab === 'explore' ? 'book' : 'book-outline'}
+            name={currentTab === 'browse' ? 'compass' : 'compass-outline'}
             size={22}
-            color={currentTab === 'explore' ? Colors.primary : Colors.textLight}
+            color={currentTab === 'browse' ? Colors.primary : '#8696A0'}
           />
           <Text
             style={[
               styles.navLabel,
-              currentTab === 'explore' && styles.navLabelActive,
+              currentTab === 'browse' && styles.navLabelActive,
             ]}
           >
-            Books
+            Browse
           </Text>
         </TouchableOpacity>
 
@@ -169,23 +189,23 @@ export default function App() {
           <View style={styles.centerButtonIcon}>
             <Ionicons name="add" size={28} color="#FFFFFF" />
           </View>
-          <Text style={styles.centerButtonLabel}>List</Text>
+          <Text style={styles.centerButtonLabel}>Sell</Text>
         </TouchableOpacity>
 
-        {/* Chat / Messages */}
+        {/* Chat / Messages (WhatsApp Style) */}
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => setCurrentTab('chat')}
         >
           <Ionicons
-            name={currentTab === 'chat' ? 'chatbubble' : 'chatbubble-outline'}
-            size={21}
-            color={currentTab === 'chat' ? Colors.primary : Colors.textLight}
+            name={currentTab === 'chat' ? 'chatbubbles' : 'chatbubbles-outline'}
+            size={22}
+            color={currentTab === 'chat' ? '#25D366' : '#8696A0'}
           />
           <Text
             style={[
               styles.navLabel,
-              currentTab === 'chat' && styles.navLabelActive,
+              currentTab === 'chat' && { color: '#25D366', fontWeight: '800' },
             ]}
           >
             Chat
@@ -199,8 +219,8 @@ export default function App() {
         >
           <Ionicons
             name={currentTab === 'profile' ? 'person' : 'person-outline'}
-            size={21}
-            color={currentTab === 'profile' ? Colors.primary : Colors.textLight}
+            size={22}
+            color={currentTab === 'profile' ? Colors.primary : '#8696A0'}
           />
           <Text
             style={[
@@ -227,7 +247,7 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     flexDirection: 'row',
-    height: 64,
+    height: 62,
     backgroundColor: '#0D1527',
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.08)',
@@ -237,19 +257,19 @@ const styles = StyleSheet.create({
     elevation: 12,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
   },
   navItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
+    paddingVertical: 4,
   },
   navLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: '#8696A0',
     marginTop: 3,
   },
   navLabelActive: {
@@ -276,7 +296,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
   centerButtonLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
     color: Colors.primary,
     marginTop: 2,

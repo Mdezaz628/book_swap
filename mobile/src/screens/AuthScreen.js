@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,7 +29,13 @@ export default function AuthScreen({ onAuthSuccess, onBack }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async () => {
+  // Google Modal state
+  const [googleModalVisible, setGoogleModalVisible] = useState(false);
+  const [googleName, setGoogleName] = useState('');
+  const [googleEmail, setGoogleEmail] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleStandardAuth = async () => {
     if (!email.trim() || !password.trim()) {
       Alert.alert('Required Fields', 'Please enter your email and password.');
       return;
@@ -64,12 +71,13 @@ export default function AuthScreen({ onAuthSuccess, onBack }) {
 
       const data = await res.json();
 
-      if (res.ok && (data.user || data.token || data._id)) {
+      if (res.ok && (data.user || data.token || data._id || data.name)) {
         const userData = data.user || {
-          name: name.trim() || email.split('@')[0],
-          email: email.trim(),
+          name: data.name || name.trim() || email.split('@')[0],
+          email: data.email || email.trim(),
           college: college.trim(),
           location: location.trim(),
+          role: data.role || 'user',
         };
 
         await AsyncStorage.setItem('@swaptome_user', JSON.stringify(userData));
@@ -89,13 +97,58 @@ export default function AuthScreen({ onAuthSuccess, onBack }) {
     }
   };
 
+  const handleGoogleAuth = async () => {
+    if (!googleEmail.trim()) {
+      Alert.alert('Required', 'Please enter your Google account email.');
+      return;
+    }
+
+    try {
+      setGoogleLoading(true);
+      const res = await fetch(ENDPOINTS.googleAuth, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: googleName.trim() || googleEmail.split('@')[0],
+          email: googleEmail.trim().toLowerCase(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && (data.token || data.name)) {
+        const userData = {
+          name: data.name || googleName.trim() || googleEmail.split('@')[0],
+          email: data.email || googleEmail.trim(),
+          authProvider: 'google',
+          role: data.role || 'user',
+        };
+
+        await AsyncStorage.setItem('@swaptome_user', JSON.stringify(userData));
+        if (data.token) {
+          await AsyncStorage.setItem('@swaptome_token', data.token);
+        }
+
+        setGoogleModalVisible(false);
+        Alert.alert('Google Sign In ✅', `Welcome back, ${userData.name}!`);
+        if (onAuthSuccess) onAuthSuccess(userData);
+      } else {
+        Alert.alert('Google Auth Failed', data.message || 'Could not verify Google account.');
+      }
+    } catch (err) {
+      Alert.alert('Network Error', 'Could not complete Google authentication.');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Top Bar with Back Button */}
+        {/* Top Header */}
         <View style={styles.topBar}>
           {onBack ? (
             <TouchableOpacity style={styles.backBtn} onPress={onBack}>
@@ -113,13 +166,32 @@ export default function AuthScreen({ onAuthSuccess, onBack }) {
         {/* Title */}
         <View style={styles.titleSection}>
           <Text style={styles.title}>
-            {tab === 'login' ? 'Welcome Back 👋' : 'Create Free Account 🎓'}
+            {tab === 'login' ? 'Welcome Back 👋' : 'Join Campus Shelf 🎓'}
           </Text>
           <Text style={styles.subtitle}>
             {tab === 'login'
-              ? 'Log in to manage your bookshelf, chat with peers, and swap.'
-              : 'Join fellow college students swapping textbooks & novels.'}
+              ? 'Sign in to access your chats, deals, and swap wishlist.'
+              : 'Connect with verified classmates to exchange textbooks & novels.'}
           </Text>
+        </View>
+
+        {/* 🌟 Prominent Continue with Google Button */}
+        <TouchableOpacity
+          style={styles.googleBtn}
+          activeOpacity={0.88}
+          onPress={() => setGoogleModalVisible(true)}
+        >
+          <View style={styles.googleIconBox}>
+            <Ionicons name="logo-google" size={18} color="#EA4335" />
+          </View>
+          <Text style={styles.googleBtnText}>Continue with Google</Text>
+        </TouchableOpacity>
+
+        {/* Divider */}
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>or continue with email</Text>
+          <View style={styles.dividerLine} />
         </View>
 
         {/* Tab Switcher */}
@@ -166,7 +238,7 @@ export default function AuthScreen({ onAuthSuccess, onBack }) {
               <Ionicons name="mail-outline" size={18} color="#94A3B8" />
               <TextInput
                 style={styles.input}
-                placeholder="name@college.edu or gmail"
+                placeholder="student@college.edu or gmail.com"
                 placeholderTextColor="#64748B"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -179,12 +251,12 @@ export default function AuthScreen({ onAuthSuccess, onBack }) {
           {tab === 'register' ? (
             <>
               <View style={styles.fieldGroup}>
-                <Text style={styles.label}>College / Campus</Text>
+                <Text style={styles.label}>College / University</Text>
                 <View style={styles.inputWrapper}>
                   <Ionicons name="school-outline" size={18} color="#94A3B8" />
                   <TextInput
                     style={styles.input}
-                    placeholder="e.g. IIT, DU, KIIT, SRM..."
+                    placeholder="e.g. IIT, KIIT, Delhi University..."
                     placeholderTextColor="#64748B"
                     value={college}
                     onChangeText={setCollege}
@@ -193,12 +265,12 @@ export default function AuthScreen({ onAuthSuccess, onBack }) {
               </View>
 
               <View style={styles.fieldGroup}>
-                <Text style={styles.label}>City / Location</Text>
+                <Text style={styles.label}>Campus / City</Text>
                 <View style={styles.inputWrapper}>
                   <Ionicons name="location-outline" size={18} color="#94A3B8" />
                   <TextInput
                     style={styles.input}
-                    placeholder="e.g. Bhubaneswar, Delhi, Bangalore"
+                    placeholder="e.g. North Campus, Bhubaneswar"
                     placeholderTextColor="#64748B"
                     value={location}
                     onChangeText={setLocation}
@@ -247,7 +319,7 @@ export default function AuthScreen({ onAuthSuccess, onBack }) {
           {/* Submit Button */}
           <TouchableOpacity
             style={styles.submitBtn}
-            onPress={handleSubmit}
+            onPress={handleStandardAuth}
             disabled={loading}
             activeOpacity={0.88}
           >
@@ -276,6 +348,68 @@ export default function AuthScreen({ onAuthSuccess, onBack }) {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Google OAuth Quick Sign-In Modal */}
+      <Modal
+        visible={googleModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setGoogleModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.googleModalCard}>
+            <View style={styles.googleModalHeader}>
+              <View style={styles.googleHeaderBadge}>
+                <Ionicons name="logo-google" size={20} color="#EA4335" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.googleModalTitle}>Sign in with Google</Text>
+                <Text style={styles.googleModalSubtitle}>Choose your account for SwapToMe</Text>
+              </View>
+              <TouchableOpacity onPress={() => setGoogleModalVisible(false)}>
+                <Ionicons name="close" size={22} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalInputGroup}>
+              <Text style={styles.modalInputLabel}>Full Name</Text>
+              <TextInput
+                style={styles.modalInputField}
+                placeholder="Your Name (e.g. Aman Gupta)"
+                placeholderTextColor="#64748B"
+                value={googleName}
+                onChangeText={setGoogleName}
+              />
+            </View>
+
+            <View style={styles.modalInputGroup}>
+              <Text style={styles.modalInputLabel}>Google Email Address *</Text>
+              <TextInput
+                style={styles.modalInputField}
+                placeholder="yourname@gmail.com"
+                placeholderTextColor="#64748B"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={googleEmail}
+                onChangeText={setGoogleEmail}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={styles.googleConfirmBtn}
+              onPress={handleGoogleAuth}
+              disabled={googleLoading}
+              activeOpacity={0.88}
+            >
+              {googleLoading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.googleConfirmBtnText}>Continue as Student</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -293,7 +427,7 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
     gap: 12,
   },
   backBtn: {
@@ -320,7 +454,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   titleSection: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   title: {
     fontSize: 26,
@@ -333,6 +467,48 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     lineHeight: 20,
   },
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
+    borderRadius: Radii.md,
+    gap: 12,
+    marginBottom: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  googleIconBox: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleBtnText: {
+    color: '#1F2937',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  dividerText: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   tabBar: {
     flexDirection: 'row',
     backgroundColor: '#0D1527',
@@ -340,7 +516,7 @@ const styles = StyleSheet.create({
     padding: 4,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   tabBtn: {
     flex: 1,
@@ -431,5 +607,73 @@ const styles = StyleSheet.create({
   promptAction: {
     color: Colors.primary,
     fontWeight: '800',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  googleModalCard: {
+    backgroundColor: '#0D1527',
+    borderRadius: Radii.lg,
+    padding: 20,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    gap: 14,
+  },
+  googleModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 6,
+  },
+  googleHeaderBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleModalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  googleModalSubtitle: {
+    fontSize: 12,
+    color: '#94A3B8',
+  },
+  modalInputGroup: {
+    gap: 4,
+  },
+  modalInputLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#E2E8F0',
+    textTransform: 'uppercase',
+  },
+  modalInputField: {
+    backgroundColor: '#1E2536',
+    borderRadius: Radii.md,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    fontSize: 14,
+    color: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  googleConfirmBtn: {
+    backgroundColor: '#4285F4',
+    paddingVertical: 13,
+    borderRadius: Radii.md,
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  googleConfirmBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 14,
   },
 });
