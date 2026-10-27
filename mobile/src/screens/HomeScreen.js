@@ -18,16 +18,16 @@ import BookCard from '../components/BookCard';
 
 const CATEGORIES = [
   'All',
+  'Novel',
   'Fiction',
   'Academic',
-  'Non-Fiction',
   'Technology',
   'Comics',
   'Self-Help',
   'Business',
 ];
 
-export default function HomeScreen({ onSelectBook, onNavigateSell }) {
+export default function HomeScreen({ onSelectBook, onNavigateSell, onNavigateLanding }) {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -61,13 +61,14 @@ export default function HomeScreen({ onSelectBook, onNavigateSell }) {
   const filteredBooks = books.filter((b) => {
     const matchesCategory =
       selectedCategory === 'All' ||
-      (b.category && b.category.toLowerCase() === selectedCategory.toLowerCase());
+      (b.category && b.category.toLowerCase().includes(selectedCategory.toLowerCase()));
 
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
       !q ||
       (b.title && b.title.toLowerCase().includes(q)) ||
       (b.author && b.author.toLowerCase().includes(q)) ||
+      (b.writer && b.writer.toLowerCase().includes(q)) ||
       (b.location && b.location.toLowerCase().includes(q));
 
     return matchesCategory && matchesSearch;
@@ -94,10 +95,26 @@ export default function HomeScreen({ onSelectBook, onNavigateSell }) {
           onPress={onNavigateSell}
           activeOpacity={0.8}
         >
-          <Ionicons name="add" size={20} color="#FFFFFF" />
-          <Text style={styles.addButtonText}>Sell / Swap</Text>
+          <Ionicons name="add" size={18} color="#FFFFFF" />
+          <Text style={styles.addButtonText}>List Book</Text>
         </TouchableOpacity>
       </View>
+
+      {/* 3D Showcase Banner Bar */}
+      <TouchableOpacity
+        style={styles.landingBanner}
+        activeOpacity={0.88}
+        onPress={onNavigateLanding}
+      >
+        <View style={styles.bannerIcon}>
+          <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+        </View>
+        <View style={styles.bannerTextContainer}>
+          <Text style={styles.bannerTitle}>3D Book Showcase & Landing Hub</Text>
+          <Text style={styles.bannerSubtitle}>Tap to explore 3D models, stats, and how swapping works</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
+      </TouchableOpacity>
 
       {/* Search Input */}
       <View style={styles.searchSection}>
@@ -196,7 +213,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 12,
+    paddingBottom: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -243,7 +260,41 @@ const styles = StyleSheet.create({
   addButtonText: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 13,
+    fontSize: 12,
+  },
+  landingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(232, 130, 12, 0.08)',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    marginTop: 6,
+    padding: 10,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(232, 130, 12, 0.3)',
+    gap: 10,
+  },
+  bannerIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bannerTextContainer: {
+    flex: 1,
+  },
+  bannerTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: Colors.primaryDark,
+  },
+  bannerSubtitle: {
+    fontSize: 10,
+    color: Colors.textLight,
+    marginTop: 1,
   },
   searchSection: {
     paddingHorizontal: 20,

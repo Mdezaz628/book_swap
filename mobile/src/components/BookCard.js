@@ -1,35 +1,50 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Radii } from '../constants/theme';
+import { resolveBookImage, getCategoryFallback } from '../utils/imageHelper';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 
 export default function BookCard({ book, onPress }) {
-  const imageUrl = book.imageUrl
-    ? (book.imageUrl.startsWith('http') ? book.imageUrl : `https://swaptome-api.onrender.com${book.imageUrl}`)
-    : 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=600';
+  const [imageError, setImageError] = useState(false);
+
+  const rawUrl = resolveBookImage(book);
+  const imageSource = imageError ? { uri: getCategoryFallback(book?.category) } : { uri: rawUrl };
 
   const isSwap = !book.price || Number(book.price) === 0;
 
   return (
     <TouchableOpacity
       style={styles.card}
-      activeOpacity={0.88}
+      activeOpacity={0.86}
       onPress={() => onPress && onPress(book)}
     >
       <View style={styles.imageContainer}>
+        {/* 3D Spine on the left of image */}
+        <View style={styles.cardSpine} />
+
         <Image
-          source={{ uri: imageUrl }}
+          source={imageSource}
           style={styles.image}
           resizeMode="cover"
+          onError={() => setImageError(true)}
         />
+
+        {/* 3D Book Sheen Overlay */}
+        <View style={styles.sheen} />
+
         {book.condition ? (
           <View style={styles.conditionBadge}>
             <Text style={styles.conditionText}>{book.condition}</Text>
           </View>
         ) : null}
+
+        {/* 3D Tag */}
+        <View style={styles.cornerRibbon}>
+          <Text style={styles.cornerRibbonText}>3D</Text>
+        </View>
       </View>
 
       <View style={styles.details}>
@@ -40,7 +55,7 @@ export default function BookCard({ book, onPress }) {
           {book.title}
         </Text>
         <Text style={styles.author} numberOfLines={1}>
-          by {book.author || 'Unknown'}
+          by {book.author || book.writer || 'Unknown'}
         </Text>
 
         <View style={styles.footer}>
@@ -76,37 +91,72 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: Colors.border,
-    elevation: 2,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    elevation: 6,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
   },
   imageContainer: {
     width: '100%',
-    height: 180,
-    backgroundColor: Colors.borderLight,
+    height: 185,
+    backgroundColor: '#1E2536',
     position: 'relative',
+    flexDirection: 'row',
+  },
+  cardSpine: {
+    width: 6,
+    height: '100%',
+    backgroundColor: '#0F172A',
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(255, 255, 255, 0.25)',
+    zIndex: 2,
   },
   image: {
-    width: '100%',
+    flex: 1,
     height: '100%',
+  },
+  sheen: {
+    position: 'absolute',
+    top: 0,
+    left: 6,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(255, 255, 255, 0.2)',
   },
   conditionBadge: {
     position: 'absolute',
     top: 8,
-    left: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    left: 12,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: Radii.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   conditionText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: Colors.text,
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FFF',
     textTransform: 'uppercase',
+  },
+  cornerRibbon: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(232, 130, 12, 0.92)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  cornerRibbonText: {
+    color: '#FFF',
+    fontSize: 8,
+    fontWeight: '900',
   },
   details: {
     padding: 10,

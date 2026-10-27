@@ -7,20 +7,24 @@ import {
   SafeAreaView,
   StatusBar,
   Platform,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from './src/constants/theme';
+import LandingScreen from './src/screens/LandingScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import BrowseScreen from './src/screens/BrowseScreen';
 import SellScreen from './src/screens/SellScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import AuthScreen from './src/screens/AuthScreen';
 import BookDetailModal from './src/components/BookDetailModal';
 
 export default function App() {
-  const [currentTab, setCurrentTab] = useState('home');
+  const [currentTab, setCurrentTab] = useState('landing'); // 'landing' | 'explore' | 'browse' | 'sell' | 'chat' | 'profile'
   const [selectedBook, setSelectedBook] = useState(null);
   const [activeChatBook, setActiveChatBook] = useState(null);
+  const [authVisible, setAuthVisible] = useState(false);
 
   const handleOpenBook = (book) => {
     setSelectedBook(book);
@@ -37,11 +41,21 @@ export default function App() {
 
   const renderScreen = () => {
     switch (currentTab) {
-      case 'home':
+      case 'landing':
+        return (
+          <LandingScreen
+            onExplore={() => setCurrentTab('explore')}
+            onSell={() => setCurrentTab('sell')}
+            onAuth={() => setAuthVisible(true)}
+            onSelectBook={handleOpenBook}
+          />
+        );
+      case 'explore':
         return (
           <HomeScreen
             onSelectBook={handleOpenBook}
             onNavigateSell={() => setCurrentTab('sell')}
+            onNavigateLanding={() => setCurrentTab('landing')}
           />
         );
       case 'browse':
@@ -49,7 +63,7 @@ export default function App() {
       case 'sell':
         return (
           <SellScreen
-            onSuccess={() => setCurrentTab('home')}
+            onSuccess={() => setCurrentTab('explore')}
           />
         );
       case 'chat':
@@ -60,20 +74,30 @@ export default function App() {
           />
         );
       case 'profile':
-        return <ProfileScreen />;
+        return <ProfileScreen onOpenAuth={() => setAuthVisible(true)} />;
       default:
-        return <HomeScreen onSelectBook={handleOpenBook} />;
+        return (
+          <LandingScreen
+            onExplore={() => setCurrentTab('explore')}
+            onSell={() => setCurrentTab('sell')}
+            onAuth={() => setAuthVisible(true)}
+            onSelectBook={handleOpenBook}
+          />
+        );
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <StatusBar
+        barStyle={currentTab === 'landing' ? 'light-content' : 'dark-content'}
+        backgroundColor={currentTab === 'landing' ? '#060A14' : Colors.background}
+      />
 
-      {/* Main Screen Container */}
+      {/* Main Screen Content */}
       <View style={styles.screenContainer}>{renderScreen()}</View>
 
-      {/* Book Details Modal */}
+      {/* 3D Book Details Modal */}
       <BookDetailModal
         book={selectedBook}
         visible={!!selectedBook}
@@ -81,43 +105,58 @@ export default function App() {
         onOpenChat={handleOpenChat}
       />
 
+      {/* Fullscreen Dedicated Login & Register Screen Modal */}
+      <Modal
+        visible={authVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setAuthVisible(false)}
+      >
+        <AuthScreen
+          onBack={() => setAuthVisible(false)}
+          onAuthSuccess={() => setAuthVisible(false)}
+        />
+      </Modal>
+
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
+        {/* Landing Hub */}
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => setCurrentTab('home')}
+          onPress={() => setCurrentTab('landing')}
         >
           <Ionicons
-            name={currentTab === 'home' ? 'home' : 'home-outline'}
+            name={currentTab === 'landing' ? 'sparkles' : 'sparkles-outline'}
             size={22}
-            color={currentTab === 'home' ? Colors.primary : Colors.textLight}
+            color={currentTab === 'landing' ? Colors.primary : Colors.textLight}
           />
           <Text
             style={[
               styles.navLabel,
-              currentTab === 'home' && styles.navLabelActive,
+              currentTab === 'landing' && styles.navLabelActive,
             ]}
           >
-            Explore
+            3D Home
           </Text>
         </TouchableOpacity>
 
+        {/* Explore Books */}
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => setCurrentTab('browse')}
+          onPress={() => setCurrentTab('explore')}
         >
           <Ionicons
-            name={currentTab === 'browse' ? 'compass' : 'compass-outline'}
+            name={currentTab === 'explore' ? 'book' : 'book-outline'}
             size={22}
-            color={currentTab === 'browse' ? Colors.primary : Colors.textLight}
+            color={currentTab === 'explore' ? Colors.primary : Colors.textLight}
           />
           <Text
             style={[
               styles.navLabel,
-              currentTab === 'browse' && styles.navLabelActive,
+              currentTab === 'explore' && styles.navLabelActive,
             ]}
           >
-            Browse
+            Books
           </Text>
         </TouchableOpacity>
 
@@ -133,6 +172,7 @@ export default function App() {
           <Text style={styles.centerButtonLabel}>List</Text>
         </TouchableOpacity>
 
+        {/* Chat / Messages */}
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => setCurrentTab('chat')}
@@ -152,6 +192,7 @@ export default function App() {
           </Text>
         </TouchableOpacity>
 
+        {/* Profile / Account */}
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => setCurrentTab('profile')}
@@ -167,7 +208,7 @@ export default function App() {
               currentTab === 'profile' && styles.navLabelActive,
             ]}
           >
-            Profile
+            Account
           </Text>
         </TouchableOpacity>
       </View>
@@ -178,7 +219,7 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#060A14',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   screenContainer: {
@@ -187,17 +228,17 @@ const styles = StyleSheet.create({
   bottomNav: {
     flexDirection: 'row',
     height: 64,
-    backgroundColor: Colors.card,
+    backgroundColor: '#0D1527',
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingHorizontal: 8,
-    elevation: 8,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
+    elevation: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
   navItem: {
     flex: 1,
@@ -208,12 +249,12 @@ const styles = StyleSheet.create({
   navLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: Colors.textLight,
+    color: '#94A3B8',
     marginTop: 3,
   },
   navLabelActive: {
     color: Colors.primary,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   navItemCenter: {
     flex: 1,
@@ -228,15 +269,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 4,
+    elevation: 6,
     shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 6,
   },
   centerButtonLabel: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.primary,
     marginTop: 2,
   },

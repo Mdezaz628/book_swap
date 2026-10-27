@@ -5,24 +5,15 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   Alert,
-  ActivityIndicator,
-  Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Radii } from '../constants/theme';
-import { ENDPOINTS, BASE_URL } from '../constants/api';
+import { ENDPOINTS } from '../constants/api';
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ onOpenAuth }) {
   const [user, setUser] = useState(null);
-  const [authModalVisible, setAuthModalVisible] = useState(false);
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const [serverStatus, setServerStatus] = useState('checking'); // 'online' | 'offline' | 'checking'
 
   useEffect(() => {
@@ -51,64 +42,40 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleAuth = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Required', 'Please fill in both email and password.');
-      return;
-    }
-    if (isRegistering && !name.trim()) {
-      Alert.alert('Required', 'Please enter your name.');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const url = isRegistering ? ENDPOINTS.register : ENDPOINTS.login;
-      const payload = isRegistering
-        ? { name: name.trim(), email: email.trim(), password }
-        : { email: email.trim(), password };
-
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.user) {
-        await AsyncStorage.setItem('@swaptome_user', JSON.stringify(data.user));
-        setUser(data.user);
-        setAuthModalVisible(false);
-        Alert.alert('Welcome!', `Logged in as ${data.user.name || data.user.email}`);
-      } else {
-        Alert.alert('Notice', data.message || 'Authentication failed');
-      }
-    } catch (err) {
-      Alert.alert('Error', 'Could not connect to server.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleLogout = async () => {
-    await AsyncStorage.removeItem('@swaptome_user');
-    setUser(null);
-    Alert.alert('Logged Out', 'You have been logged out.');
+    Alert.alert('Log Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          await AsyncStorage.removeItem('@swaptome_user');
+          await AsyncStorage.removeItem('@swaptome_token');
+          setUser(null);
+        },
+      },
+    ]);
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       {/* Profile Header */}
       <View style={styles.profileHeader}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
-            {user ? (user.name || user.email || 'U')[0].toUpperCase() : '👤'}
+            {user ? (user.name || user.email || 'U')[0].toUpperCase() : '🎓'}
           </Text>
         </View>
-        <Text style={styles.userName}>{user ? user.name || 'Member' : 'Guest Reader'}</Text>
+        <Text style={styles.userName}>{user ? user.name || 'Member' : 'Guest Student'}</Text>
         <Text style={styles.userEmail}>
-          {user ? user.email : 'Log in to track your swaps & wishlist'}
+          {user ? user.email : 'Sign in to track your swaps, books, & chats'}
         </Text>
+        {user?.college ? (
+          <View style={styles.collegeBadge}>
+            <Ionicons name="school" size={13} color={Colors.primary} />
+            <Text style={styles.collegeBadgeText}>{user.college}</Text>
+          </View>
+        ) : null}
 
         {user ? (
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
@@ -118,7 +85,7 @@ export default function ProfileScreen() {
         ) : (
           <TouchableOpacity
             style={styles.loginBtn}
-            onPress={() => setAuthModalVisible(true)}
+            onPress={onOpenAuth}
           >
             <Ionicons name="log-in-outline" size={18} color="#FFFFFF" />
             <Text style={styles.loginBtnText}>Sign In / Register</Text>
@@ -167,7 +134,7 @@ export default function ProfileScreen() {
               ? 'Render Cloud API Online (swaptome-api.onrender.com)'
               : serverStatus === 'checking'
               ? 'Connecting to Render Cloud...'
-              : 'Backend is waking up from standby (Render Free tier)'}
+              : 'Backend waking up (Render Free Tier standby)'}
           </Text>
         </View>
         <TouchableOpacity style={styles.pingBtn} onPress={checkServer}>
@@ -180,91 +147,16 @@ export default function ProfileScreen() {
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Ionicons name="information-circle-outline" size={20} color={Colors.primary} />
-          <Text style={styles.cardTitle}>About SwapToMe</Text>
+          <Text style={styles.cardTitle}>About SwapToMe Mobile</Text>
         </View>
         <Text style={styles.aboutText}>
-          SwapToMe connects readers in local communities and campuses. Exchange books, save money, and share the joy of reading.
+          SwapToMe connects readers in local communities and campuses. Exchange books, save money, and share the joy of reading with 3D tactile book covers and real-time student chats.
         </Text>
         <View style={styles.appMeta}>
-          <Text style={styles.versionText}>Version: 1.0.0 (Expo React Native)</Text>
-          <Text style={styles.versionText}>Environment: Production API</Text>
+          <Text style={styles.versionText}>Engine: React Native + Expo 58</Text>
+          <Text style={styles.versionText}>Features: 3D Visualization, Live Cloud API</Text>
         </View>
       </View>
-
-      {/* Auth Modal */}
-      <Modal
-        visible={authModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setAuthModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {isRegistering ? 'Create Account' : 'Welcome Back'}
-              </Text>
-              <TouchableOpacity onPress={() => setAuthModalVisible(false)}>
-                <Ionicons name="close" size={24} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            {isRegistering ? (
-              <TextInput
-                style={styles.modalInput}
-                placeholder="Full Name"
-                placeholderTextColor={Colors.textSubtle}
-                value={name}
-                onChangeText={setName}
-              />
-            ) : null}
-
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Email address"
-              placeholderTextColor={Colors.textSubtle}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Password"
-              placeholderTextColor={Colors.textSubtle}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-
-            <TouchableOpacity
-              style={styles.authSubmitBtn}
-              onPress={handleAuth}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <Text style={styles.authSubmitBtnText}>
-                  {isRegistering ? 'Sign Up' : 'Log In'}
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.toggleAuth}
-              onPress={() => setIsRegistering(!isRegistering)}
-            >
-              <Text style={styles.toggleAuthText}>
-                {isRegistering
-                  ? 'Already have an account? Log In'
-                  : "Don't have an account? Sign Up"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </ScrollView>
   );
 }
@@ -312,7 +204,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textLight,
     marginTop: 4,
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  collegeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: Radii.full,
+    gap: 6,
+    marginBottom: 14,
+  },
+  collegeBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primaryDark,
   },
   loginBtn: {
     flexDirection: 'row',
@@ -434,56 +341,5 @@ const styles = StyleSheet.create({
   versionText: {
     fontSize: 11,
     color: Colors.textSubtle,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  modalContent: {
-    backgroundColor: '#FFF',
-    borderRadius: Radii.lg,
-    padding: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  modalInput: {
-    backgroundColor: Colors.borderLight,
-    borderRadius: Radii.md,
-    padding: 12,
-    fontSize: 14,
-    color: Colors.text,
-    marginBottom: 12,
-  },
-  authSubmitBtn: {
-    backgroundColor: Colors.primary,
-    paddingVertical: 14,
-    borderRadius: Radii.md,
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  authSubmitBtnText: {
-    color: '#FFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  toggleAuth: {
-    marginTop: 14,
-    alignItems: 'center',
-  },
-  toggleAuthText: {
-    fontSize: 13,
-    color: Colors.primary,
-    fontWeight: '600',
   },
 });

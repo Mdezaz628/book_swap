@@ -4,7 +4,6 @@ import {
   Text,
   View,
   Modal,
-  Image,
   ScrollView,
   TouchableOpacity,
   TextInput,
@@ -14,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Radii } from '../constants/theme';
 import { ENDPOINTS } from '../constants/api';
+import Book3DView from './Book3DView';
 
 export default function BookDetailModal({ book, visible, onClose, onOpenChat }) {
   const [inquiryText, setInquiryText] = useState('');
@@ -22,10 +22,6 @@ export default function BookDetailModal({ book, visible, onClose, onOpenChat }) 
   const [showInquiryForm, setShowInquiryForm] = useState(false);
 
   if (!book) return null;
-
-  const imageUrl = book.imageUrl
-    ? (book.imageUrl.startsWith('http') ? book.imageUrl : `https://swaptome-api.onrender.com${book.imageUrl}`)
-    : 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=600';
 
   const isSwap = !book.price || Number(book.price) === 0;
 
@@ -46,7 +42,7 @@ export default function BookDetailModal({ book, visible, onClose, onOpenChat }) 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bookTitle: book.title,
-          sellerEmail: book.owner?.email || book.ownerEmail || 'contact@swaptome.com',
+          sellerEmail: book.owner?.email || book.uploaderEmail || book.seller || 'contact@swaptome.com',
           senderEmail: senderEmail.trim(),
           message: inquiryText.trim(),
         }),
@@ -58,7 +54,7 @@ export default function BookDetailModal({ book, visible, onClose, onOpenChat }) 
         setShowInquiryForm(false);
       } else {
         const data = await res.json().catch(() => ({}));
-        Alert.alert('Notice', data.message || 'Inquiry sent directly to system.');
+        Alert.alert('Notice', data.message || 'Inquiry sent directly to owner.');
         setShowInquiryForm(false);
       }
     } catch (err) {
@@ -86,35 +82,23 @@ export default function BookDetailModal({ book, visible, onClose, onOpenChat }) 
           </Text>
           <TouchableOpacity
             style={styles.shareBtn}
-            onPress={() => Alert.alert('Share', `Sharing "${book.title}"`)}
+            onPress={() => Alert.alert('Share', `Sharing "${book.title}" with friends!`)}
           >
             <Ionicons name="share-social-outline" size={22} color={Colors.text} />
           </TouchableOpacity>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Cover Hero */}
-          <View style={styles.heroContainer}>
-            <Image source={{ uri: imageUrl }} style={styles.heroImage} resizeMode="cover" />
-            <View style={styles.heroBadges}>
-              {book.condition ? (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{book.condition}</Text>
-                </View>
-              ) : null}
-              <View style={[styles.badge, { backgroundColor: isSwap ? Colors.badgeBg : '#E0F2FE' }]}>
-                <Text style={[styles.badgeText, { color: isSwap ? Colors.primaryDark : '#0284C7' }]}>
-                  {isSwap ? 'SWAP ONLY' : `FOR SALE ₹${book.price}`}
-                </Text>
-              </View>
-            </View>
+          {/* 3D Showcase Hero */}
+          <View style={styles.hero3DSection}>
+            <Book3DView book={book} />
           </View>
 
           {/* Book Info */}
           <View style={styles.infoCard}>
             <Text style={styles.category}>{book.category || 'General'}</Text>
             <Text style={styles.title}>{book.title}</Text>
-            <Text style={styles.author}>by {book.author || 'Unknown'}</Text>
+            <Text style={styles.author}>by {book.author || book.writer || 'Unknown'}</Text>
 
             <View style={styles.priceRow}>
               <View>
@@ -133,23 +117,23 @@ export default function BookDetailModal({ book, visible, onClose, onOpenChat }) 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Description</Text>
               <Text style={styles.description}>
-                {book.description || 'No description provided by the owner. You can contact them below for more details.'}
+                {book.description || 'Pre-loved book listed on SwapToMe. In crisp readable condition with all pages intact. Contact the owner below for instant handoff or exchange.'}
               </Text>
             </View>
 
             {/* Owner & Location */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Owner & Location</Text>
+              <Text style={styles.sectionTitle}>Owner & Campus Location</Text>
               <View style={styles.ownerRow}>
                 <View style={styles.avatar}>
                   <Text style={styles.avatarText}>
-                    {(book.owner?.name || book.owner || 'U')[0].toUpperCase()}
+                    {(book.seller || book.owner?.name || 'U')[0].toUpperCase()}
                   </Text>
                 </View>
                 <View style={styles.ownerDetails}>
-                  <Text style={styles.ownerName}>{book.owner?.name || book.owner || 'Community Member'}</Text>
+                  <Text style={styles.ownerName}>{book.seller || book.owner?.name || 'Student Reader'}</Text>
                   <Text style={styles.ownerLocation}>
-                    📍 {book.location || 'Local Campus / Community'}
+                    📍 {book.location || 'Local Campus Community'}
                   </Text>
                 </View>
               </View>
@@ -158,7 +142,7 @@ export default function BookDetailModal({ book, visible, onClose, onOpenChat }) 
             {/* Inquiry Form */}
             {showInquiryForm ? (
               <View style={styles.inquiryBox}>
-                <Text style={styles.inquiryTitle}>Send message to owner</Text>
+                <Text style={styles.inquiryTitle}>Send direct email to owner</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="Your Email"
@@ -232,7 +216,7 @@ export default function BookDetailModal({ book, visible, onClose, onOpenChat }) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#0D1527',
   },
   header: {
     height: 56,
@@ -259,44 +243,20 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 110,
   },
-  heroContainer: {
-    width: '100%',
-    height: 320,
-    backgroundColor: '#000',
-    position: 'relative',
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-    opacity: 0.95,
-  },
-  heroBadges: {
-    position: 'absolute',
-    bottom: 16,
-    left: 16,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  badge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: Radii.sm,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: Colors.text,
-    textTransform: 'uppercase',
+  hero3DSection: {
+    backgroundColor: '#0D1527',
+    paddingTop: 10,
+    paddingBottom: 20,
+    alignItems: 'center',
   },
   infoCard: {
-    padding: 20,
+    padding: 22,
     backgroundColor: Colors.card,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    marginTop: -20,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    minHeight: 400,
   },
   category: {
     fontSize: 12,
