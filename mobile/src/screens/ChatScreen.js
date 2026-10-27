@@ -10,66 +10,93 @@ import {
   Platform,
   Alert,
   Modal,
+  Image,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Radii } from '../constants/theme';
 import { BASE_URL, ENDPOINTS } from '../constants/api';
 import io from 'socket.io-client';
 
-const SAMPLE_CONVERSATIONS = [
+const SAMPLE_CHATS = [
   {
-    id: '1',
+    id: 'c1',
     user: 'EZAZ MD',
-    avatar: 'E',
+    avatarText: 'E',
     lastMessage: 'Awesome, can we meet near North Campus Library tomorrow?',
-    time: '10:48 AM',
-    unread: 1,
+    time: '11:42 AM',
+    unread: 2,
     online: true,
+    lastSeen: 'online',
+    bookTitle: "That's the Way We Meet",
+    bookPrice: '201',
+    bookImage: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&q=80&w=600',
   },
   {
-    id: '2',
+    id: 'c2',
     user: 'Rahul Sharma',
-    avatar: 'R',
-    lastMessage: 'I have the RS Aggarwal book ready for swap.',
+    avatarText: 'R',
+    lastMessage: 'I have the RS Aggarwal Maths book ready for swap.',
+    time: '10:15 AM',
+    unread: 0,
+    online: true,
+    lastSeen: 'online',
+    bookTitle: 'RS Aggarwal',
+    bookPrice: 'Swap',
+    bookImage: 'https://res.cloudinary.com/dscjun5cc/image/upload/v1778096910/bookswap/bfaqctp8r5f86tm1nwuz.jpg',
+  },
+  {
+    id: 'c3',
+    user: 'Priya Patel',
+    avatarText: 'P',
+    lastMessage: 'Is "The 40 Laws" still available for sale?',
     time: 'Yesterday',
     unread: 0,
-    online: true,
+    online: false,
+    lastSeen: 'yesterday at 9:30 PM',
+    bookTitle: 'The 40 Laws',
+    bookPrice: '150',
+    bookImage: 'https://res.cloudinary.com/dscjun5cc/image/upload/v1779418557/bookswap/hgijztrzfzm3h7q7eq9p.jpg',
   },
   {
-    id: '3',
-    user: 'Priya Patel',
-    avatar: 'P',
-    lastMessage: 'Is "The 40 Laws" still available for sale?',
-    time: 'Oct 25',
+    id: 'c4',
+    user: 'Aman Verma',
+    avatarText: 'A',
+    lastMessage: 'Deal confirmed at ₹120. See you in 10 mins!',
+    time: 'Tuesday',
     unread: 0,
     online: false,
+    lastSeen: 'last seen Tuesday',
+    bookTitle: 'Subconscious Mind',
+    bookPrice: '120',
+    bookImage: 'https://res.cloudinary.com/dscjun5cc/image/upload/v1779418277/bookswap/gz5wljf1nxvuhvfyt4un.jpg',
   },
 ];
 
 export default function ChatScreen({ user, activeBook, onClearActiveBook }) {
-  // If activeBook passed, auto-select seller
+  // If activeBook passed from Book Details, jump straight into chat with that seller
   const initialSeller = activeBook?.seller || activeBook?.owner?.name || activeBook?.uploaderEmail || null;
-  const [selectedContact, setSelectedContact] = useState(initialSeller);
-  const [conversations, setConversations] = useState(SAMPLE_CONVERSATIONS);
+  const [activeContact, setActiveContact] = useState(initialSeller);
+  const [chatFilter, setChatFilter] = useState('all'); // 'all' | 'unread' | 'deals'
+
+  const [conversations, setConversations] = useState(SAMPLE_CHATS);
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
-  const [dealPrice, setDealPrice] = useState('');
-  const [showDealBox, setShowDealBox] = useState(false);
-  const [confirmedPrice, setConfirmedPrice] = useState(null);
-  const [reportModalVisible, setReportModalVisible] = useState(false);
-  const [reportReason, setReportReason] = useState('Spam');
-  const [reportDetails, setReportDetails] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showDealModal, setShowDealModal] = useState(false);
+  const [dealPriceInput, setDealPriceInput] = useState('');
+  const [activeDeal, setActiveDeal] = useState(null);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const flatListRef = useRef(null);
   const socketRef = useRef(null);
 
   const currentUserName = user?.name || user?.email?.split('@')[0] || 'Guest Reader';
-  const effectiveRecipient = selectedContact || 'Community Seller';
+  const effectiveRecipient = activeContact || 'Community Seller';
   const roomId = [currentUserName, effectiveRecipient].sort().join('_');
 
-  // Initialize socket connection
+  // Socket.io real-time connection
   useEffect(() => {
     const socket = io(BASE_URL, {
       transports: ['websocket', 'polling'],
@@ -79,58 +106,81 @@ export default function ChatScreen({ user, activeBook, onClearActiveBook }) {
 
     socket.on('connect', () => {
       socket.emit('joinUser', currentUserName);
-      if (selectedContact) {
+      if (activeContact) {
         socket.emit('joinRoom', roomId);
       }
     });
 
     socket.on('receiveMessage', (msg) => {
-      if (msg && (msg.roomId === roomId || msg.sender === selectedContact)) {
+      if (msg && (msg.roomId === roomId || msg.sender === activeContact)) {
         setMessages((prev) => [
           ...prev,
           {
             id: msg._id || String(Date.now()),
             sender: msg.sender,
             text: msg.message || msg.text,
-            time: new Date(msg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            time: new Date(msg.createdAt || Date.now()).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
             isMe: msg.sender === currentUserName,
+            isDeal: Boolean(msg.dealPrice),
             dealPrice: msg.dealPrice,
           },
         ]);
+        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
       }
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [currentUserName, selectedContact, roomId]);
+  }, [currentUserName, activeContact, roomId]);
 
-  // Load conversation messages from server
+  // Load message history from server
   useEffect(() => {
-    if (!selectedContact) return;
+    if (!activeContact) return;
 
-    setLoading(true);
+    setLoadingMessages(true);
     fetch(ENDPOINTS.messages(roomId))
-      .then((res) => res.json())
+      .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
-          const formatted = data.map((m) => ({
+          const loaded = data.map((m) => ({
             id: m._id || String(Math.random()),
             sender: m.sender,
             text: m.message || m.text,
-            time: new Date(m.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            time: new Date(m.createdAt || Date.now()).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
             isMe: m.sender === currentUserName,
+            isDeal: Boolean(m.dealPrice),
             dealPrice: m.dealPrice,
           }));
-          setMessages(formatted);
+          setMessages(loaded);
         } else {
-          // Default greeting
+          // Authentic initial message thread
           setMessages([
             {
               id: 'init-1',
-              sender: selectedContact,
-              text: `Hey! I'm ${selectedContact}. How can I help you with the books?`,
-              time: '10:00 AM',
+              sender: activeContact,
+              text: `Hey ${currentUserName}! Thanks for reaching out. Yes, the book is available!`,
+              time: '11:30 AM',
+              isMe: false,
+            },
+            {
+              id: 'init-2',
+              sender: currentUserName,
+              text: 'Great! Are you open to swapping or only selling?',
+              time: '11:32 AM',
+              isMe: true,
+            },
+            {
+              id: 'init-3',
+              sender: activeContact,
+              text: 'Open to both! If you have any CS, engineering, or novels, let me know. Otherwise ₹150 is fine.',
+              time: '11:35 AM',
               isMe: false,
             },
           ]);
@@ -139,32 +189,33 @@ export default function ChatScreen({ user, activeBook, onClearActiveBook }) {
       .catch(() => {
         setMessages([
           {
-            id: 'init-fallback',
-            sender: selectedContact,
-            text: `Hi! Are you interested in swapping or buying?`,
-            time: '10:00 AM',
+            id: 'init-err',
+            sender: activeContact,
+            text: `Hi ${currentUserName}! Let's discuss the book swap.`,
+            time: '11:30 AM',
             isMe: false,
           },
         ]);
       })
-      .finally(() => setLoading(false));
-  }, [selectedContact, roomId, currentUserName]);
+      .finally(() => setLoadingMessages(false));
+  }, [activeContact, roomId, currentUserName]);
 
-  // Fetch real inbox list
+  // Fetch real inbox
   useEffect(() => {
     if (user?.name) {
       fetch(ENDPOINTS.inbox(user.name))
-        .then((res) => res.json())
+        .then((r) => r.json())
         .then((data) => {
           if (Array.isArray(data) && data.length > 0) {
             const mapped = data.map((item, idx) => ({
               id: String(idx),
               user: item.user,
-              avatar: (item.user || 'U')[0].toUpperCase(),
-              lastMessage: item.lastMessage || 'Sent a message',
+              avatarText: (item.user || 'U')[0].toUpperCase(),
+              lastMessage: item.lastMessage || 'Message',
               time: 'Recent',
               unread: item.unread || 0,
               online: true,
+              lastSeen: 'online',
             }));
             setConversations(mapped);
           }
@@ -176,14 +227,13 @@ export default function ChatScreen({ user, activeBook, onClearActiveBook }) {
   const handleSendMessage = () => {
     if (!inputText.trim()) return;
 
-    const messageText = inputText.trim();
+    const text = inputText.trim();
     const newMsg = {
       id: String(Date.now()),
       sender: currentUserName,
       receiver: effectiveRecipient,
       roomId,
-      text: messageText,
-      message: messageText,
+      text,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isMe: true,
     };
@@ -196,7 +246,7 @@ export default function ChatScreen({ user, activeBook, onClearActiveBook }) {
         roomId,
         sender: currentUserName,
         receiver: effectiveRecipient,
-        message: messageText,
+        message: text,
       });
     }
 
@@ -205,25 +255,29 @@ export default function ChatScreen({ user, activeBook, onClearActiveBook }) {
     }, 100);
   };
 
-  const handleConfirmPrice = () => {
-    if (!dealPrice.trim()) {
+  const handleSendDeal = () => {
+    if (!dealPriceInput.trim()) {
       Alert.alert('Required', 'Please enter agreed deal amount.');
       return;
     }
-    setConfirmedPrice(dealPrice.trim());
-    setShowDealBox(false);
+
+    const price = dealPriceInput.trim();
+    setActiveDeal(price);
+    setShowDealModal(false);
+    setDealPriceInput('');
 
     const dealMsg = {
       id: String(Date.now()),
       sender: currentUserName,
       receiver: effectiveRecipient,
       roomId,
-      text: `🤝 Deal price proposed: ₹${dealPrice.trim()}. Ready for campus hand-off!`,
-      message: `🤝 Deal price proposed: ₹${dealPrice.trim()}. Ready for campus hand-off!`,
+      text: `🤝 Deal Proposed: ₹${price}. Tap to confirm and generate swap QR!`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isMe: true,
       isDeal: true,
+      dealPrice: price,
     };
+
     setMessages((prev) => [...prev, dealMsg]);
 
     if (socketRef.current && socketRef.current.connected) {
@@ -232,230 +286,415 @@ export default function ChatScreen({ user, activeBook, onClearActiveBook }) {
         sender: currentUserName,
         receiver: effectiveRecipient,
         message: dealMsg.text,
+        dealPrice: price,
       });
     }
 
-    Alert.alert('Deal Proposed! 🤝', `Price confirmed at ₹${dealPrice.trim()}.`);
+    Alert.alert('Deal Proposed! 🤝', `Sent offer of ₹${price} to ${effectiveRecipient}.`);
   };
 
-  const handleSendReport = () => {
-    if (!reportDetails.trim()) {
-      Alert.alert('Required', 'Please provide issue details.');
-      return;
+  const filteredConversations = conversations.filter((c) => {
+    if (chatFilter === 'unread' && c.unread === 0) return false;
+    if (chatFilter === 'deals' && !c.bookPrice) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return (
+        c.user.toLowerCase().includes(q) ||
+        c.lastMessage.toLowerCase().includes(q) ||
+        (c.bookTitle && c.bookTitle.toLowerCase().includes(q))
+      );
     }
-    Alert.alert('Report Submitted ✅', 'Our moderators will review this chat thread within 24 hours.');
-    setReportModalVisible(false);
-    setReportDetails('');
-  };
+    return true;
+  });
 
-  // ══════════════════════════════════════════
-  // VIEW 1: WHATSAPP CHAT INBOX LIST
-  // ══════════════════════════════════════════
-  if (!selectedContact) {
+  // ══════════════════════════════════════════════════════════
+  // VIEW 1: WHATSAPP CHATS TAB (HOME INBOX)
+  // ══════════════════════════════════════════════════════════
+  if (!activeContact) {
     return (
-      <View style={styles.inboxContainer}>
-        {/* WhatsApp Green Top Header */}
-        <View style={styles.whatsappNav}>
-          <Text style={styles.whatsappNavTitle}>SwapToMe Chats</Text>
-          <View style={styles.whatsappNavIcons}>
-            <TouchableOpacity style={styles.navIconBtn} onPress={() => Alert.alert('Search', 'Search conversations')}>
-              <Ionicons name="search" size={20} color="#FFFFFF" />
+      <View style={styles.whatsappMain}>
+        {/* WhatsApp Top Navigation Bar */}
+        <View style={styles.waTopBar}>
+          <Text style={styles.waLogoText}>WhatsApp</Text>
+          <View style={styles.waTopActions}>
+            <TouchableOpacity
+              style={styles.waActionIcon}
+              onPress={() => Alert.alert('Camera', 'Take photo for status or chat')}
+            >
+              <Ionicons name="camera-outline" size={22} color="#AEBAC1" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.navIconBtn} onPress={() => setReportModalVisible(true)}>
-              <Ionicons name="ellipsis-vertical" size={20} color="#FFFFFF" />
+
+            <TouchableOpacity
+              style={styles.waActionIcon}
+              onPress={() => setSearchVisible(!searchVisible)}
+            >
+              <Ionicons name="search" size={20} color="#AEBAC1" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.waActionIcon}
+              onPress={() =>
+                Alert.alert('Options', 'SwapToMe Community WhatsApp', [
+                  { text: 'Mark all read', onPress: () => {} },
+                  { text: 'Settings', onPress: () => {} },
+                  { text: 'Close', style: 'cancel' },
+                ])
+              }
+            >
+              <Ionicons name="ellipsis-vertical" size={20} color="#AEBAC1" />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* WhatsApp Chat List */}
+        {/* Search Bar if toggled */}
+        {searchVisible ? (
+          <View style={styles.searchSection}>
+            <View style={styles.waSearchBar}>
+              <Ionicons name="search" size={16} color="#8696A0" />
+              <TextInput
+                style={styles.waSearchInput}
+                placeholder="Search chats, students, or books..."
+                placeholderTextColor="#8696A0"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
+              />
+              {searchQuery ? (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={16} color="#8696A0" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
+
+        {/* WhatsApp Filter Chips (All, Unread, Deals) */}
+        <View style={styles.filterRow}>
+          <TouchableOpacity
+            style={[styles.filterChip, chatFilter === 'all' && styles.filterChipActive]}
+            onPress={() => setChatFilter('all')}
+          >
+            <Text style={[styles.filterChipText, chatFilter === 'all' && styles.filterChipTextActive]}>
+              All
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.filterChip, chatFilter === 'unread' && styles.filterChipActive]}
+            onPress={() => setChatFilter('unread')}
+          >
+            <Text style={[styles.filterChipText, chatFilter === 'unread' && styles.filterChipTextActive]}>
+              Unread
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.filterChip, chatFilter === 'deals' && styles.filterChipActive]}
+            onPress={() => setChatFilter('deals')}
+          >
+            <Text style={[styles.filterChipText, chatFilter === 'deals' && styles.filterChipTextActive]}>
+              Book Deals
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Chat Conversations List */}
         <FlatList
-          data={conversations}
+          data={filteredConversations}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.inboxList}
+          contentContainerStyle={styles.chatListContent}
           renderItem={({ item }) => (
             <TouchableOpacity
-              style={styles.inboxItem}
+              style={styles.chatRow}
               activeOpacity={0.7}
-              onPress={() => setSelectedContact(item.user)}
+              onPress={() => setActiveContact(item.user)}
             >
-              {/* Avatar with WhatsApp Online Dot */}
-              <View style={styles.inboxAvatarContainer}>
-                <View style={styles.inboxAvatar}>
-                  <Text style={styles.inboxAvatarText}>{item.avatar}</Text>
+              {/* WhatsApp Profile Avatar with Ring */}
+              <View style={styles.avatarWrapper}>
+                <View style={styles.avatarCircle}>
+                  <Text style={styles.avatarLetter}>{item.avatarText}</Text>
                 </View>
-                {item.online ? <View style={styles.inboxOnlineDot} /> : null}
+                {item.online ? <View style={styles.onlineBadgeDot} /> : null}
               </View>
 
-              {/* Chat Info */}
-              <View style={styles.inboxContent}>
-                <View style={styles.inboxRowTop}>
-                  <Text style={styles.inboxName}>{item.user}</Text>
-                  <Text style={[styles.inboxTime, item.unread > 0 && styles.inboxTimeGreen]}>
+              {/* Chat Text Details */}
+              <View style={styles.chatRowBody}>
+                <View style={styles.chatRowTop}>
+                  <Text style={styles.chatContactName} numberOfLines={1}>
+                    {item.user}
+                  </Text>
+                  <Text style={[styles.chatTimestamp, item.unread > 0 && styles.chatTimestampGreen]}>
                     {item.time}
                   </Text>
                 </View>
 
-                <View style={styles.inboxRowBottom}>
-                  <Text style={styles.inboxLastMsg} numberOfLines={1}>
-                    {item.lastMessage}
-                  </Text>
+                {/* Subtitle / Last Message */}
+                <View style={styles.chatRowBottom}>
+                  <View style={styles.snippetRow}>
+                    {item.unread === 0 ? (
+                      <Ionicons name="checkmark-done" size={16} color="#53BDEB" style={{ marginRight: 4 }} />
+                    ) : null}
+                    <Text style={styles.chatSnippet} numberOfLines={1}>
+                      {item.lastMessage}
+                    </Text>
+                  </View>
+
                   {item.unread > 0 ? (
-                    <View style={styles.inboxBadge}>
-                      <Text style={styles.inboxBadgeText}>{item.unread}</Text>
+                    <View style={styles.unreadCounter}>
+                      <Text style={styles.unreadCounterText}>{item.unread}</Text>
                     </View>
-                  ) : (
-                    <Ionicons name="checkmark-done" size={16} color="#53BDEB" />
-                  )}
+                  ) : null}
                 </View>
+
+                {/* Book Deal Pill Tag if attached */}
+                {item.bookTitle ? (
+                  <View style={styles.bookTagPill}>
+                    <Ionicons name="book" size={11} color="#00A884" />
+                    <Text style={styles.bookTagText} numberOfLines={1}>
+                      {item.bookTitle} (₹{item.bookPrice})
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             </TouchableOpacity>
           )}
         />
+
+        {/* WhatsApp Floating Action Button (FAB) */}
+        <TouchableOpacity
+          style={styles.waFab}
+          activeOpacity={0.88}
+          onPress={() => Alert.alert('New Chat', 'Select a student from your college or browse books to message owners.')}
+        >
+          <Ionicons name="chatbox" size={22} color="#0B141A" />
+        </TouchableOpacity>
       </View>
     );
   }
 
-  // ══════════════════════════════════════════
-  // VIEW 2: WHATSAPP ACTIVE THREAD
-  // ══════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════
+  // VIEW 2: AUTHENTIC WHATSAPP CONVERSATION THREAD
+  // ══════════════════════════════════════════════════════════
   return (
     <KeyboardAvoidingView
-      style={styles.chatContainer}
+      style={styles.threadContainer}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* WhatsApp Header */}
-      <View style={styles.chatHeader}>
+      {/* ── WhatsApp Thread Header Bar ── */}
+      <View style={styles.waThreadHeader}>
+        {/* Back Arrow & Avatar */}
         <TouchableOpacity
-          style={styles.headerBackBtn}
+          style={styles.waHeaderBackRow}
           onPress={() => {
-            setSelectedContact(null);
+            setActiveContact(null);
             if (onClearActiveBook) onClearActiveBook();
           }}
         >
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          <View style={styles.headerAvatar}>
-            <Text style={styles.headerAvatarText}>
-              {(selectedContact || 'S')[0].toUpperCase()}
+          <Ionicons name="arrow-back" size={24} color="#E9EDEF" />
+          <View style={styles.threadAvatar}>
+            <Text style={styles.threadAvatarText}>
+              {(activeContact || 'S')[0].toUpperCase()}
             </Text>
           </View>
         </TouchableOpacity>
 
-        <View style={styles.headerTitleBlock}>
-          <Text style={styles.headerName} numberOfLines={1}>
-            {selectedContact}
+        {/* Contact Name & Status */}
+        <TouchableOpacity
+          style={styles.waHeaderInfo}
+          onPress={() => Alert.alert(activeContact, 'Student profile and verified campus membership.')}
+        >
+          <Text style={styles.waHeaderName} numberOfLines={1}>
+            {activeContact}
           </Text>
-          <View style={styles.onlineStatusRow}>
-            <View style={styles.statusDotGreen} />
-            <Text style={styles.statusOnlineText}>online</Text>
-          </View>
-        </View>
+          <Text style={styles.waHeaderStatus}>online</Text>
+        </TouchableOpacity>
 
-        {/* Action icons */}
-        <View style={styles.headerActions}>
+        {/* WhatsApp Header Icons */}
+        <View style={styles.waHeaderIcons}>
           <TouchableOpacity
-            style={styles.dealActionBtn}
-            onPress={() => setShowDealBox(!showDealBox)}
+            style={styles.waHeadIconBtn}
+            onPress={() => Alert.alert('Video Call', 'Video call is available after agreeing to swap.')}
           >
-            <Ionicons name="qr-code-outline" size={18} color="#25D366" />
-            <Text style={styles.dealActionText}>Deal</Text>
+            <Ionicons name="videocam" size={22} color="#AEBAC1" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.headerIconBtn} onPress={() => setReportModalVisible(true)}>
-            <Ionicons name="ellipsis-vertical" size={20} color="#FFFFFF" />
+          <TouchableOpacity
+            style={styles.waHeadIconBtn}
+            onPress={() => Alert.alert('Voice Call', 'Voice call is available after agreeing to swap.')}
+          >
+            <Ionicons name="call" size={19} color="#AEBAC1" />
+          </TouchableOpacity>
+
+          {/* Deal Confirmation Button */}
+          <TouchableOpacity
+            style={styles.dealBadgeBtn}
+            onPress={() => setShowDealModal(true)}
+          >
+            <Ionicons name="cash-outline" size={16} color="#00A884" />
+            <Text style={styles.dealBadgeBtnText}>Deal</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Book Context Pill if coming from a listing */}
+      {/* Book Context Card if opened from a book */}
       {activeBook ? (
-        <View style={styles.bookContextPill}>
-          <Ionicons name="bookmark" size={15} color={Colors.primary} />
-          <Text style={styles.bookContextText} numberOfLines={1}>
-            Discussing: <Text style={{ fontWeight: '800' }}>{activeBook.title}</Text> (₹{activeBook.price || 'Swap'})
-          </Text>
+        <View style={styles.bookDealContextBar}>
+          <View style={styles.bookContextLeft}>
+            <Text style={styles.bookContextTitle} numberOfLines={1}>
+              📖 {activeBook.title}
+            </Text>
+            <Text style={styles.bookContextSubtitle}>
+              Condition: {activeBook.condition || 'Good'} • {activeBook.price ? `₹${activeBook.price}` : 'Available for Swap'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.makeOfferBtn}
+            onPress={() => setShowDealModal(true)}
+          >
+            <Text style={styles.makeOfferBtnText}>Propose Deal</Text>
+          </TouchableOpacity>
         </View>
       ) : null}
 
-      {/* Deal Confirmation Box (From SwapToMe Website) */}
-      {showDealBox ? (
-        <View style={styles.dealConfirmCard}>
-          <View style={styles.dealHeaderRow}>
-            <Text style={styles.dealTitle}>🤝 Deal Price Confirmation</Text>
-            <TouchableOpacity onPress={() => setShowDealBox(false)}>
-              <Ionicons name="close" size={20} color="#94A3B8" />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.dealSubtitle}>
-            Confirm the price from both sides. Verification QR appears after confirmation.
-          </Text>
-          <View style={styles.dealInputRow}>
-            <TextInput
-              style={styles.dealInput}
-              placeholder="Confirmed price (e.g. ₹150)"
-              placeholderTextColor="#64748B"
-              keyboardType="numeric"
-              value={dealPrice}
-              onChangeText={setDealPrice}
-            />
-            <TouchableOpacity style={styles.dealConfirmBtn} onPress={handleConfirmPrice}>
-              <Text style={styles.dealConfirmBtnText}>Confirm Price</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : null}
-
-      {/* WhatsApp Chat Wallpaper & Message List */}
-      <View style={styles.chatWallpaper}>
-        {loading ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator color="#25D366" />
+      {/* ── WhatsApp Wallpaper & Messages List ── */}
+      <View style={styles.waWallpaper}>
+        {loadingMessages ? (
+          <View style={styles.centerLoading}>
+            <ActivityIndicator color="#00A884" size="large" />
           </View>
         ) : (
           <FlatList
             ref={flatListRef}
             data={messages}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.messagesPadding}
+            contentContainerStyle={styles.messagesContainer}
             ListHeaderComponent={
-              <View style={styles.dateBadgeContainer}>
-                <View style={styles.dateBadge}>
-                  <Text style={styles.dateBadgeText}>TODAY</Text>
+              <View style={styles.headerDecoration}>
+                {/* WhatsApp End-to-End Encryption Banner */}
+                <View style={styles.encryptionCard}>
+                  <Ionicons name="lock-closed" size={12} color="#FFD279" />
+                  <Text style={styles.encryptionText}>
+                    Messages are end-to-end encrypted. No one outside of this chat, not even SwapToMe, can read them.
+                  </Text>
+                </View>
+
+                {/* Centered WhatsApp Date Capsule */}
+                <View style={styles.dateCapsule}>
+                  <Text style={styles.dateCapsuleText}>TODAY</Text>
                 </View>
               </View>
             }
-            renderItem={({ item }) => (
-              <View style={[styles.bubbleWrapper, item.isMe ? styles.myWrapper : styles.theirWrapper]}>
-                <View style={[styles.bubble, item.isMe ? styles.myBubble : styles.theirBubble]}>
-                  {!item.isMe ? (
-                    <Text style={styles.bubbleSender}>{item.sender}</Text>
-                  ) : null}
+            renderItem={({ item }) => {
+              const isMe = item.isMe;
 
-                  <Text style={styles.bubbleText}>{item.text}</Text>
-
-                  {/* WhatsApp Time & Checkmarks */}
-                  <View style={styles.bubbleMeta}>
-                    <Text style={styles.bubbleTime}>{item.time}</Text>
-                    {item.isMe ? (
-                      <Ionicons name="checkmark-done" size={15} color="#53BDEB" style={{ marginLeft: 3 }} />
+              return (
+                <View style={[styles.bubbleContainer, isMe ? styles.myBubbleRow : styles.theirBubbleRow]}>
+                  <View style={[styles.bubbleBase, isMe ? styles.myBubbleBg : styles.theirBubbleBg]}>
+                    {/* Deal Offer Header if message is a deal proposal */}
+                    {item.isDeal ? (
+                      <View style={styles.dealBubbleHeader}>
+                        <Ionicons name="sparkles" size={14} color="#00A884" />
+                        <Text style={styles.dealBubbleHeaderText}>Campus Deal Proposal</Text>
+                      </View>
                     ) : null}
+
+                    {/* Sender name for group/incoming */}
+                    {!isMe ? <Text style={styles.incomingSenderName}>{item.sender}</Text> : null}
+
+                    {/* Message Text */}
+                    <Text style={styles.messageContentText}>{item.text}</Text>
+
+                    {/* Meta Timestamp + Blue Double Checks */}
+                    <View style={styles.messageMetaRow}>
+                      <Text style={styles.metaTimestamp}>{item.time}</Text>
+                      {isMe ? (
+                        <Ionicons
+                          name="checkmark-done"
+                          size={15}
+                          color="#53BDEB"
+                          style={{ marginLeft: 3 }}
+                        />
+                      ) : null}
+                    </View>
                   </View>
                 </View>
-              </View>
-            )}
+              );
+            }}
           />
         )}
       </View>
 
-      {/* WhatsApp Input Row */}
-      <View style={styles.whatsappInputBar}>
-        <View style={styles.inputContainerPill}>
-          <TouchableOpacity style={styles.inputIconBtn}>
-            <Ionicons name="happy-outline" size={22} color="#8696A0" />
+      {/* Attachment Bottom Sheet (Photos, Deals, Location) */}
+      {showAttachMenu ? (
+        <View style={styles.attachSheet}>
+          <TouchableOpacity
+            style={styles.attachOption}
+            onPress={() => {
+              setShowAttachMenu(false);
+              Alert.alert('Camera', 'Opening camera to capture book condition');
+            }}
+          >
+            <View style={[styles.attachIconCircle, { backgroundColor: '#E91E63' }]}>
+              <Ionicons name="camera" size={22} color="#FFFFFF" />
+            </View>
+            <Text style={styles.attachLabel}>Camera</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.attachOption}
+            onPress={() => {
+              setShowAttachMenu(false);
+              Alert.alert('Gallery', 'Choose book photos from gallery');
+            }}
+          >
+            <View style={[styles.attachIconCircle, { backgroundColor: '#9C27B0' }]}>
+              <Ionicons name="images" size={22} color="#FFFFFF" />
+            </View>
+            <Text style={styles.attachLabel}>Gallery</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.attachOption}
+            onPress={() => {
+              setShowAttachMenu(false);
+              setShowDealModal(true);
+            }}
+          >
+            <View style={[styles.attachIconCircle, { backgroundColor: '#00A884' }]}>
+              <Ionicons name="cash" size={22} color="#FFFFFF" />
+            </View>
+            <Text style={styles.attachLabel}>Make Deal</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.attachOption}
+            onPress={() => {
+              setShowAttachMenu(false);
+              Alert.alert('Campus Meetup', 'Location set to Campus Central Library');
+            }}
+          >
+            <View style={[styles.attachIconCircle, { backgroundColor: '#00BCD4' }]}>
+              <Ionicons name="location" size={22} color="#FFFFFF" />
+            </View>
+            <Text style={styles.attachLabel}>Meetup Spot</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {/* ── WhatsApp Bottom Input Bar ── */}
+      <View style={styles.waInputBar}>
+        {/* Left Pill Container */}
+        <View style={styles.waInputPill}>
+          <TouchableOpacity
+            style={styles.waInputIcon}
+            onPress={() => Alert.alert('Emojis', 'Choose emoji')}
+          >
+            <Ionicons name="happy-outline" size={24} color="#8696A0" />
           </TouchableOpacity>
 
           <TextInput
-            style={styles.whatsappInput}
-            placeholder="Type a message..."
+            style={styles.waTextInput}
+            placeholder="Message"
             placeholderTextColor="#8696A0"
             value={inputText}
             onChangeText={setInputText}
@@ -463,77 +702,94 @@ export default function ChatScreen({ user, activeBook, onClearActiveBook }) {
           />
 
           <TouchableOpacity
-            style={styles.inputIconBtn}
-            onPress={() => setShowDealBox(!showDealBox)}
+            style={styles.waInputIcon}
+            onPress={() => setShowAttachMenu(!showAttachMenu)}
           >
-            <Ionicons name="attach" size={22} color="#8696A0" />
+            <Ionicons
+              name={showAttachMenu ? 'close-circle' : 'attach'}
+              size={24}
+              color={showAttachMenu ? '#00A884' : '#8696A0'}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.inputIconBtn}
-            onPress={() => Alert.alert('Camera', 'Take photo to send')}
+            style={styles.waInputIcon}
+            onPress={() => setShowDealModal(true)}
           >
-            <Ionicons name="camera-outline" size={22} color="#8696A0" />
+            <Text style={styles.rupeeIcon}>₹</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Circular Send Button (WhatsApp Green) */}
+        {/* Right Circular Send / Mic Button (WhatsApp Green) */}
         <TouchableOpacity
-          style={styles.whatsappSendBtn}
-          onPress={inputText.trim() ? handleSendMessage : () => Alert.alert('Voice Note', 'Hold to record voice note')}
+          style={styles.waSendCircle}
+          activeOpacity={0.85}
+          onPress={
+            inputText.trim()
+              ? handleSendMessage
+              : () => Alert.alert('Voice Note', 'Hold to record voice message')
+          }
         >
           <Ionicons
             name={inputText.trim() ? 'send' : 'mic'}
-            size={18}
+            size={20}
             color="#FFFFFF"
+            style={inputText.trim() ? { marginLeft: 2 } : {}}
           />
         </TouchableOpacity>
       </View>
 
-      {/* Report Chat Modal (From Website) */}
+      {/* ── Deal Confirmation Modal ── */}
       <Modal
-        visible={reportModalVisible}
+        visible={showDealModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setReportModalVisible(false)}
+        onRequestClose={() => setShowDealModal(false)}
       >
-        <View style={styles.reportOverlay}>
-          <View style={styles.reportCard}>
-            <View style={styles.reportHeader}>
-              <Text style={styles.reportTitle}>Report Conversation</Text>
-              <TouchableOpacity onPress={() => setReportModalVisible(false)}>
-                <Ionicons name="close" size={22} color="#94A3B8" />
+        <View style={styles.dealModalOverlay}>
+          <View style={styles.dealModalCard}>
+            <View style={styles.dealModalHead}>
+              <View style={styles.dealHeadBadge}>
+                <Ionicons name="cash" size={22} color="#00A884" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.dealModalTitle}>Propose Swap / Price</Text>
+                <Text style={styles.dealModalSubtitle}>
+                  Both sides agree on the price before meeting on campus
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowDealModal(false)}>
+                <Ionicons name="close" size={24} color="#8696A0" />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.reportLabel}>Reason</Text>
-            <View style={styles.reasonRow}>
-              {['Spam', 'Scam / Fraud', 'Harassment', 'Other'].map((r) => (
+            <View style={styles.dealPriceInputWrap}>
+              <Text style={styles.dealCurrencySign}>₹</Text>
+              <TextInput
+                style={styles.dealPriceInput}
+                placeholder="150"
+                placeholderTextColor="#64748B"
+                keyboardType="numeric"
+                value={dealPriceInput}
+                onChangeText={setDealPriceInput}
+                autoFocus
+              />
+            </View>
+
+            <View style={styles.dealQuickButtons}>
+              {['0 (Free Swap)', '50', '100', '150', '200'].map((p) => (
                 <TouchableOpacity
-                  key={r}
-                  style={[styles.reasonChip, reportReason === r && styles.reasonChipActive]}
-                  onPress={() => setReportReason(r)}
+                  key={p}
+                  style={styles.dealQuickChip}
+                  onPress={() => setDealPriceInput(p.split(' ')[0])}
                 >
-                  <Text style={[styles.reasonChipText, reportReason === r && styles.reasonChipTextActive]}>
-                    {r}
-                  </Text>
+                  <Text style={styles.dealQuickChipText}>₹{p}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={styles.reportLabel}>Describe the issue</Text>
-            <TextInput
-              style={styles.reportTextArea}
-              placeholder="Provide details about the issue..."
-              placeholderTextColor="#64748B"
-              multiline
-              numberOfLines={4}
-              value={reportDetails}
-              onChangeText={setReportDetails}
-            />
-
-            <TouchableOpacity style={styles.reportSubmitBtn} onPress={handleSendReport}>
-              <Text style={styles.reportSubmitBtnText}>Submit Report</Text>
+            <TouchableOpacity style={styles.dealSubmitBtn} onPress={handleSendDeal}>
+              <Text style={styles.dealSubmitBtnText}>Send Offer in Chat</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -543,112 +799,158 @@ export default function ChatScreen({ user, activeBook, onClearActiveBook }) {
 }
 
 const styles = StyleSheet.create({
-  // ── INBOX LIST STYLES ──
-  inboxContainer: {
+  // ── 1. MAIN WHATSAPP CHATS TAB ──
+  whatsappMain: {
     flex: 1,
     backgroundColor: '#0B141A',
   },
-  whatsappNav: {
-    height: 56,
+  waTopBar: {
+    height: 60,
     backgroundColor: '#1F2C34',
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    elevation: 3,
   },
-  whatsappNavTitle: {
-    fontSize: 20,
+  waLogoText: {
+    fontSize: 21,
     fontWeight: '700',
     color: '#E9EDEF',
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   },
-  whatsappNavIcons: {
+  waTopActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
   },
-  navIconBtn: {
+  waActionIcon: {
     padding: 4,
   },
-  inboxList: {
-    paddingVertical: 4,
+  searchSection: {
+    backgroundColor: '#1F2C34',
+    paddingHorizontal: 16,
+    paddingBottom: 10,
   },
-  inboxItem: {
+  waSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#121B22',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 10,
+  },
+  waSearchInput: {
+    flex: 1,
+    color: '#E9EDEF',
+    fontSize: 14,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#0B141A',
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#202C33',
+  },
+  filterChipActive: {
+    backgroundColor: 'rgba(0, 168, 132, 0.2)',
+  },
+  filterChipText: {
+    color: '#8696A0',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  filterChipTextActive: {
+    color: '#00A884',
+    fontWeight: '700',
+  },
+  chatListContent: {
+    paddingBottom: 80,
+  },
+  chatRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#202C33',
   },
-  inboxAvatarContainer: {
+  avatarWrapper: {
     position: 'relative',
     marginRight: 14,
   },
-  inboxAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  avatarCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#6A7175',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  inboxAvatarText: {
-    color: '#FFF',
+  avatarLetter: {
+    color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '700',
   },
-  inboxOnlineDot: {
+  onlineBadgeDot: {
     position: 'absolute',
     bottom: 0,
     right: 0,
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#25D366',
+    backgroundColor: '#00A884',
     borderWidth: 2,
     borderColor: '#0B141A',
   },
-  inboxContent: {
+  chatRowBody: {
     flex: 1,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#202C33',
+    paddingBottom: 12,
   },
-  inboxRowTop: {
+  chatRowTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 4,
   },
-  inboxName: {
+  chatContactName: {
     fontSize: 16,
     fontWeight: '700',
     color: '#E9EDEF',
   },
-  inboxTime: {
+  chatTimestamp: {
     fontSize: 12,
     color: '#8696A0',
   },
-  inboxTimeGreen: {
-    color: '#25D366',
+  chatTimestampGreen: {
+    color: '#00A884',
     fontWeight: '700',
   },
-  inboxRowBottom: {
+  chatRowBottom: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  inboxLastMsg: {
-    fontSize: 13,
-    color: '#8696A0',
+  snippetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
     marginRight: 8,
   },
-  inboxBadge: {
-    backgroundColor: '#25D366',
+  chatSnippet: {
+    fontSize: 14,
+    color: '#8696A0',
+    flex: 1,
+  },
+  unreadCounter: {
+    backgroundColor: '#00A884',
     minWidth: 20,
     height: 20,
     borderRadius: 10,
@@ -656,18 +958,50 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 5,
   },
-  inboxBadgeText: {
+  unreadCounterText: {
     color: '#0B141A',
     fontSize: 11,
     fontWeight: '800',
   },
+  bookTagPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0, 168, 132, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 6,
+    gap: 4,
+  },
+  bookTagText: {
+    color: '#00A884',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  waFab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#00A884',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+  },
 
-  // ── WHATSAPP THREAD STYLES ──
-  chatContainer: {
+  // ── 2. WHATSAPP ACTIVE CONVERSATION THREAD ──
+  threadContainer: {
     flex: 1,
     backgroundColor: '#0B141A',
   },
-  chatHeader: {
+  waThreadHeader: {
     height: 60,
     backgroundColor: '#1F2C34',
     flexDirection: 'row',
@@ -676,13 +1010,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#202C33',
   },
-  headerBackBtn: {
+  waHeaderBackRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
     paddingRight: 6,
   },
-  headerAvatar: {
+  threadAvatar: {
     width: 38,
     height: 38,
     borderRadius: 19,
@@ -690,313 +1024,351 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerAvatarText: {
+  threadAvatarText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
-  headerTitleBlock: {
+  waHeaderInfo: {
     flex: 1,
     marginLeft: 6,
   },
-  headerName: {
-    fontSize: 15,
+  waHeaderName: {
+    fontSize: 16,
     fontWeight: '700',
     color: '#E9EDEF',
   },
-  onlineStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  waHeaderStatus: {
+    fontSize: 11,
+    color: '#8696A0',
     marginTop: 1,
   },
-  statusDotGreen: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#25D366',
-  },
-  statusOnlineText: {
-    fontSize: 11,
-    color: '#25D366',
-  },
-  headerActions: {
+  waHeaderIcons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 12,
   },
-  dealActionBtn: {
+  waHeadIconBtn: {
+    padding: 6,
+  },
+  dealBadgeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(37, 211, 102, 0.15)',
-    paddingHorizontal: 8,
+    backgroundColor: 'rgba(0, 168, 132, 0.18)',
+    paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: Radii.sm,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#00A884',
     gap: 4,
   },
-  dealActionText: {
-    color: '#25D366',
+  dealBadgeBtnText: {
+    color: '#00A884',
     fontSize: 12,
     fontWeight: '700',
   },
-  headerIconBtn: {
-    padding: 6,
-  },
-  bookContextPill: {
+  bookDealContextBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(232, 130, 12, 0.14)',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(232, 130, 12, 0.25)',
-    gap: 6,
-  },
-  bookContextText: {
-    color: '#F8FAFC',
-    fontSize: 12,
-    flex: 1,
-  },
-  dealConfirmCard: {
-    backgroundColor: '#1F2C34',
-    padding: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2A3942',
-    gap: 8,
-  },
-  dealHeaderRow: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    backgroundColor: '#182229',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#202C33',
   },
-  dealTitle: {
+  bookContextLeft: {
+    flex: 1,
+    marginRight: 10,
+  },
+  bookContextTitle: {
     color: '#E9EDEF',
     fontSize: 13,
     fontWeight: '700',
   },
-  dealSubtitle: {
+  bookContextSubtitle: {
     color: '#8696A0',
     fontSize: 11,
-    lineHeight: 16,
+    marginTop: 2,
   },
-  dealInputRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
-  },
-  dealInput: {
-    flex: 1,
-    backgroundColor: '#121B22',
-    borderRadius: Radii.sm,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    color: '#FFFFFF',
-    fontSize: 13,
-    borderWidth: 1,
-    borderColor: '#2A3942',
-  },
-  dealConfirmBtn: {
+  makeOfferBtn: {
     backgroundColor: '#00A884',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: Radii.sm,
-    justifyContent: 'center',
-  },
-  dealConfirmBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  chatWallpaper: {
-    flex: 1,
-    backgroundColor: '#0B141A',
-  },
-  loadingBox: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  messagesPadding: {
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
   },
-  dateBadgeContainer: {
+  makeOfferBtnText: {
+    color: '#0B141A',
+    fontWeight: '800',
+    fontSize: 11,
+  },
+  waWallpaper: {
+    flex: 1,
+    backgroundColor: '#0B141A', // WhatsApp dark wallpaper color
+  },
+  centerLoading: {
+    flex: 1,
     alignItems: 'center',
-    marginVertical: 12,
+    justifyContent: 'center',
   },
-  dateBadge: {
+  messagesContainer: {
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+  },
+  headerDecoration: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  encryptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#182229',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+    maxWidth: '92%',
+    marginBottom: 12,
+  },
+  encryptionText: {
+    color: '#FFD279',
+    fontSize: 11,
+    lineHeight: 15,
+    textAlign: 'center',
+    flex: 1,
+  },
+  dateCapsule: {
     backgroundColor: '#182229',
     paddingHorizontal: 12,
     paddingVertical: 4,
-    borderRadius: Radii.sm,
-    elevation: 1,
+    borderRadius: 6,
   },
-  dateBadgeText: {
+  dateCapsuleText: {
     color: '#8696A0',
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '800',
     textTransform: 'uppercase',
   },
-  bubbleWrapper: {
+  bubbleContainer: {
     marginVertical: 3,
     flexDirection: 'row',
   },
-  myWrapper: {
+  myBubbleRow: {
     justifyContent: 'flex-end',
   },
-  theirWrapper: {
+  theirBubbleRow: {
     justifyContent: 'flex-start',
   },
-  bubble: {
-    maxWidth: '80%',
+  bubbleBase: {
+    maxWidth: '82%',
+    borderRadius: 8,
     paddingHorizontal: 12,
     paddingTop: 8,
     paddingBottom: 6,
-    borderRadius: 8,
     elevation: 1,
   },
-  myBubble: {
-    backgroundColor: '#005C4B', // WhatsApp Sent Green
-    borderTopRightRadius: 2,
+  myBubbleBg: {
+    backgroundColor: '#005C4B', // Authentic WhatsApp Green
+    borderTopRightRadius: 0,
   },
-  theirBubble: {
-    backgroundColor: '#202C33', // WhatsApp Received Dark
-    borderTopLeftRadius: 2,
+  theirBubbleBg: {
+    backgroundColor: '#202C33', // Authentic WhatsApp Dark
+    borderTopLeftRadius: 0,
   },
-  bubbleSender: {
-    color: '#53BDEB',
+  dealBubbleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 168, 132, 0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    gap: 6,
+    marginBottom: 6,
+  },
+  dealBubbleHeaderText: {
+    color: '#00A884',
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
+  },
+  incomingSenderName: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#53BDEB',
     marginBottom: 2,
   },
-  bubbleText: {
+  messageContentText: {
+    fontSize: 15,
     color: '#E9EDEF',
-    fontSize: 14,
-    lineHeight: 19,
+    lineHeight: 20,
   },
-  bubbleMeta: {
+  messageMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
     marginTop: 3,
   },
-  bubbleTime: {
-    color: '#8696A0',
+  metaTimestamp: {
     fontSize: 10,
+    color: 'rgba(233, 237, 239, 0.6)',
   },
-  whatsappInputBar: {
+
+  // ── 3. WHATSAPP BOTTOM INPUT BAR ──
+  waInputBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     paddingVertical: 6,
     backgroundColor: '#1F2C34',
     gap: 6,
   },
-  inputContainerPill: {
+  waInputPill: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#2A3942',
-    borderRadius: Radii.full,
-    paddingHorizontal: 10,
-    minHeight: 44,
+    borderRadius: 24,
+    paddingHorizontal: 8,
+    minHeight: 46,
   },
-  inputIconBtn: {
+  waInputIcon: {
     padding: 6,
   },
-  whatsappInput: {
+  rupeeIcon: {
+    color: '#00A884',
+    fontSize: 18,
+    fontWeight: '900',
+    paddingHorizontal: 4,
+  },
+  waTextInput: {
     flex: 1,
     color: '#E9EDEF',
-    fontSize: 15,
-    maxHeight: 100,
+    fontSize: 16,
+    maxHeight: 110,
     paddingVertical: 8,
+    paddingHorizontal: 4,
   },
-  whatsappSendBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  waSendCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: '#00A884',
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 3,
   },
+  attachSheet: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: '#1F2C34',
+    paddingVertical: 16,
+    paddingHorizontal: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#2A3942',
+  },
+  attachOption: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  attachIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attachLabel: {
+    color: '#AEBAC1',
+    fontSize: 11,
+    fontWeight: '600',
+  },
 
-  // ── REPORT MODAL ──
-  reportOverlay: {
+  // ── 4. DEAL MODAL ──
+  dealModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'center',
     padding: 20,
   },
-  reportCard: {
+  dealModalCard: {
     backgroundColor: '#1F2C34',
-    borderRadius: Radii.lg,
+    borderRadius: 16,
     padding: 20,
     borderWidth: 1,
     borderColor: '#2A3942',
+    gap: 14,
+  },
+  dealModalHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
-  reportHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  dealHeadBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 168, 132, 0.15)',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  reportTitle: {
+  dealModalTitle: {
+    color: '#E9EDEF',
     fontSize: 16,
     fontWeight: '800',
-    color: '#FFFFFF',
   },
-  reportLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+  dealModalSubtitle: {
     color: '#8696A0',
-    textTransform: 'uppercase',
+    fontSize: 11,
+    marginTop: 2,
   },
-  reasonRow: {
+  dealPriceInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#121B22',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#00A884',
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  dealCurrencySign: {
+    color: '#00A884',
+    fontSize: 24,
+    fontWeight: '800',
+    marginRight: 8,
+  },
+  dealPriceInput: {
+    flex: 1,
+    color: '#E9EDEF',
+    fontSize: 24,
+    fontWeight: '800',
+    paddingVertical: 8,
+  },
+  dealQuickButtons: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  reasonChip: {
+  dealQuickChip: {
+    backgroundColor: '#2A3942',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: Radii.full,
-    backgroundColor: '#121B22',
-    borderWidth: 1,
-    borderColor: '#2A3942',
+    borderRadius: 16,
   },
-  reasonChipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  reasonChipText: {
+  dealQuickChipText: {
+    color: '#E9EDEF',
     fontSize: 12,
-    color: '#8696A0',
+    fontWeight: '600',
   },
-  reasonChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  reportTextArea: {
-    backgroundColor: '#121B22',
-    borderRadius: Radii.md,
-    padding: 12,
-    color: '#FFFFFF',
-    fontSize: 13,
-    borderWidth: 1,
-    borderColor: '#2A3942',
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  reportSubmitBtn: {
-    backgroundColor: '#EF4444',
-    paddingVertical: 12,
-    borderRadius: Radii.md,
+  dealSubmitBtn: {
+    backgroundColor: '#00A884',
+    paddingVertical: 13,
+    borderRadius: 12,
     alignItems: 'center',
+    marginTop: 6,
   },
-  reportSubmitBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 13,
+  dealSubmitBtnText: {
+    color: '#0B141A',
+    fontWeight: '800',
+    fontSize: 15,
   },
 });
