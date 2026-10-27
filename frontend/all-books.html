@@ -1,8 +1,12 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>All Books</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>All Books — SWAPTOME</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="3d-enhance.css">
   <script>
     (function () {
       const theme = localStorage.getItem("selectedTheme") || "light";
@@ -63,15 +67,21 @@ let allBooks = [];
 let currentCategory = "All";
 let selectedSeller = new URLSearchParams(window.location.search).get("seller") || "";
 let highlightBookId = new URLSearchParams(window.location.search).get("bookId") || "";
-let currentUser = (localStorage.getItem("userName") || selectedSeller || "").trim();
+let currentUser = (localStorage.getItem("userName") || "").trim();
 
 function isLoggedIn() {
   return !!(localStorage.getItem("userName") || localStorage.getItem("token"));
 }
 
-function promptLoginForAction() {
+function promptLoginForAction(action, seller) {
   try {
-    sessionStorage.setItem("postLoginRedirect", window.location.pathname.split(/[\\/]/).pop() + window.location.search);
+    if (action === "chat" && seller) {
+      sessionStorage.setItem("postLoginRedirect", `chat.html?seller=${encodeURIComponent(seller)}`);
+      localStorage.setItem("chatSeller", seller);
+      localStorage.setItem("chatWith", seller);
+    } else {
+      sessionStorage.setItem("postLoginRedirect", window.location.pathname.split(/[\/]/).pop() + window.location.search);
+    }
   } catch (e) {}
   window.location.href = "index.html?auth=1";
 }
@@ -93,8 +103,13 @@ function getActiveCategoryFilter() {
 }
 
 function canManageBook(book) {
-  const ownerName = (currentUser || selectedSeller || "").trim();
-  return !!ownerName && (book.seller || "").trim() === ownerName;
+  const loggedInUser = (localStorage.getItem("userName") || "").trim();
+  const loggedInEmail = (localStorage.getItem("email") || "").trim().toLowerCase();
+  if (!loggedInUser && !loggedInEmail) return false;
+
+  const matchesSellerName = !!loggedInUser && (book.seller || "").trim().toLowerCase() === loggedInUser.toLowerCase();
+  const matchesUploaderEmail = !!loggedInEmail && (book.uploaderEmail || "").trim().toLowerCase() === loggedInEmail;
+  return matchesSellerName || matchesUploaderEmail;
 }
 
 function resolveBookImageSrc(imagePath) {
@@ -187,7 +202,7 @@ onclick="openImageGallery('${encodeURIComponent(JSON.stringify(book.images || [b
           ${!canManageBook(book) ? `
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
               <button
-                onclick="${isLoggedIn() ? `chatWithSeller('${book.seller}')` : 'promptLoginForAction()'}"
+                onclick='chatWithSeller(${JSON.stringify(book.seller || "Seller")})'
                 class="all-books-chat-btn"
               >
                 💬 Chat with Seller
@@ -309,7 +324,7 @@ async function deleteBook(bookId) {
 
   const ownerName = (currentUser || selectedSeller || "").trim();
 
-  const res = await fetch(`https://swaptome-api.onrender.com/api/books/${bookId}?seller=${encodeURIComponent(ownerName)}`, {
+  const res = await fetch(`${apiBase}/api/books/${bookId}?seller=${encodeURIComponent(ownerName)}`, {
     method: "DELETE"
   });
 
@@ -336,7 +351,7 @@ async function changeBookPrice(bookId, currentPrice) {
     return;
   }
 
-  const res = await fetch(`https://swaptome-api.onrender.com/api/books/${bookId}/price`, {
+  const res = await fetch(`${apiBase}/api/books/${bookId}/price`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ price: parsedPrice, seller: ownerName })
@@ -407,8 +422,29 @@ function galleryPrev(e) {
 }
 
 function chatWithSeller(name) {
-  localStorage.setItem("chatSeller", name);
-    window.location.href = `chat.html?seller=${encodeURIComponent(name)}`;
+  const seller = String(name || "").trim();
+  if (!seller || seller.toLowerCase() === "unknown" || seller.toLowerCase() === "seller") {
+    alert("Seller information is not available for this book.");
+    return;
+  }
+
+  const currentUser = (localStorage.getItem("userName") || "").trim();
+  const token = localStorage.getItem("token");
+  const isLoggedIn = !!(currentUser || token);
+
+  if (!isLoggedIn) {
+    promptLoginForAction("chat", seller);
+    return;
+  }
+
+  if (currentUser && currentUser.toLowerCase() === seller.toLowerCase()) {
+    alert("You are the seller of this book! You cannot start a chat with yourself.");
+    return;
+  }
+
+  localStorage.setItem("chatSeller", seller);
+  localStorage.setItem("chatWith", seller);
+  window.location.href = `chat.html?seller=${encodeURIComponent(seller)}`;
 }
 
 function openReportModal(type, targetLabel, targetUser) {
@@ -441,7 +477,7 @@ async function submitReport() {
     return;
   }
 
-  const res = await fetch('https://swaptome-api.onrender.com/reports', {
+  const res = await fetch(`${apiBase}/reports`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -550,5 +586,6 @@ document.addEventListener('click', () => {
   </div>
 
 </div>
+<script src="3d-engine.js" defer></script>
 </body>
 </html>

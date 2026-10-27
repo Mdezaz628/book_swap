@@ -1,15 +1,62 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="SwapTome logo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none" role="img" aria-label="SwapTome logo">
   <defs>
-    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0%" stop-color="#14b8a6"/>
-      <stop offset="100%" stop-color="#1d4ed8"/>
+    <!-- Sapphire Left Cover Gradient -->
+    <linearGradient id="stLeftWing" x1="16" y1="20" x2="64" y2="108" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="50%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
     </linearGradient>
+
+    <!-- Solar Gold Right Cover Gradient -->
+    <linearGradient id="stRightWing" x1="64" y1="20" x2="112" y2="108" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="50%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+
+    <!-- 3D Layered Page Stack Gradient -->
+    <linearGradient id="stPageGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="70%" stop-color="#f1f5f9"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+
+    <!-- Spine Core Gradient -->
+    <linearGradient id="stSpine" x1="64" y1="20" x2="64" y2="108" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="50%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#78350f"/>
+    </linearGradient>
+
+    <!-- Dimensional Drop Shadow -->
+    <filter id="stShadow" x="-20%" y="-15%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#020617" flood-opacity="0.45"/>
+    </filter>
   </defs>
-  <rect width="128" height="128" rx="20" fill="none"/>
-  <path d="M18 34h28c12 0 22 10 22 22v38H40c-12 0-22-10-22-22V34z" fill="none" stroke="url(#g)" stroke-width="8" stroke-linejoin="round"/>
-  <path d="M110 34H82c-12 0-22 10-22 22v38h28c12 0 22-10 22-22V34z" fill="none" stroke="url(#g)" stroke-width="8" stroke-linejoin="round"/>
-  <path d="M34 86c13-10 22-22 30-40" fill="none" stroke="url(#g)" stroke-width="8" stroke-linecap="round"/>
-  <path d="M94 42c-13 10-22 22-30 40" fill="none" stroke="url(#g)" stroke-width="8" stroke-linecap="round"/>
-  <path d="M56 46l10-10 10 10" fill="none" stroke="url(#g)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M72 82l-10 10-10-10" fill="none" stroke="url(#g)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <g filter="url(#stShadow)">
+    <!-- Left Cover (Sapphire Isometric Wing) -->
+    <path d="M64 26 C50 16 26 18 14 24 C12 25 10 27 10 30 L10 88 C10 91 12 93 15 92 C26 87 48 85 64 96 Z" fill="url(#stLeftWing)"/>
+    <!-- Left Pages Stack (3D stepped sheets) -->
+    <path d="M64 30 C51 21 30 23 18 28 L18 85 C30 81 51 79 64 89 Z" fill="url(#stPageGrad)" opacity="0.95"/>
+    <path d="M64 34 C53 25 33 27 21 31 L21 82 C33 78 53 77 64 85 Z" fill="#ffffff"/>
+
+    <!-- Right Cover (Gold Isometric Wing) -->
+    <path d="M64 26 C78 16 102 18 114 24 C116 25 118 27 118 30 L118 88 C118 91 116 93 113 92 C102 87 80 85 64 96 Z" fill="url(#stRightWing)"/>
+    <!-- Right Pages Stack (3D stepped sheets) -->
+    <path d="M64 30 C77 21 98 23 110 28 L110 85 C98 81 77 79 64 89 Z" fill="url(#stPageGrad)" opacity="0.95"/>
+    <path d="M64 34 C75 25 95 27 107 31 L107 82 C95 78 75 77 64 85 Z" fill="#ffffff"/>
+
+    <!-- 3D Center Spine Fold -->
+    <path d="M62 24 C63.3 23.5 64.7 23.5 66 24 L66 98 C64.7 97.5 63.3 97.5 62 98 Z" fill="url(#stSpine)"/>
+
+    <!-- Dynamic 3D Swap Orbit Rings -->
+    <!-- Top Arc (Sapphire to Gold) -->
+    <path d="M36 56 C41 43 56 39 72 43 C79 45 85 49 89 54" stroke="#3b82f6" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+    <polygon points="88,47 95,55 85,58" fill="#3b82f6"/>
+
+    <!-- Bottom Arc (Gold to Sapphire) -->
+    <path d="M92 68 C87 81 72 85 56 81 C49 79 43 75 39 70" stroke="#f59e0b" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+    <polygon points="40,77 33,69 43,66" fill="#f59e0b"/>
+  </g>
 </svg>

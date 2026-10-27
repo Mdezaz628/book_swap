@@ -96,7 +96,6 @@ function ensureSupportUi() {
 
   const wrapper = document.createElement('div');
   wrapper.innerHTML = `
-    <button id="supportFab" type="button" onclick="openSupportModal('report')" style="position:fixed;right:18px;bottom:18px;z-index:99998;border:none;border-radius:999px;padding:14px 18px;background:linear-gradient(135deg,#0f2b5b 0%,#1d4ed8 100%);color:#fff;font-weight:800;box-shadow:0 18px 34px rgba(15,43,91,.28);cursor:pointer;">Report / Feedback</button>
     <div class="modal-overlay" id="supportModal">
       <div class="modal" style="max-width:640px;width:min(640px,calc(100vw - 24px));">
         <button class="modal-close" type="button" onclick="closeSupportModal()">✕</button>
@@ -686,13 +685,7 @@ function toggleMenu() {
 
 }
 
-// 🔥 PROFILE
-
-function openProfile() {
-
-  alert("Profile Open");
-
-}
+// openProfile defined below
 
 // 🔥 LOGOUT
 
@@ -759,13 +752,7 @@ document.addEventListener(
   }
 );
 
-function logoutUser(){
-
-  localStorage.removeItem("token");
-  localStorage.removeItem("userName");
-  window.location.href = "index.html";
-
-}
+// logoutUser already defined above
 
 /* 🔥 LOAD SAVED THEME */
 
@@ -789,14 +776,17 @@ window.onload = () => {
 
 // 🔐 CHECK LOGIN (PAGE LOAD)
 window.addEventListener("DOMContentLoaded", () => {
-  const token = localStorage.getItem("token");
-  const isLoginPage = window.location.pathname.endsWith("index.html");
-  const isChatPage = window.location.pathname.endsWith("chat.html");
+  const token = localStorage.getItem("token") || "";
+  const userName = localStorage.getItem("userName") || "";
+  const isLoggedIn = !!(token || userName);
+  const path = (window.location.pathname || '').toLowerCase();
+  const isPublicPage = path.endsWith("index.html") || path === "/" || path === "" || path.endsWith("/") || path.endsWith("all-books.html");
+  const isChatPage = path.endsWith("chat.html");
 
-  if (!token && !isLoginPage) {
+  if (!isLoggedIn && !isPublicPage) {
     if (isChatPage) {
       // Don't redirect away immediately from chat — show a prompt that explains login is required
-      try { showChatLoginPrompt(); } catch (e) { window.location.href = "index.html"; }
+      try { showChatLoginPrompt(); } catch (e) { window.location.href = "index.html?auth=1"; }
       return;
     }
 
@@ -821,7 +811,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
     // notify server to mark messages as read for this convo
     if (currentUser && selectedSeller) {
-      fetch("https://swaptome-api.onrender.com/mark-read", {
+      fetch(apiUrl("/mark-read"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sender: selectedSeller, receiver: currentUser })
@@ -839,10 +829,11 @@ window.addEventListener("DOMContentLoaded", () => {
 function showChatLoginPrompt() {
   const chatBox = document.getElementById('chatBox');
   const inputRow = document.querySelector('.chat-input-row');
+  const redirectTarget = window.location.pathname.split(/[\\/]/).pop() + window.location.search;
+  try { sessionStorage.setItem('postLoginRedirect', redirectTarget); } catch (e) {}
+
   if (!chatBox) {
-    // fallback: redirect to login
-    try { sessionStorage.setItem('postLoginRedirect', 'chat.html'); } catch (e) {}
-    window.location.href = 'index.html';
+    window.location.href = 'index.html?auth=1';
     return;
   }
 
@@ -854,7 +845,7 @@ function showChatLoginPrompt() {
         <p>Sign in to message sellers and view conversations.</p>
         <div style="margin-top:12px">
           <button class="no-chats-cta" id="goLoginBtn">Log in</button>
-          <button class="no-chats-cta" id="goBrowseBtn">Browse books</button>
+          <button class="no-chats-cta" id="goBrowseBtn" style="background:#fff;color:#0f2b5b;border:1px solid #9fb8f3;margin-left:8px;">Browse books</button>
         </div>
       </div>
     </div>
@@ -864,19 +855,19 @@ function showChatLoginPrompt() {
   const header = document.querySelector('.chat-header');
   if (header) header.classList.add('hidden');
 
-  document.getElementById('goLoginBtn').addEventListener('click', () => {
-    try { sessionStorage.setItem('postLoginRedirect', window.location.pathname); } catch (e) {}
-    window.location.href = 'index.html';
+  document.getElementById('goLoginBtn')?.addEventListener('click', () => {
+    try { sessionStorage.setItem('postLoginRedirect', redirectTarget); } catch (e) {}
+    window.location.href = 'index.html?auth=1';
   });
 
-  document.getElementById('goBrowseBtn').addEventListener('click', () => {
+  document.getElementById('goBrowseBtn')?.addEventListener('click', () => {
     window.location.href = 'all-books.html';
   });
 }
 
 async function loadStats() {
   try {
-    const res = await fetch("https://swaptome-api.onrender.com/stats");
+    const res = await fetch(apiUrl("/stats"));
     const data = await res.json();
 
     const booksCount = document.getElementById("booksCount");
@@ -898,15 +889,70 @@ setInterval(loadStats, 5000);
 
 window.addEventListener('DOMContentLoaded', loadStats);
 
-/* HERO SLIDER */
+/* HERO SLIDER — 3D Round Revolving Carousel */
 let currentSlide = 0;
 let featuredSliderTimer = null;
+let isSliderScrolling = false;
+
+function updateSliderDots(index) {
+  const dotsContainer = document.getElementById('sliderDots');
+  if (!dotsContainer) return;
+  const dots = dotsContainer.querySelectorAll('.slider-dot');
+  dots.forEach((dot, i) => {
+    dot.classList.toggle('active', i === index);
+  });
+}
+
+function ensureSliderDots() {
+  const sliderWrap = document.querySelector('.netflix-slider');
+  if (!sliderWrap) return;
+  const slides = sliderWrap.querySelectorAll('.slide');
+  if (!slides.length) return;
+
+  let dotsContainer = sliderWrap.querySelector('.slider-dots');
+  if (!dotsContainer) {
+    dotsContainer = document.createElement('div');
+    dotsContainer.className = 'slider-dots';
+    dotsContainer.id = 'sliderDots';
+    sliderWrap.appendChild(dotsContainer);
+  }
+
+  dotsContainer.innerHTML = '';
+  slides.forEach((_, i) => {
+    const dot = document.createElement('button');
+    dot.type = 'button';
+    dot.className = `slider-dot ${i === currentSlide ? 'active' : ''}`;
+    dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
+    dot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      currentSlide = i;
+      showSlide(currentSlide);
+    });
+    dotsContainer.appendChild(dot);
+  });
+}
 
 function showSlide(index) {
   const slides = document.querySelectorAll('.slide');
   if (!slides || slides.length === 0) return;
-  slides.forEach(s => s.classList.remove('active'));
-  slides[index].classList.add('active');
+  const total = slides.length;
+  currentSlide = (index % total + total) % total;
+
+  slides.forEach((s, idx) => {
+    s.classList.remove('active', 'slide-prev', 'slide-next', 'slide-hidden');
+    const diff = (idx - currentSlide + total) % total;
+    if (diff === 0) {
+      s.classList.add('active');
+    } else if (diff === 1 || (total === 2 && diff === 1)) {
+      s.classList.add('slide-next');
+    } else if (diff === total - 1) {
+      s.classList.add('slide-prev');
+    } else {
+      s.classList.add('slide-hidden');
+    }
+  });
+
+  updateSliderDots(currentSlide);
 }
 
 function nextSlide() {
@@ -923,40 +969,105 @@ function prevSlide() {
   showSlide(currentSlide);
 }
 
+function initSliderScrollAndTouch() {
+  const sliderWrap = document.querySelector('.netflix-slider');
+  if (!sliderWrap || sliderWrap.dataset.scrollInited) return;
+  sliderWrap.dataset.scrollInited = 'true';
+
+  ensureSliderDots();
+
+  // 1. Mouse wheel / trackpad round-and-round scrolling
+  sliderWrap.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (isSliderScrolling) return;
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (Math.abs(delta) > 16) {
+      isSliderScrolling = true;
+      if (delta > 0) {
+        nextSlide();
+      } else {
+        prevSlide();
+      }
+      setTimeout(() => { isSliderScrolling = false; }, 420);
+    }
+  }, { passive: false });
+
+  // 2. Mouse drag / Touch swipe
+  let startX = 0;
+  let isDragging = false;
+
+  sliderWrap.addEventListener('mousedown', (e) => {
+    startX = e.clientX;
+    isDragging = true;
+  });
+
+  window.addEventListener('mouseup', (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    const diffX = e.clientX - startX;
+    if (diffX < -35) {
+      nextSlide();
+    } else if (diffX > 35) {
+      prevSlide();
+    }
+  });
+
+  sliderWrap.addEventListener('touchstart', (e) => {
+    if (e.touches && e.touches[0]) startX = e.touches[0].clientX;
+  }, { passive: true });
+
+  sliderWrap.addEventListener('touchend', (e) => {
+    if (!e.changedTouches || !e.changedTouches[0]) return;
+    const diffX = e.changedTouches[0].clientX - startX;
+    if (diffX < -35) {
+      nextSlide();
+    } else if (diffX > 35) {
+      prevSlide();
+    }
+  }, { passive: true });
+
+  // 3. Hover pause / resume
+  sliderWrap.addEventListener('mouseenter', () => {
+    if (featuredSliderTimer) {
+      clearInterval(featuredSliderTimer);
+      featuredSliderTimer = null;
+    }
+  });
+
+  sliderWrap.addEventListener('mouseleave', () => {
+    if (!featuredSliderTimer && document.querySelectorAll('.slide').length > 1) {
+      featuredSliderTimer = setInterval(nextSlide, 3500);
+    }
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const slides = document.querySelectorAll('.slide');
   if (slides && slides.length) {
     showSlide(0);
+    ensureSliderDots();
+    initSliderScrollAndTouch();
     if (featuredSliderTimer) clearInterval(featuredSliderTimer);
-    featuredSliderTimer = setInterval(nextSlide, 3000);
+    featuredSliderTimer = setInterval(nextSlide, 3500);
     document.querySelectorAll('.slide-btn.next').forEach(b => b.addEventListener('click', nextSlide));
     document.querySelectorAll('.slide-btn.prev').forEach(b => b.addEventListener('click', prevSlide));
-
-    const sliderWrap = document.querySelector('.netflix-slider');
-    if (sliderWrap) {
-      sliderWrap.addEventListener('mouseenter', () => {
-        if (featuredSliderTimer) {
-          clearInterval(featuredSliderTimer);
-          featuredSliderTimer = null;
-        }
-      });
-
-      sliderWrap.addEventListener('mouseleave', () => {
-        if (!featuredSliderTimer && document.querySelectorAll('.slide').length > 1) {
-          featuredSliderTimer = setInterval(nextSlide, 3000);
-        }
-      });
-    }
   }
 });
 // 🔹 MODAL FUNCTIONS
 function openModal(id) {
-  document.getElementById(id).classList.add('open');
+  const el = document.getElementById(id);
+  if (!el) {
+    console.warn("Modal not found:", id);
+    return;
+  }
+  el.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
 
 function closeModal(id) {
-  document.getElementById(id).classList.remove('open');
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('open');
   document.body.style.overflow = '';
 }
 
@@ -1190,7 +1301,7 @@ async function loadInbox() {
     return;
   }
 
-  const res = await fetch(`https://swaptome-api.onrender.com/inbox/${currentUser}`);
+  const res = await fetch(apiUrl(`/inbox/${encodeURIComponent(currentUser)}`));
   if (!res.ok) {
     console.warn('Inbox API returned', res.status);
     // show server error in main chat area
@@ -1203,6 +1314,20 @@ async function loadInbox() {
   if (!chatList) return;
 
   chatList.innerHTML = "";
+
+  if (!users) users = [];
+
+  // Always ensure current seller is included at the top of the chat list
+  if (currentSeller && currentSeller !== 'admin' && currentUser.toLowerCase() !== currentSeller.toLowerCase()) {
+    const existingIndex = users.findIndex(u => (u.user || '').toLowerCase() === currentSeller.toLowerCase());
+    if (existingIndex === -1) {
+      users.unshift({
+        user: currentSeller,
+        lastMessage: 'Tap to start chatting',
+        unread: 0
+      });
+    }
+  }
 
   if (!users || users.length === 0) {
     if (currentSeller) {
@@ -1358,7 +1483,7 @@ async function openChat(name){
         });
       }
 
-      await fetch("https://swaptome-api.onrender.com/mark-read", {
+      await fetch(apiUrl("/mark-read"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sender: name, receiver: currentUser })
@@ -1415,9 +1540,8 @@ async function addBook() {
   const writerInput = document.getElementById("bookWriter");
   const writer = writerInput ? writerInput.value.trim() : "";
 
-  const price = Number(
-    document.getElementById("bookPrice").value
-  );
+  const priceInput = document.getElementById("bookPrice");
+  const price = priceInput ? Number(priceInput.value) : 0;
 
   const category = getSelectedBookCategory();
 
@@ -1435,10 +1559,10 @@ async function addBook() {
     localStorage.getItem("userName") || "User";
   const uploaderEmail = localStorage.getItem("email") || localStorage.getItem("userEmail") || "";
 
-const imageInput = document.getElementById("imageInput");
-const files = imageInput.files;
+  const imageInput = document.getElementById("imageInput");
+  const files = imageInput ? (imageInput.files || []) : [];
 
-const formData = new FormData();
+  const formData = new FormData();
 
   const submitButton = document.querySelector('#sellModal .form-submit');
   const originalButtonHtml = submitButton ? submitButton.innerHTML : '';
@@ -1516,6 +1640,7 @@ Array.from(files).forEach((file) => {
 // 🔹 IMAGE PREVIEW
 document.getElementById("imageInput")?.addEventListener("change", function() {
   const previewContainer = document.getElementById("previewContainer");
+  if (!previewContainer) return;
   previewContainer.innerHTML = "";
 
   Array.from(this.files).slice(0, 5).forEach((file, index) => {
@@ -1707,9 +1832,9 @@ async function loginUser() {
       body: JSON.stringify({ email, password })
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({ message: "Failed to read server response" }));
 
-    if (data.message.includes("Login successful"))  {
+    if (data && data.message && data.message.includes("Login successful")) {
       localStorage.setItem("token", data.token);
       localStorage.setItem("userName", data.name); // ⭐ ADD THIS
       localStorage.setItem("email", data.email || normalizedEmail);
@@ -1790,6 +1915,41 @@ function syncBookLocationFromSignup() {
 
 window.addEventListener("DOMContentLoaded", syncBookLocationFromSignup);
 
+function openChatWithSeller(sellerName, bookId) {
+  const seller = String(sellerName || "").trim();
+  if (!seller || seller.toLowerCase() === "unknown" || seller.toLowerCase() === "seller") {
+    alert("Seller information is not available for this book.");
+    return;
+  }
+
+  const currentUser = (localStorage.getItem("userName") || "").trim();
+  const token = localStorage.getItem("token");
+  const isLoggedIn = !!(currentUser || token);
+
+  if (!isLoggedIn) {
+    sessionStorage.setItem("postLoginRedirect", `chat.html?seller=${encodeURIComponent(seller)}`);
+    localStorage.setItem("chatSeller", seller);
+    localStorage.setItem("chatWith", seller);
+    if (typeof openModal === "function" && document.getElementById("authModal")) {
+      openModal("authModal");
+    } else {
+      window.location.href = "index.html?auth=1";
+    }
+    return;
+  }
+
+  if (currentUser && currentUser.toLowerCase() === seller.toLowerCase()) {
+    alert("You are the seller of this book! You cannot start a chat with yourself.");
+    return;
+  }
+
+  localStorage.setItem("chatSeller", seller);
+  localStorage.setItem("chatWith", seller);
+  window.location.href = `chat.html?seller=${encodeURIComponent(seller)}`;
+}
+window.openChatWithSeller = openChatWithSeller;
+window.chatWithSeller = openChatWithSeller;
+
 async function loadBooksHome() {
   try {
     const res = await fetch(apiUrl("/api/books"));
@@ -1821,7 +1981,7 @@ async function loadBooksHome() {
     limitedBooks.forEach(book => {
   const featuredLabel = book.featured ? `<span class="book-badge featured">${book.featured}</span>` : '';
   container.innerHTML += `
-    <div class="book-card">
+    <div class="book-card" style="cursor:pointer;" onclick="openChatWithSeller(${JSON.stringify(book.seller || 'Seller')}, '${book._id}')">
 
       <img 
           src="${resolveBookImageSrc(book.images && book.images.length > 0 ? book.images[0] : '')}"
@@ -1832,9 +1992,10 @@ async function loadBooksHome() {
       <div class="book-info">
         <div class="book-badges">${featuredLabel}</div>
         <div class="book-title">${book.title || "No title"}</div>
-        <div class="book-author">${book.seller || "Unknown"}</div>
+        <div class="book-author">Seller: ${book.seller || "Unknown"}</div>
         <div class="book-location">${getBookLocation(book)}</div>
         <div class="book-price">₹${book.price || 0}</div>
+        <button type="button" class="btn-sm btn-amber" style="margin-top:8px;width:100%;font-size:0.85rem;padding:7px 10px;border-radius:8px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;" onclick="event.stopPropagation(); openChatWithSeller(${JSON.stringify(book.seller || 'Seller')}, '${book._id}')">💬 Chat with Seller</button>
       </div>
 
     </div>
@@ -2012,6 +2173,8 @@ async function loadFeaturedBooksSlider() {
 
     currentSlide = 0;
     showSlide(0);
+    ensureSliderDots();
+    initSliderScrollAndTouch();
   } catch (err) {
     console.warn('Could not load featured books slider', err);
     slider.innerHTML = `
@@ -2042,24 +2205,13 @@ window.addEventListener('DOMContentLoaded', loadFeaturedBooksSlider);
 
 // Navigate to chat with selected seller
 function chatWithSeller(name) {
-
-  console.log("CLICKED USER:", name);
-
-  localStorage.setItem("chatSeller", name);
-  localStorage.setItem("chatWith", name);
-
-  console.log(
-    "SAVED:",
-    localStorage.getItem("chatSeller")
-  );
-
-  window.location.href = `chat.html?seller=${encodeURIComponent(name)}`;
+  openChatWithSeller(name);
 }
 async function loadProfile() {
   const token = localStorage.getItem("token");
 
   try {
-    const res = await fetch("https://swaptome-api.onrender.com/profile", {
+    const res = await fetch(apiUrl("/profile"), {
       headers: {
         Authorization: token
       }
@@ -2096,10 +2248,11 @@ function initUnreadBadge() {
 
 function initSocket() {
   if (typeof io === "undefined") return;
+  if (document.body && document.body.classList.contains("chat-page")) return;
 
   const currentUser = localStorage.getItem("userName");
   const otherUser = localStorage.getItem("chatSeller");
-  const socket = io("https://swaptome-api.onrender.com");
+  const socket = io(getApiBaseUrl());
 
   if (currentUser) {
     socket.emit("joinUser", currentUser);
@@ -2205,7 +2358,7 @@ function renderStickyAnnouncement(announcement) {
 async function loadStickyAnnouncement() {
   try {
     if (!isDashboardPage()) return;
-    const res = await fetch('https://swaptome-api.onrender.com/announcements/active');
+    const res = await fetch(apiUrl('/announcements/active'));
     if (!res.ok) return;
     const data = await res.json();
     renderStickyAnnouncement(data.announcement);
@@ -2216,7 +2369,7 @@ async function loadStickyAnnouncement() {
 
 async function loadLatestBroadcast() {
   try {
-    const res = await fetch('https://swaptome-api.onrender.com/notifications/latest');
+    const res = await fetch(apiUrl('/notifications/latest'));
     if (!res.ok) {
       const cached = JSON.parse(localStorage.getItem('latestBroadcast') || 'null');
       if (cached?.important && isDashboardPage()) renderBroadcastBanner(cached);
@@ -2280,7 +2433,11 @@ function startChatting() {
   }
 
   sessionStorage.setItem("postLoginRedirect", "chat.html");
-  openModal("authModal");
+  if (typeof openModal === "function" && document.getElementById("authModal")) {
+    openModal("authModal");
+  } else {
+    window.location.href = "index.html?auth=1";
+  }
 }
 
 // Anchor scroll fallback — ensures hash links land below fixed header

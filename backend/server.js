@@ -228,48 +228,116 @@ function renderVerificationPage(title, message) {
 </html>`;
 }
 
+async function sendUnifiedEmail({ to, subject, html, text, fromName = 'SwapToMe' }) {
+  const brevoApiKey = firstDefinedEnv('BREVO_API_KEY', 'SENDINBLUE_API_KEY');
+  const resendApiKey = firstDefinedEnv('RESEND_API_KEY');
+  const fromEmail = firstDefinedEnv('MAIL_FROM', 'SMTP_USER', 'EMAIL_USER', 'GMAIL_USER') || 'ezazmdrk3929@gmail.com';
+
+  // 1. Try Brevo HTTPS REST API (Port 443 - Never blocked on Render)
+  if (brevoApiKey) {
+    console.log(`[Email] Sending via Brevo REST API (HTTPS) to ${to}...`);
+    const res = await withTimeout(
+      fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoApiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: fromName, email: fromEmail },
+          to: [{ email: to }],
+          subject,
+          htmlContent: html,
+          textContent: text || undefined
+        })
+      }),
+      8000,
+      'Brevo API request timed out'
+    );
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`Brevo API Error (${res.status}): ${errBody}`);
+    }
+    const data = await res.json();
+    console.log(`[Email] ✅ Sent via Brevo API! MessageId: ${data.messageId || 'ok'}`);
+    return { success: true, provider: 'brevo', info: data };
+  }
+
+  // 2. Try Resend HTTPS REST API (Port 443 - Never blocked on Render)
+  if (resendApiKey) {
+    console.log(`[Email] Sending via Resend REST API (HTTPS) to ${to}...`);
+    const res = await withTimeout(
+      fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: `${fromName} <onboarding@resend.dev>`,
+          to,
+          subject,
+          html,
+          text: text || undefined
+        })
+      }),
+      8000,
+      'Resend API request timed out'
+    );
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`Resend API Error (${res.status}): ${errBody}`);
+    }
+    const data = await res.json();
+    console.log(`[Email] ✅ Sent via Resend API! ID: ${data.id || 'ok'}`);
+    return { success: true, provider: 'resend', info: data };
+  }
+
+  // 3. Fallback to Nodemailer SMTP (e.g. Gmail)
+  console.log(`[Email] Sending via SMTP to ${to}...`);
+  const transporter = await getMailTransporter();
+  const info = await withTimeout(
+    transporter.sendMail({
+      from: `"${fromName}" <${fromEmail}>`,
+      to,
+      subject,
+      html,
+      text
+    }),
+    8000,
+    'SMTP connection timed out (Render blocks standard SMTP ports 465/587 on free tier; add BREVO_API_KEY or RESEND_API_KEY in Render for instant HTTP email delivery)'
+  );
+  console.log(`[Email] ✅ Sent via SMTP! MessageId: ${info.messageId}`);
+  return { success: true, provider: 'smtp', info };
+}
+
 async function sendVerificationEmail(user, verifyToken, otp) {
   const verifyLink = `${getAppBaseUrl()}/api/auth/verify/${verifyToken}`;
 
-  if (!hasSmtpConfig()) {
-    console.warn('[SMTP] Configuration missing. Verification email skipped for:', user.email);
-    return { skipped: true, reason: 'SMTP is not configured', verifyLink, otp };
-  }
-
   try {
-    console.log(`[SMTP] Sending verification email to ${user.email}...`);
-    const transporter = await getMailTransporter();
-    const fromAddress = process.env.MAIL_FROM || process.env.SMTP_USER || 'no-reply@swaptome.local';
+    const result = await sendUnifiedEmail({
+      to: user.email,
+      subject: 'Verify Your Email - SwapToMe',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
+          <h2 style="color: #e8820c; margin-top: 0;">SwapToMe Email Verification</h2>
+          <p>Hi <strong>${user.name || 'there'}</strong>,</p>
+          <p>Thank you for signing up on SwapToMe! Please click the button below to verify your email address:</p>
+          <p style="margin: 24px 0;">
+            <a href="${verifyLink}" style="display:inline-block;padding:14px 24px;background:#e8820c;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;font-size:16px;">Verify My Account</a>
+          </p>
+          <p style="color: #666; font-size: 14px;">If the button doesn't work, copy and paste this link into your browser:</p>
+          <p style="color: #888; font-size: 13px; word-break: break-all;">${verifyLink}</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p style="color: #999; font-size: 12px;">If you did not request this, you can safely ignore this email.</p>
+        </div>
+      `
+    });
 
-    const info = await withTimeout(
-      transporter.sendMail({
-        from: `"SwapToMe" <${fromAddress}>`,
-        to: user.email,
-        subject: 'Verify Your Email - SwapToMe',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
-            <h2 style="color: #e8820c; margin-top: 0;">SwapToMe Email Verification</h2>
-            <p>Hi <strong>${user.name || 'there'}</strong>,</p>
-            <p>Thank you for signing up on SwapToMe! Please click the button below to verify your email address:</p>
-            <p style="margin: 24px 0;">
-              <a href="${verifyLink}" style="display:inline-block;padding:14px 24px;background:#e8820c;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;font-size:16px;">Verify My Account</a>
-            </p>
-            <p style="color: #666; font-size: 14px;">If the button doesn't work, copy and paste this link into your browser:</p>
-            <p style="color: #888; font-size: 13px; word-break: break-all;">${verifyLink}</p>
-            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-            <p style="color: #999; font-size: 12px;">If you did not request this, you can safely ignore this email.</p>
-          </div>
-        `
-      }),
-      10000,
-      'Verification email timed out while sending'
-    );
-
-    console.log(`[SMTP] ✅ Verification email sent to ${user.email}. MessageId: ${info.messageId}`);
-    return { info, verifyLink };
+    return { info: result.info, verifyLink };
   } catch (error) {
-    console.error(`[SMTP] ❌ Verification email send failed for ${user.email}:`, error?.message || error);
-    mailTransportPromise = null; // reset cache on failure
+    console.error(`[Email] ❌ Verification email failed for ${user.email}:`, error?.message || error);
+    mailTransportPromise = null;
     return { skipped: true, reason: error?.message || 'Verification email send failed', verifyLink, otp };
   }
 }
@@ -277,45 +345,30 @@ async function sendVerificationEmail(user, verifyToken, otp) {
 async function sendPasswordResetEmail(user, resetToken) {
   const resetLink = `${getAppBaseUrl()}/api/auth/reset-password/${resetToken}`;
 
-  if (!hasSmtpConfig()) {
-    console.warn('[SMTP] Configuration missing. Password reset email skipped for:', user.email);
-    return { skipped: true, reason: 'SMTP is not configured', resetLink };
-  }
-
   try {
-    console.log(`[SMTP] Sending password reset email to ${user.email}...`);
-    const transporter = await getMailTransporter();
-    const fromAddress = process.env.MAIL_FROM || process.env.SMTP_USER || 'no-reply@swaptome.local';
+    const result = await sendUnifiedEmail({
+      to: user.email,
+      subject: 'Reset Your Password - SwapToMe',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
+          <h2 style="color: #e8820c; margin-top: 0;">Password Reset Request</h2>
+          <p>Hi <strong>${user.name || 'there'}</strong>,</p>
+          <p>We received a request to reset your SwapToMe password. Click the button below to set a new password:</p>
+          <p style="margin: 24px 0;">
+            <a href="${resetLink}" style="display:inline-block;padding:14px 24px;background:#e8820c;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;font-size:16px;">Reset Password</a>
+          </p>
+          <p style="color: #666; font-size: 14px;">This link will expire in 1 hour. If the button doesn't work, copy and paste this link into your browser:</p>
+          <p style="color: #888; font-size: 13px; word-break: break-all;">${resetLink}</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p style="color: #999; font-size: 12px;">If you did not request a password reset, you can safely ignore this email.</p>
+        </div>
+      `
+    });
 
-    const info = await withTimeout(
-      transporter.sendMail({
-        from: `"SwapToMe" <${fromAddress}>`,
-        to: user.email,
-        subject: 'Reset Your Password - SwapToMe',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
-            <h2 style="color: #e8820c; margin-top: 0;">Password Reset Request</h2>
-            <p>Hi <strong>${user.name || 'there'}</strong>,</p>
-            <p>We received a request to reset your SwapToMe password. Click the button below to set a new password:</p>
-            <p style="margin: 24px 0;">
-              <a href="${resetLink}" style="display:inline-block;padding:14px 24px;background:#e8820c;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;font-size:16px;">Reset Password</a>
-            </p>
-            <p style="color: #666; font-size: 14px;">This link will expire in 1 hour. If the button doesn't work, copy and paste this link into your browser:</p>
-            <p style="color: #888; font-size: 13px; word-break: break-all;">${resetLink}</p>
-            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-            <p style="color: #999; font-size: 12px;">If you did not request a password reset, you can safely ignore this email.</p>
-          </div>
-        `
-      }),
-      10000,
-      'Password reset email timed out while sending'
-    );
-
-    console.log(`[SMTP] ✅ Password reset email sent to ${user.email}. MessageId: ${info.messageId}`);
-    return { info, resetLink };
+    return { info: result.info, resetLink };
   } catch (error) {
-    console.error(`[SMTP] ❌ Password reset email send failed for ${user.email}:`, error?.message || error);
-    mailTransportPromise = null; // reset cache on failure
+    console.error(`[Email] ❌ Password reset email failed for ${user.email}:`, error?.message || error);
+    mailTransportPromise = null;
     return { skipped: true, reason: error?.message || 'Password reset email send failed', resetLink };
   }
 }

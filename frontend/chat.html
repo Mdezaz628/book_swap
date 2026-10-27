@@ -1,15 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Chat</title>
+  <title>Chat — SWAPTOME</title>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="3d-enhance.css">
 </head>
 <body class="chat-page">
 <script>
   (function () {
-    const savedTheme = localStorage.getItem('selectedTheme') || 'light';
+    const savedTheme = localStorage.getItem('selectedTheme') || 'dark';
     document.body.classList.add(savedTheme + '-theme');
   })();
 </script>
@@ -92,10 +94,10 @@
 </section>
 
 <div id="chatReportModal" style="display:none;position:fixed;inset:0;background:rgba(10,14,22,0.65);backdrop-filter:blur(8px);z-index:10000;align-items:center;justify-content:center;padding:16px;">
-  <div style="width:min(100%,520px);background:#fff;border-radius:20px;padding:20px;box-shadow:0 30px 70px rgba(0,0,0,.3);">
+  <div style="width:min(100%,520px);background:linear-gradient(160deg, #0e1726 0%, #080f1a 100%);border:1px solid rgba(255,107,0,0.22);border-radius:24px;padding:24px;box-shadow:0 30px 90px rgba(0,0,0,.8);color:#fff;">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;">
       <strong style="font-size:1.1rem;">Report Chat</strong>
-      <button onclick="closeChatReportModal()" style="background:transparent;border:none;font-size:24px;cursor:pointer;">✕</button>
+      <button onclick="closeChatReportModal()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);color:#cbd5e1;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;">✕</button>
     </div>
     <div style="display:grid;gap:12px;">
       <input id="chatReportName" placeholder="Your name" style="padding:12px 14px;border:1px solid #d6dbe5;border-radius:12px;">
@@ -103,29 +105,30 @@
       <input id="chatReportTarget" placeholder="Seller name" style="padding:12px 14px;border:1px solid #d6dbe5;border-radius:12px;">
       <select id="chatReportReason" style="padding:12px 14px;border:1px solid #d6dbe5;border-radius:12px;"><option>Abusive behavior</option><option>Harassment</option><option>Scam / fraud</option><option>Spam</option><option>Other</option></select>
       <textarea id="chatReportDetails" rows="4" placeholder="Describe the chat issue" style="padding:12px 14px;border:1px solid #d6dbe5;border-radius:12px;resize:vertical;"></textarea>
-      <button onclick="submitChatReport()" style="padding:12px 14px;border:none;border-radius:12px;background:linear-gradient(135deg,#0f2b5b 0%,#1d4ed8 100%);color:#fff;font-weight:800;cursor:pointer;">Submit Report</button>
+      <button onclick="submitChatReport()" style="padding:14px 20px;border:none;border-radius:14px;background:linear-gradient(135deg,#ff6b00 0%,#ffaa00 100%);color:#fff;font-weight:800;cursor:pointer;box-shadow:0 8px 24px rgba(255,107,0,0.35);">Submit Report</button>
     </div>
   </div>
 </div>
 
 <script>
   function goBack() {
-    window.location.href = "dashboard.html";
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      window.location.href = "all-books.html";
+    }
   }
 </script>
-<script src="https://swaptome-api.onrender.com/socket.io/socket.io.js"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
-  const socket = io("https://swaptome-api.onrender.com");
-  const currentUser = localStorage.getItem("userName") || "User";
+  const apiBase = (window.__API_BASE_URL__ || '').replace(/\/$/, '') || ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0') ? (window.location.port === '5000' ? window.location.origin : 'http://localhost:5000') : 'https://swaptome-api.onrender.com');
+  const socket = io(apiBase, { transports: ['websocket', 'polling'] });
+  const currentUser = (localStorage.getItem("userName") || "").trim();
   const urlParams = new URLSearchParams(window.location.search);
-  // Only open a live chat when the seller is explicitly passed in the URL.
-  let selectedSeller = urlParams.get("seller");
+  let selectedSeller = (urlParams.get("seller") || localStorage.getItem("chatSeller") || "").trim();
+  if (!selectedSeller) selectedSeller = null;
 
-  // normalize empty string -> null
-  if (selectedSeller === "" || selectedSeller === "Seller") selectedSeller = null;
-
-  // persist only when we actually have a selected seller
   if (selectedSeller) {
     localStorage.setItem("chatSeller", selectedSeller);
     localStorage.setItem("chatWith", selectedSeller);
@@ -134,14 +137,28 @@
   const chatAvatarEl = document.getElementById("chatAvatar");
 
   if (chatUserNameEl) {
-    chatUserNameEl.textContent = selectedSeller || "";
+    chatUserNameEl.textContent = selectedSeller || "No recipient selected";
   }
 
   if (chatAvatarEl) {
     chatAvatarEl.textContent = selectedSeller ? (selectedSeller[0] || "S").toUpperCase() : "?";
   }
 
-  const roomId = selectedSeller ? [currentUser, selectedSeller].sort().join("_") : null;
+  const effectiveUser = currentUser || "Guest";
+  const roomId = (selectedSeller && effectiveUser) ? [effectiveUser, selectedSeller].sort().join("_") : null;
+
+  function emitChatJoins() {
+    if (currentUser) socket.emit("joinUser", currentUser);
+    emitChatJoins();
+  }
+
+  socket.on("connect", () => {
+    console.log("Chat socket connected:", socket.id);
+    emitChatJoins();
+  });
+  if (socket.connected) {
+    emitChatJoins();
+  }
   let unreadCount = 0;
   let latestQrPayload = null;
   let latestQrDataUrl = "";
@@ -174,7 +191,7 @@
       return;
     }
 
-    const res = await fetch('https://swaptome-api.onrender.com/reports', {
+    const res = await fetch(`${apiBase}/reports`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -217,7 +234,7 @@
   async function loadOldMessages(rId) {
     try {
       console.log('Fetching messages for room:', rId);
-      const res = await fetch(`https://swaptome-api.onrender.com/messages/${rId}`);
+      const res = await fetch(`${apiBase}/messages/${encodeURIComponent(rId)}`);
       if (!res.ok) {
         console.warn('Messages API returned', res.status);
         hideChatLoading();
@@ -252,7 +269,7 @@
   async function markMessagesRead() {
     try {
       await fetch(
-        "https://swaptome-api.onrender.com/mark-read",
+        `${apiBase}/mark-read`,
         {
           method: "PUT",
           headers: {
@@ -473,7 +490,7 @@
     chatBox.innerHTML = '';
     try {
       const cached = JSON.parse(localStorage.getItem('latestBroadcast') || 'null');
-      const res = await fetch('https://swaptome-api.onrender.com/notifications/history?limit=25');
+      const res = await fetch(`${apiBase}/notifications/history?limit=25`);
       const data = res.ok ? await res.json() : { notifications: [] };
       const notifications = (data.notifications || []).length ? data.notifications : (cached ? [cached] : []);
 
@@ -704,7 +721,7 @@
     if (!roomId) return;
 
     try {
-      const res = await fetch(`https://swaptome-api.onrender.com/deals/${roomId}/latest`);
+      const res = await fetch(`${apiBase}/deals/${encodeURIComponent(roomId)}/latest`);
       if (!res.ok) return;
 
       const data = await res.json();
@@ -720,45 +737,47 @@
   }
 
   function sendMessage() {
-
-    const input =
-      document.getElementById("message");
-
-    const message =
-      input.value.trim();
-
+    const input = document.getElementById("message");
+    const message = input ? input.value.trim() : "";
     if (!message) return;
 
-    if (selectedSeller === 'admin') {
-      alert('You cannot message admin directly. Please use the notice thread to view updates.');
+    if (!currentUser) {
+      if (typeof showChatLoginPrompt === "function") {
+        showChatLoginPrompt();
+      } else {
+        window.location.href = "index.html?auth=1";
+      }
       return;
     }
-
-    const time =
-      new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit"
-      });
-
-    const data = {
-
-      roomId: roomId,
-
-      sender: currentUser,
-
-      receiver: selectedSeller,
-
-      message: message,
-
-      time: time,
-
-      isRead: false
-    };
 
     if (!selectedSeller) {
-      alert('Select someone to chat with first.');
+      alert("Select someone to chat with first.");
       return;
     }
+
+    if (currentUser.toLowerCase() === selectedSeller.toLowerCase()) {
+      alert("You cannot chat with yourself.");
+      return;
+    }
+
+    if (selectedSeller === "admin") {
+      alert("You cannot message admin directly. Please use the notice thread to view updates.");
+      return;
+    }
+
+    const time = new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+
+    const data = {
+      roomId: roomId,
+      sender: currentUser,
+      receiver: selectedSeller,
+      message: message,
+      time: time,
+      isRead: false
+    };
 
     // 🔥 backend ko send
     socket.emit("sendMessage", data);
@@ -781,7 +800,7 @@
     console.log("MESSAGE SENDER:", data.sender);
     console.log("FULL DATA:", data);
 
-    if (data.sender === currentUser) return;
+    if (String(data.sender || "").toLowerCase().trim() === String(currentUser || "").toLowerCase().trim()) return;
 
     appendMessage(data);
 

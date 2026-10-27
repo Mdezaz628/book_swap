@@ -6,7 +6,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node backend/server.js",
+    "frontend": "npx serve frontend --listen 3000",
+    "backend": "node backend/server.js"
   },
   "keywords": [],
   "author": "",
