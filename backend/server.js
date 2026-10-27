@@ -123,8 +123,12 @@ function getSmtpConfig() {
   const transportUrl = firstDefinedEnv('SMTP_URL', 'MAIL_URL', 'EMAIL_URL');
   if (transportUrl) return { transportUrl };
 
-  const user = firstDefinedEnv('SMTP_USER', 'EMAIL_USER', 'GMAIL_USER', 'MAIL_USER') || 'ezazmdrk3929@gmail.com';
-  const pass = firstDefinedEnv('SMTP_PASS', 'EMAIL_PASS', 'GMAIL_PASS', 'MAIL_PASS', 'GMAIL_APP_PASSWORD') || 'khvbcrgfphybpxgx';
+  // Previous hardcoded fallback credentials (commented out: blocked on Render free tier):
+  // const user = firstDefinedEnv('SMTP_USER', 'EMAIL_USER', 'GMAIL_USER', 'MAIL_USER') || 'ezazmdrk3929@gmail.com';
+  // const pass = firstDefinedEnv('SMTP_PASS', 'EMAIL_PASS', 'GMAIL_PASS', 'MAIL_PASS', 'GMAIL_APP_PASSWORD') || 'khvbcrgfphybpxgx';
+
+  const user = firstDefinedEnv('SMTP_USER', 'EMAIL_USER', 'GMAIL_USER', 'MAIL_USER');
+  const pass = firstDefinedEnv('SMTP_PASS', 'EMAIL_PASS', 'GMAIL_PASS', 'MAIL_PASS', 'GMAIL_APP_PASSWORD');
   const service = firstDefinedEnv('SMTP_SERVICE', 'EMAIL_SERVICE', 'MAIL_SERVICE') || 'gmail';
   const host = firstDefinedEnv('SMTP_HOST', 'EMAIL_HOST', 'MAIL_HOST') || 'smtp.gmail.com';
   const port = Number(firstDefinedEnv('SMTP_PORT', 'EMAIL_PORT', 'MAIL_PORT') || 465);
@@ -266,6 +270,9 @@ async function sendUnifiedEmail({ to, subject, html, text, fromName = 'SwapToMe'
   // 2. Try Resend HTTPS REST API (Port 443 - Never blocked on Render)
   if (resendApiKey) {
     console.log(`[Email] Sending via Resend REST API (HTTPS) to ${to}...`);
+    const resendFrom = firstDefinedEnv('RESEND_FROM', 'MAIL_FROM_RESEND') || `${fromName} <onboarding@resend.dev>`;
+    const recipients = Array.isArray(to) ? to : [String(to).trim()];
+
     const res = await withTimeout(
       fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -274,8 +281,8 @@ async function sendUnifiedEmail({ to, subject, html, text, fromName = 'SwapToMe'
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          from: `${fromName} <onboarding@resend.dev>`,
-          to,
+          from: resendFrom,
+          to: recipients,
           subject,
           html,
           text: text || undefined
@@ -284,31 +291,42 @@ async function sendUnifiedEmail({ to, subject, html, text, fromName = 'SwapToMe'
       8000,
       'Resend API request timed out'
     );
+
     if (!res.ok) {
       const errBody = await res.text();
-      throw new Error(`Resend API Error (${res.status}): ${errBody}`);
+      let errorMsg = errBody;
+      try {
+        const parsed = JSON.parse(errBody);
+        if (parsed.message) errorMsg = parsed.message;
+      } catch (_) {}
+      throw new Error(`Resend API Error (${res.status}): ${errorMsg}`);
     }
+
     const data = await res.json();
     console.log(`[Email] ✅ Sent via Resend API! ID: ${data.id || 'ok'}`);
     return { success: true, provider: 'resend', info: data };
   }
 
-  // 3. Fallback to Nodemailer SMTP (e.g. Gmail)
-  console.log(`[Email] Sending via SMTP to ${to}...`);
-  const transporter = await getMailTransporter();
-  const info = await withTimeout(
-    transporter.sendMail({
-      from: `"${fromName}" <${fromEmail}>`,
-      to,
-      subject,
-      html,
-      text
-    }),
-    8000,
-    'SMTP connection timed out (Render blocks standard SMTP ports 465/587 on free tier; add BREVO_API_KEY or RESEND_API_KEY in Render for instant HTTP email delivery)'
-  );
-  console.log(`[Email] ✅ Sent via SMTP! MessageId: ${info.messageId}`);
-  return { success: true, provider: 'smtp', info };
+  // 3. Fallback to Nodemailer SMTP (e.g. Gmail for local development)
+  if (hasSmtpConfig()) {
+    console.log(`[Email] Sending via SMTP to ${to}...`);
+    const transporter = await getMailTransporter();
+    const info = await withTimeout(
+      transporter.sendMail({
+        from: `"${fromName}" <${fromEmail}>`,
+        to,
+        subject,
+        html,
+        text
+      }),
+      8000,
+      'SMTP connection timed out (Render blocks standard SMTP ports 465/587 on free tier; add RESEND_API_KEY or BREVO_API_KEY in Render for instant HTTP email delivery)'
+    );
+    console.log(`[Email] ✅ Sent via SMTP! MessageId: ${info.messageId}`);
+    return { success: true, provider: 'smtp', info };
+  }
+
+  throw new Error('Email service is not configured. Set RESEND_API_KEY or BREVO_API_KEY in environment variables.');
 }
 
 async function sendVerificationEmail(user, verifyToken, otp) {
